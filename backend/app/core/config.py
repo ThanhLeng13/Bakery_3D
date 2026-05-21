@@ -1,0 +1,45 @@
+"""Application configuration using pydantic-settings."""
+
+from typing import List
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    """Application settings loaded from environment variables."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+    )
+
+    # Application
+    APP_NAME: str = "Cake Shop AI API"
+    APP_ENV: str = "development"
+    DEBUG: bool = True
+    API_V1_PREFIX: str = "/api/v1"
+
+    # Server
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
+
+    # CORS
+    CORS_ORIGINS: List[str] = ["http://localhost:3000"]
+
+    # Supabase
+    SUPABASE_URL: str = ""
+    SUPABASE_KEY: str = ""
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
+
+    # Anthropic (Claude API)
+    ANTHROPIC_API_KEY: str = ""
+    ANTHROPIC_MODEL: str = "claude-3-5-sonnet-20241022"
+
+    # JWT
+    JWT_SECRET_KEY: str = "change-this-to-a-secure-random-string"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+
+
+settings = Settings()

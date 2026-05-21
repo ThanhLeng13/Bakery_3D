@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #fdf6ee;
+  --foreground: #5c3d2e;
+  --pink-pastel: #e8837a;
+  --cream: #fdf6ee;
+  --mocha: #5c3d2e;
+}
+
+@layer base {
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-playfair), serif;
+  }
+}

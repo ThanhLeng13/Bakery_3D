@@ -1,0 +1,66 @@
+# ===========================================
+# Cake Shop AI - Root .gitignore
+# ===========================================
+
+# ---- Environment variables ----
+.env
+.env.local
+.env.*.local
+
+# ---- Frontend (Next.js) ----
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.vercel
+frontend/.pnp
+frontend/.pnp.js
+frontend/.yarn/install-state.gz
+frontend/coverage/
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# ---- Backend (Python/FastAPI) ----
+backend/venv/
+backend/.venv/
+backend/env/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.py[cod]
+backend/*$py.class
+backend/*.so
+backend/*.egg-info/
+backend/dist/
+backend/build/
+backend/.eggs/
+backend/.pytest_cache/
+backend/.coverage
+backend/htmlcov/
+
+# ---- Supabase ----
+supabase/.branches
+supabase/.temp
+
+# ---- IDE ----
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ---- Logs ----
+*.log
+logs/
+
+# ---- Docker ----
+docker-compose.override.yml
