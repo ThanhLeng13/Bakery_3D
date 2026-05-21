@@ -173,18 +173,21 @@ function CheckoutContent() {
 
     try {
       const orderData = {
-        customer_name: fullName.trim(),
-        customer_phone: phone.trim(),
-        customer_email: email.trim() || null,
+        full_name: fullName.trim(),
+        phone: phone.trim(),
+        email: email.trim() || null,
         pickup_date: new Date(pickupDate).toISOString(),
         items: [
           {
+            product_id: "00000000-0000-0000-0000-000000000000",
             size: cakeDesign.size,
             flavor: cakeDesign.flavor || "Vani",
             quantity: 1,
+            unit_price: totalPrice,
+            customization_json: cakeDesign,
           },
         ],
-        customization_json: cakeDesign,
+        ai_summary: null,
       };
 
       const response = await apiClient.post<OrderConfirmation>(
@@ -197,18 +200,19 @@ function CheckoutContent() {
       // Clear localStorage after successful order
       localStorage.removeItem("cake_customization_json");
     } catch (err: unknown) {
-      const apiErr = err as { detail?: string | Array<{ field: string; message: string }> };
+      const apiErr = err as { detail?: string | Array<{ field: string; message: string; loc?: string[] }> };
       if (apiErr?.detail) {
         if (typeof apiErr.detail === "string") {
           setErrors({ general: apiErr.detail });
         } else if (Array.isArray(apiErr.detail)) {
           const fieldErrors: FormErrors = {};
           apiErr.detail.forEach((e) => {
-            if (e.field === "customer_name") fieldErrors.full_name = e.message;
-            else if (e.field === "customer_phone") fieldErrors.phone = e.message;
-            else if (e.field === "customer_email") fieldErrors.email = e.message;
-            else if (e.field === "pickup_date") fieldErrors.pickup_date = e.message;
-            else fieldErrors.general = e.message;
+            const field = e.field || (e.loc ? e.loc[e.loc.length - 1] : "");
+            if (field === "full_name") fieldErrors.full_name = e.message || "Trường bắt buộc";
+            else if (field === "phone") fieldErrors.phone = e.message || "Trường bắt buộc";
+            else if (field === "email") fieldErrors.email = e.message || "Email không hợp lệ";
+            else if (field === "pickup_date") fieldErrors.pickup_date = e.message || "Ngày không hợp lệ";
+            else fieldErrors.general = e.message || "Đã xảy ra lỗi";
           });
           setErrors(fieldErrors);
         }

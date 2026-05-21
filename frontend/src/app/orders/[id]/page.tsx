@@ -44,10 +44,13 @@ interface OrderDetail {
   created_at: string;
   updated_at: string;
   items: OrderItem[];
-  customization: {
+  customizations: Array<{
+    id: string;
+    order_item_id: string | null;
     customization_json: CakeDesign;
     preview_image_url: string | null;
-  } | null;
+    created_at: string;
+  }>;
   status_history: StatusHistoryEntry[];
 }
 
@@ -330,61 +333,63 @@ function OrderDetailContent() {
         </section>
 
         {/* Customization Details */}
-        {order.customization && (
+        {order.customizations && order.customizations.length > 0 && (
           <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
             <h2 className="font-heading text-lg font-bold text-mocha mb-4">
               Chi tiết tùy chỉnh
             </h2>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-mocha/70">Kích thước</span>
-                <span className="text-mocha font-medium">
-                  {order.customization.customization_json.size}
-                </span>
-              </div>
-              {order.customization.customization_json.flavor && (
+            {order.customizations.map((customization, idx) => (
+              <div key={idx} className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-mocha/70">Hương vị</span>
+                  <span className="text-mocha/70">Kích thước</span>
                   <span className="text-mocha font-medium">
-                    {order.customization.customization_json.flavor}
+                    {customization.customization_json.size}
                   </span>
                 </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-mocha/70">Loại kem</span>
-                <span className="text-mocha font-medium">
-                  {order.customization.customization_json.cream_type}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-mocha/70">Màu kem</span>
-                <div className="flex items-center gap-2">
-                  <span
-                    className="w-4 h-4 rounded-full border border-mocha/20"
-                    style={{ backgroundColor: order.customization.customization_json.cream_color }}
-                  />
-                  <span className="text-mocha font-medium">
-                    {order.customization.customization_json.cream_color}
-                  </span>
-                </div>
-              </div>
-              {order.customization.customization_json.topping_type && (
+                {customization.customization_json.flavor && (
+                  <div className="flex justify-between">
+                    <span className="text-mocha/70">Hương vị</span>
+                    <span className="text-mocha font-medium">
+                      {customization.customization_json.flavor}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
-                  <span className="text-mocha/70">Topping</span>
+                  <span className="text-mocha/70">Loại kem</span>
                   <span className="text-mocha font-medium">
-                    {order.customization.customization_json.topping_type}
+                    {customization.customization_json.cream_type}
                   </span>
                 </div>
-              )}
-              {order.customization.customization_json.special_notes && (
-                <div className="pt-2 border-t border-mocha/10">
-                  <span className="text-mocha/70 block mb-1">Ghi chú đặc biệt</span>
-                  <p className="text-mocha">
-                    {order.customization.customization_json.special_notes}
-                  </p>
+                <div className="flex justify-between items-center">
+                  <span className="text-mocha/70">Màu kem</span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="w-4 h-4 rounded-full border border-mocha/20"
+                      style={{ backgroundColor: customization.customization_json.cream_color }}
+                    />
+                    <span className="text-mocha font-medium">
+                      {customization.customization_json.cream_color}
+                    </span>
+                  </div>
                 </div>
-              )}
-            </div>
+                {customization.customization_json.topping_type && (
+                  <div className="flex justify-between">
+                    <span className="text-mocha/70">Topping</span>
+                    <span className="text-mocha font-medium">
+                      {customization.customization_json.topping_type}
+                    </span>
+                  </div>
+                )}
+                {customization.customization_json.special_notes && (
+                  <div className="pt-2 border-t border-mocha/10">
+                    <span className="text-mocha/70 block mb-1">Ghi chú đặc biệt</span>
+                    <p className="text-mocha">
+                      {customization.customization_json.special_notes}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
           </section>
         )}
 
