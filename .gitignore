@@ -62,5 +62,9 @@ Desktop.ini
 *.log
 logs/
 
+# ---- Gemini CLI / GitHub Actions ----
+.gemini/
+gha-creds-*.json
+
 # ---- Docker ----
 docker-compose.override.yml
