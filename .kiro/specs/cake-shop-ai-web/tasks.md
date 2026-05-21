@@ -205,8 +205,8 @@ Triển khai hệ thống Web Bán Bánh Kem Tích Hợp AI với kiến trúc b
 - [x] 9. Checkpoint - AI Chatbot verification
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 10. Order management
-  - [ ] 10.1 Implement order service backend
+- [x] 10. Order management
+  - [x] 10.1 Implement order service backend
     - Create POST /api/v1/orders (create order with status "pending")
     - Validate required fields: full_name, phone, pickup_date, at least one product
     - Implement pickup date validation: ≥24h for standard, ≥48h for 2-tier, ≤30 days advance
@@ -222,7 +222,7 @@ Triển khai hệ thống Web Bán Bánh Kem Tích Hợp AI với kiến trúc b
     - **Property 12: Order preserves Cake Builder data**
     - **Validates: Requirements 4.1, 4.2, 4.3, 4.7, 4.8**
 
-  - [ ] 10.3 Implement order status management backend
+  - [x] 10.3 Implement order status management backend
     - Create PATCH /api/v1/orders/{id}/status (Admin/Baker status update)
     - Implement state machine: pending→confirmed→in_production→ready→delivered
     - Validate transitions: reject invalid status changes with valid next statuses
@@ -234,7 +234,7 @@ Triển khai hệ thống Web Bán Bánh Kem Tích Hợp AI với kiến trúc b
     - **Property 16: Order status state machine**
     - **Validates: Requirements 7.2, 7.5, 8.2, 8.3**
 
-  - [ ] 10.5 Implement order frontend (Customer)
+  - [x] 10.5 Implement order frontend (Customer)
     - Create OrderForm page at `/checkout` with product summary, pickup date picker, customer info form
     - Implement date picker with validation (min 24h/48h, max 30 days)
     - Display order confirmation with order ID, total price, pickup date, item summary
