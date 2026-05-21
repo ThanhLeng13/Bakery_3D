@@ -1,0 +1,551 @@
+"""Chat service - business logic for AI chatbot sessions and messages.
+
+Handles:
+- Chat session creation and management
+- Message sending with Claude API integration
+- SSE streaming responses
+- Conversation context management (max 20 messages)
+- Recommendation extraction and AI_Summary generation
+- Error handling with fallback messages
+"""
+
+import json
+import logging
+import re
+from datetime import datetime, timezone
+from typing import Any, AsyncGenerator, List, Optional
+
+import anthropic
+
+from app.core.config import settings
+from app.services.rag_service import RAGService
+
+logger = logging.getLogger(__name__)
+
+# Fallback message when Claude API is unavailable
+FALLBACK_ERROR_MESSAGE = (
+    "Dịch vụ AI tạm thời không khả dụng. "
+    "Vui lòng thử lại hoặc liên hệ cửa hàng qua số điện thoại."
+)
+
+MAX_MESSAGES_PER_SESSION = 20
+
+
+class ChatServiceError(Exception):
+    """Base exception for chat service errors."""
+
+    def __init__(self, message: str, status_code: int = 400):
+        self.message = message
+        self.status_code = status_code
+        super().__init__(message)
+
+
+class SessionNotFoundError(ChatServiceError):
+    """Chat session not found."""
+
+    def __init__(self, session_id: str):
+        super().__init__(
+            f"Chat session not found: {session_id}",
+            status_code=404,
+        )
+
+
+class SessionLimitReachedError(ChatServiceError):
+    """Chat session has reached the message limit."""
+
+    def __init__(self, session_id: str):
+        super().__init__(
+            f"Chat session has reached the maximum of {MAX_MESSAGES_PER_SESSION} messages: {session_id}",
+            status_code=400,
+        )
+
+
+class AIServiceUnavailableError(ChatServiceError):
+    """Claude API is unavailable."""
+
+    def __init__(self):
+        super().__init__(
+            FALLBACK_ERROR_MESSAGE,
+            status_code=503,
+        )
+
+
+class ChatService:
+    """Chat service for managing AI chatbot sessions and messages."""
+
+    def __init__(self, supabase_client: Any):
+        """Initialize with a Supabase client instance."""
+        self._supabase = supabase_client
+        self._rag_service = RAGService(supabase_client)
+        self._anthropic_client: Optional[anthropic.Anthropic] = None
+
+    def _get_anthropic_client(self) -> anthropic.Anthropic:
+        """Get or create Anthropic client instance."""
+        if self._anthropic_client is None:
+            if not settings.ANTHROPIC_API_KEY:
+                raise AIServiceUnavailableError()
+            self._anthropic_client = anthropic.Anthropic(
+                api_key=settings.ANTHROPIC_API_KEY
+            )
+        return self._anthropic_client
+
+    async def create_session(self, customer_id: str) -> dict:
+        """
+        Create a new chat session for a customer.
+
+        Args:
+            customer_id: UUID string of the customer
+
+        Returns:
+            Dict with session data (id, customer_id, message_count, created_at)
+        """
+        result = (
+            self._supabase.table("chat_sessions")
+            .insert({
+                "customer_id": customer_id,
+                "message_count": 0,
+            })
+            .execute()
+        )
+
+        if not result.data:
+            raise ChatServiceError("Failed to create chat session", status_code=500)
+
+        session = result.data[0]
+        return {
+            "id": session["id"],
+            "customer_id": session["customer_id"],
+            "message_count": session["message_count"],
+            "created_at": session["created_at"],
+        }
+
+    async def get_session(self, session_id: str, customer_id: str) -> dict:
+        """
+        Get a chat session by ID, verifying ownership.
+
+        Args:
+            session_id: UUID string of the session
+            customer_id: UUID string of the customer (for ownership check)
+
+        Returns:
+            Session dict
+
+        Raises:
+            SessionNotFoundError: If session not found or not owned by customer
+        """
+        result = (
+            self._supabase.table("chat_sessions")
+            .select("*")
+            .eq("id", session_id)
+            .eq("customer_id", customer_id)
+            .maybe_single()
+            .execute()
+        )
+
+        if result.data is None:
+            raise SessionNotFoundError(session_id)
+
+        return result.data
+
+    async def get_chat_history(self, session_id: str, customer_id: str) -> dict:
+        """
+        Get chat history for a session.
+
+        Args:
+            session_id: UUID string of the session
+            customer_id: UUID string of the customer (for ownership check)
+
+        Returns:
+            Dict with session_id, messages list, and message_count
+        """
+        # Verify session ownership
+        session = await self.get_session(session_id, customer_id)
+
+        # Fetch messages in chronological order
+        result = (
+            self._supabase.table("chat_messages")
+            .select("id, session_id, role, content, created_at")
+            .eq("session_id", session_id)
+            .order("created_at", desc=False)
+            .execute()
+        )
+
+        messages = result.data or []
+
+        return {
+            "session_id": session["id"],
+            "messages": messages,
+            "message_count": session["message_count"],
+        }
+
+    async def _get_conversation_context(self, session_id: str) -> List[dict]:
+        """
+        Get the last 20 messages for conversation context.
+
+        Args:
+            session_id: UUID string of the session
+
+        Returns:
+            List of message dicts with role and content, in chronological order
+        """
+        result = (
+            self._supabase.table("chat_messages")
+            .select("role, content, created_at")
+            .eq("session_id", session_id)
+            .order("created_at", desc=False)
+            .execute()
+        )
+
+        messages = result.data or []
+
+        # Limit to last 20 messages
+        if len(messages) > MAX_MESSAGES_PER_SESSION:
+            messages = messages[-MAX_MESSAGES_PER_SESSION:]
+
+        return [
+            {"role": msg["role"], "content": msg["content"]}
+            for msg in messages
+        ]
+
+    async def _store_message(
+        self, session_id: str, role: str, content: str
+    ) -> dict:
+        """
+        Store a message in the database and update session message count.
+
+        Args:
+            session_id: UUID string of the session
+            role: "user" or "assistant"
+            content: Message content
+
+        Returns:
+            Stored message dict
+        """
+        # Insert message
+        msg_result = (
+            self._supabase.table("chat_messages")
+            .insert({
+                "session_id": session_id,
+                "role": role,
+                "content": content,
+            })
+            .execute()
+        )
+
+        if not msg_result.data:
+            raise ChatServiceError("Failed to store message", status_code=500)
+
+        # Update session message count and updated_at
+        self._supabase.table("chat_sessions").update({
+            "message_count": self._supabase.table("chat_sessions")
+            .select("message_count")
+            .eq("id", session_id)
+            .execute()
+            .data[0]["message_count"] + 1,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("id", session_id).execute()
+
+        return msg_result.data[0]
+
+    async def send_message(
+        self, session_id: str, customer_id: str, content: str
+    ) -> dict:
+        """
+        Send a message and get AI response (non-streaming).
+
+        Args:
+            session_id: UUID string of the session
+            customer_id: UUID string of the customer
+            content: User message content
+
+        Returns:
+            Dict with assistant message data, recommendations, and ai_summary
+
+        Raises:
+            SessionNotFoundError: If session not found
+            SessionLimitReachedError: If session has reached message limit
+            AIServiceUnavailableError: If Claude API fails
+        """
+        # Verify session ownership and check limits
+        session = await self.get_session(session_id, customer_id)
+
+        if session["message_count"] >= MAX_MESSAGES_PER_SESSION:
+            raise SessionLimitReachedError(session_id)
+
+        # Store user message
+        await self._store_message(session_id, "user", content)
+
+        # Get conversation context (including the just-stored user message)
+        conversation = await self._get_conversation_context(session_id)
+
+        # Build RAG context
+        system_prompt = await self._rag_service.build_context()
+
+        # Call Claude API
+        try:
+            client = self._get_anthropic_client()
+            response = client.messages.create(
+                model=settings.ANTHROPIC_MODEL,
+                max_tokens=1024,
+                system=system_prompt,
+                messages=conversation,
+            )
+
+            assistant_content = response.content[0].text
+
+        except (anthropic.APIError, anthropic.APIConnectionError, anthropic.RateLimitError) as e:
+            logger.error(f"Claude API error: {e}")
+            raise AIServiceUnavailableError()
+        except Exception as e:
+            logger.error(f"Unexpected error calling Claude API: {e}")
+            raise AIServiceUnavailableError()
+
+        # Store assistant message
+        assistant_msg = await self._store_message(
+            session_id, "assistant", assistant_content
+        )
+
+        # Extract recommendations and AI_Summary from response
+        recommendations = extract_recommendations(assistant_content)
+        ai_summary = extract_ai_summary(assistant_content)
+
+        return {
+            "message_id": assistant_msg["id"],
+            "session_id": session_id,
+            "role": "assistant",
+            "content": assistant_content,
+            "recommendations": recommendations,
+            "ai_summary": ai_summary,
+            "created_at": assistant_msg["created_at"],
+        }
+
+    async def send_message_stream(
+        self, session_id: str, customer_id: str, content: str
+    ) -> AsyncGenerator[str, None]:
+        """
+        Send a message and stream AI response via SSE.
+
+        Args:
+            session_id: UUID string of the session
+            customer_id: UUID string of the customer
+            content: User message content
+
+        Yields:
+            SSE-formatted strings with AI response chunks
+
+        Raises:
+            SessionNotFoundError: If session not found
+            SessionLimitReachedError: If session has reached message limit
+            AIServiceUnavailableError: If Claude API fails
+        """
+        # Verify session ownership and check limits
+        session = await self.get_session(session_id, customer_id)
+
+        if session["message_count"] >= MAX_MESSAGES_PER_SESSION:
+            raise SessionLimitReachedError(session_id)
+
+        # Store user message
+        await self._store_message(session_id, "user", content)
+
+        # Get conversation context
+        conversation = await self._get_conversation_context(session_id)
+
+        # Build RAG context
+        system_prompt = await self._rag_service.build_context()
+
+        # Stream from Claude API
+        full_response = ""
+        try:
+            client = self._get_anthropic_client()
+
+            with client.messages.stream(
+                model=settings.ANTHROPIC_MODEL,
+                max_tokens=1024,
+                system=system_prompt,
+                messages=conversation,
+            ) as stream:
+                for text in stream.text_stream:
+                    full_response += text
+                    # Yield SSE formatted chunk
+                    yield f"data: {json.dumps({'type': 'content', 'text': text}, ensure_ascii=False)}\n\n"
+
+        except (anthropic.APIError, anthropic.APIConnectionError, anthropic.RateLimitError) as e:
+            logger.error(f"Claude API streaming error: {e}")
+            error_data = json.dumps(
+                {"type": "error", "message": FALLBACK_ERROR_MESSAGE},
+                ensure_ascii=False,
+            )
+            yield f"data: {error_data}\n\n"
+            yield "data: [DONE]\n\n"
+            return
+        except Exception as e:
+            logger.error(f"Unexpected streaming error: {e}")
+            error_data = json.dumps(
+                {"type": "error", "message": FALLBACK_ERROR_MESSAGE},
+                ensure_ascii=False,
+            )
+            yield f"data: {error_data}\n\n"
+            yield "data: [DONE]\n\n"
+            return
+
+        # Store the complete assistant message
+        assistant_msg = await self._store_message(
+            session_id, "assistant", full_response
+        )
+
+        # Extract recommendations and AI_Summary
+        recommendations = extract_recommendations(full_response)
+        ai_summary = extract_ai_summary(full_response)
+
+        # Send final metadata event
+        metadata = {
+            "type": "done",
+            "message_id": assistant_msg["id"],
+            "recommendations": recommendations,
+            "ai_summary": ai_summary,
+        }
+        yield f"data: {json.dumps(metadata, ensure_ascii=False)}\n\n"
+        yield "data: [DONE]\n\n"
+
+
+def extract_recommendations(content: str) -> Optional[List[dict]]:
+    """
+    Extract cake recommendations from AI response content.
+
+    Looks for structured recommendations with product name, price, and reasoning.
+    Expected format in AI response: product name, price (VND), reasoning.
+
+    Args:
+        content: AI response text
+
+    Returns:
+        List of recommendation dicts or None if no recommendations found
+    """
+    recommendations = []
+
+    # Try to find JSON array of recommendations
+    json_pattern = r'\[[\s\S]*?\{[\s\S]*?"product_name"[\s\S]*?\}[\s\S]*?\]'
+    json_match = re.search(json_pattern, content)
+    if json_match:
+        try:
+            parsed = json.loads(json_match.group())
+            if isinstance(parsed, list):
+                for item in parsed:
+                    if all(k in item for k in ("product_name", "price", "reasoning")):
+                        recommendations.append({
+                            "product_name": str(item["product_name"]),
+                            "price": int(item["price"]),
+                            "reasoning": str(item["reasoning"]),
+                        })
+                if 2 <= len(recommendations) <= 5:
+                    return recommendations
+        except (json.JSONDecodeError, ValueError, TypeError):
+            pass
+
+    # Try to extract from numbered list format:
+    # 1. Product Name - 200,000 VND - Reasoning
+    # or: - Product Name, giá 200.000đ, lý do
+    lines = content.split("\n")
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+
+        # Pattern: numbered or bulleted item with price
+        price_pattern = r'(\d[\d.,]*)\s*(?:VND|đ|vnđ|dong)'
+        price_match = re.search(price_pattern, line, re.IGNORECASE)
+
+        if price_match:
+            # Extract price
+            price_str = price_match.group(1).replace(".", "").replace(",", "")
+            try:
+                price = int(price_str)
+            except ValueError:
+                continue
+
+            # Extract product name (text before price)
+            name_part = line[:price_match.start()].strip()
+            # Remove leading bullets/numbers
+            name_part = re.sub(r'^[\d]+[.)]\s*', '', name_part)
+            name_part = re.sub(r'^[-*•]\s*', '', name_part)
+            # Remove trailing separators
+            name_part = name_part.rstrip(" -–:,")
+
+            if not name_part:
+                continue
+
+            # Extract reasoning (text after price)
+            reasoning_part = line[price_match.end():].strip()
+            reasoning_part = reasoning_part.lstrip(" -–:,")
+
+            if not reasoning_part:
+                reasoning_part = "Phù hợp với yêu cầu của bạn"
+
+            recommendations.append({
+                "product_name": name_part,
+                "price": price,
+                "reasoning": reasoning_part,
+            })
+
+    # Return only if we have 2-5 recommendations
+    if 2 <= len(recommendations) <= 5:
+        return recommendations
+
+    return None
+
+
+def extract_ai_summary(content: str) -> Optional[dict]:
+    """
+    Extract AI_Summary JSON from AI response content.
+
+    Looks for a JSON block with required fields: size, flavor, decorations,
+    pickup_date, total_price.
+
+    Args:
+        content: AI response text
+
+    Returns:
+        AI_Summary dict or None if not found/incomplete
+    """
+    # Look for JSON code block
+    json_block_pattern = r'```(?:json)?\s*(\{[\s\S]*?\})\s*```'
+    matches = re.findall(json_block_pattern, content)
+
+    for match in matches:
+        try:
+            parsed = json.loads(match)
+            # Check for required AI_Summary fields
+            required_fields = ["size", "flavor", "decorations", "pickup_date", "total_price"]
+            if all(field in parsed for field in required_fields):
+                # Validate all fields are non-empty
+                if all(parsed.get(field) not in (None, "", 0) for field in required_fields):
+                    return {
+                        "size": str(parsed["size"]),
+                        "flavor": str(parsed["flavor"]),
+                        "decorations": str(parsed["decorations"]),
+                        "pickup_date": str(parsed["pickup_date"]),
+                        "total_price": int(parsed["total_price"]),
+                    }
+        except (json.JSONDecodeError, ValueError, TypeError):
+            continue
+
+    # Try to find inline JSON (not in code block)
+    inline_pattern = r'\{[^{}]*"size"[^{}]*"flavor"[^{}]*"total_price"[^{}]*\}'
+    inline_match = re.search(inline_pattern, content)
+    if inline_match:
+        try:
+            parsed = json.loads(inline_match.group())
+            required_fields = ["size", "flavor", "decorations", "pickup_date", "total_price"]
+            if all(field in parsed for field in required_fields):
+                if all(parsed.get(field) not in (None, "", 0) for field in required_fields):
+                    return {
+                        "size": str(parsed["size"]),
+                        "flavor": str(parsed["flavor"]),
+                        "decorations": str(parsed["decorations"]),
+                        "pickup_date": str(parsed["pickup_date"]),
+                        "total_price": int(parsed["total_price"]),
+                    }
+        except (json.JSONDecodeError, ValueError, TypeError):
+            pass
+
+    return None

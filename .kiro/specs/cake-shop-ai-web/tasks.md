@@ -117,11 +117,11 @@ Triển khai hệ thống Web Bán Bánh Kem Tích Hợp AI với kiến trúc b
     - Display validation errors inline on form fields
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7_
 
-- [ ] 5. Checkpoint - Catalog system verification
+- [x] 5. Checkpoint - Catalog system verification
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 6. Cake Builder (SVG interactive)
-  - [ ] 6.1 Implement Cake Builder SVG component
+- [x] 6. Cake Builder (SVG interactive)
+  - [x] 6.1 Implement Cake Builder SVG component
     - Create interactive SVG cake model with three Customization_Zones (top, body, border)
     - Implement zone highlighting on hover/tap
     - Implement zone click handler to show customization options panel within 100ms
@@ -129,7 +129,7 @@ Triển khai hệ thống Web Bán Bánh Kem Tích Hợp AI với kiến trúc b
     - Support touch interactions on mobile (minimum viewport 320px, 44×44px touch targets)
     - _Requirements: 2.1, 2.2, 2.3, 2.11_
 
-  - [ ] 6.2 Implement Cake Builder state management and price calculator
+  - [x] 6.2 Implement Cake Builder state management and price calculator
     - Create CakeDesign state interface (size, flavor, cream_type, cream_color, topping_type, special_notes, zones)
     - Implement PriceCalculator: basePrice (by size) + toppingCost + decorationCost = totalPrice
     - Update displayed price within 200ms of any customization change
@@ -140,7 +140,7 @@ Triển khai hệ thống Web Bán Bánh Kem Tích Hợp AI với kiến trúc b
     - **Property 3: Price calculation correctness**
     - **Validates: Requirements 2.4, 2.5**
 
-  - [ ] 6.4 Implement Cake Builder validation and completion flow
+  - [x] 6.4 Implement Cake Builder validation and completion flow
     - Validate mandatory fields (size, flavor, cream_type, cream_color) on completion
     - Display error messages for missing mandatory fields
     - Store customization data as JSON on successful completion
@@ -151,7 +151,7 @@ Triển khai hệ thống Web Bán Bánh Kem Tích Hợp AI với kiến trúc b
     - **Property 4: Cake customization validation completeness**
     - **Validates: Requirements 2.6, 2.7**
 
-  - [ ] 6.6 Implement Cake Builder localStorage persistence
+  - [x] 6.6 Implement Cake Builder localStorage persistence
     - Auto-save design state to localStorage every 5 seconds and on page blur/visibility change
     - Recover design state from localStorage on next visit
     - Display warning if localStorage is unavailable or full
@@ -162,11 +162,11 @@ Triển khai hệ thống Web Bán Bánh Kem Tích Hợp AI với kiến trúc b
     - **Property 5: Cake design localStorage round-trip**
     - **Validates: Requirements 2.9**
 
-- [ ] 7. Checkpoint - Cake Builder verification
+- [x] 7. Checkpoint - Cake Builder verification
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 8. AI Chatbot (Claude API + RAG)
-  - [ ] 8.1 Implement RAG pipeline and chat service backend
+- [x] 8. AI Chatbot (Claude API + RAG)
+  - [x] 8.1 Implement RAG pipeline and chat service backend
     - Create POST /api/v1/chat/sessions (create chat session)
     - Create POST /api/v1/chat/sessions/{id}/messages (send message, SSE response)
     - Create GET /api/v1/chat/sessions/{id}/history (get chat history)
@@ -181,7 +181,7 @@ Triển khai hệ thống Web Bán Bánh Kem Tích Hợp AI với kiến trúc b
     - **Property 9: Chat context window bounded at 20 messages**
     - **Validates: Requirements 3.3, 3.6**
 
-  - [ ] 8.3 Implement AI recommendation and summary logic
+  - [x] 8.3 Implement AI recommendation and summary logic
     - Implement recommendation extraction: 2-5 cake options with product name, price, reasoning
     - Implement AI_Summary generation: structured format with size, flavor, decorations, pickup_date, total_price
     - Handle ambiguous messages: ask follow-up questions for missing info (occasion, size, budget)
@@ -193,7 +193,7 @@ Triển khai hệ thống Web Bán Bánh Kem Tích Hợp AI với kiến trúc b
     - **Property 8: AI_Summary contains all required fields**
     - **Validates: Requirements 3.4, 3.5**
 
-  - [ ] 8.5 Implement AI Chat Widget frontend
+  - [x] 8.5 Implement AI Chat Widget frontend
     - Create floating ChatWidget component (available on all pages)
     - Implement chat UI: message bubbles, typing indicator, SSE streaming display
     - Display greeting message and prompt on open
@@ -202,7 +202,7 @@ Triển khai hệ thống Web Bán Bánh Kem Tích Hợp AI với kiến trúc b
     - Implement responsive design for mobile viewports
     - _Requirements: 3.1, 3.2, 3.7, 3.8, 9.1_
 
-- [ ] 9. Checkpoint - AI Chatbot verification
+- [x] 9. Checkpoint - AI Chatbot verification
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 10. Order management
