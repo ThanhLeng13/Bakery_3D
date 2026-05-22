@@ -104,6 +104,152 @@ function formatShortDate(dateStr: string): string {
   });
 }
 
+// ReviewForm component for delivered orders
+function ReviewForm({ orderId, items }: { orderId: string; items: OrderItem[] }) {
+  const [selectedProductId, setSelectedProductId] = useState<string>(
+    items.find((i) => i.product_id)?.product_id || ""
+  );
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState("");
+  const [hoverRating, setHoverRating] = useState(0);
+
+  const reviewableItems = items.filter((i) => i.product_id);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (rating === 0) {
+      setError("Vui lòng chọn số sao đánh giá");
+      return;
+    }
+    if (!selectedProductId) {
+      setError("Vui lòng chọn sản phẩm cần đánh giá");
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+    try {
+      await apiClient.post("/api/v1/reviews", {
+        product_id: selectedProductId,
+        order_id: orderId,
+        rating,
+        comment: comment.trim() || null,
+      });
+      setSubmitted(true);
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      if (apiErr?.detail === "Bạn đã đánh giá sản phẩm này cho đơn hàng này rồi.") {
+        setError("Bạn đã đánh giá sản phẩm này rồi.");
+      } else {
+        setError(apiErr?.detail || "Gửi đánh giá thất bại. Vui lòng thử lại.");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (submitted) {
+    return (
+      <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
+        <div className="text-center py-4">
+          <div className="text-4xl mb-3">⭐</div>
+          <h2 className="font-heading text-lg font-bold text-mocha mb-1">Cảm ơn bạn đã đánh giá!</h2>
+          <p className="text-mocha/60 text-sm">Đánh giá của bạn giúp chúng tôi phát triển tốt hơn.</p>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
+      <h2 className="font-heading text-lg font-bold text-mocha mb-4">
+        Đánh giá sản phẩm
+      </h2>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm">
+            {error}
+          </div>
+        )}
+
+        {/* Product selector (if multiple items) */}
+        {reviewableItems.length > 1 && (
+          <div>
+            <label className="block text-sm font-medium text-mocha mb-1">Chọn sản phẩm</label>
+            <select
+              value={selectedProductId}
+              onChange={(e) => setSelectedProductId(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-mocha/20 text-sm text-mocha bg-cream/50 focus:outline-none focus:ring-2 focus:ring-pink-pastel/50 min-h-[44px]"
+            >
+              {reviewableItems.map((item) => (
+                <option key={item.id} value={item.product_id!}>
+                  Bánh kem {item.size} - {item.flavor}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Star rating */}
+        <div>
+          <label className="block text-sm font-medium text-mocha mb-2">Đánh giá <span className="text-red-500">*</span></label>
+          <div className="flex gap-1" role="group" aria-label="Chọn số sao">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                type="button"
+                onClick={() => setRating(star)}
+                onMouseEnter={() => setHoverRating(star)}
+                onMouseLeave={() => setHoverRating(0)}
+                className="text-3xl transition-transform hover:scale-110 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                aria-label={`${star} sao`}
+              >
+                {star <= (hoverRating || rating) ? "⭐" : "☆"}
+              </button>
+            ))}
+          </div>
+          {rating > 0 && (
+            <p className="text-sm text-mocha/60 mt-1">
+              {["", "Rất tệ", "Tệ", "Bình thường", "Tốt", "Xuất sắc"][rating]}
+            </p>
+          )}
+        </div>
+
+        {/* Comment */}
+        <div>
+          <div className="flex justify-between items-center mb-1">
+            <label htmlFor="review-comment" className="text-sm font-medium text-mocha">
+              Nhận xét <span className="text-mocha/50">(không bắt buộc)</span>
+            </label>
+            <span className={`text-xs ${comment.length > 900 ? "text-red-500" : "text-mocha/40"}`}>
+              {comment.length}/1000
+            </span>
+          </div>
+          <textarea
+            id="review-comment"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            maxLength={1000}
+            rows={3}
+            placeholder="Chia sẻ cảm nhận của bạn về bánh..."
+            className="w-full px-4 py-3 rounded-xl border border-mocha/20 text-sm text-mocha bg-cream/50 placeholder:text-mocha/40 focus:outline-none focus:ring-2 focus:ring-pink-pastel/50 resize-none"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={submitting || rating === 0}
+          className="w-full py-3 bg-pink-pastel text-white rounded-full font-medium hover:bg-pink-pastel/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
+        >
+          {submitting ? "Đang gửi..." : "Gửi đánh giá"}
+        </button>
+      </form>
+    </section>
+  );
+}
+
 function OrderDetailContent() {
   const router = useRouter();
   const params = useParams();
@@ -444,6 +590,19 @@ function OrderDetailContent() {
           </section>
         )}
 
+        {/* Review Form - only for delivered orders within 30 days */}
+        {order.status === "delivered" && (() => {
+          const deliveredAt = new Date(order.updated_at);
+          const now = new Date();
+          const daysSince = (now.getTime() - deliveredAt.getTime()) / (1000 * 60 * 60 * 24);
+          return daysSince <= 30;
+        })() && (
+          <ReviewForm
+            orderId={order.id}
+            items={order.items}
+          />
+        )}
+
         {/* Back button */}
         <button
           onClick={() => router.push("/orders")}
@@ -455,6 +614,7 @@ function OrderDetailContent() {
     </main>
   );
 }
+
 
 export default function OrderDetailPage() {
   return (

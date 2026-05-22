@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { apiClient } from "@/lib/api";
@@ -12,6 +12,148 @@ function formatPrice(price: number): string {
     style: "currency",
     currency: "VND",
   }).format(price);
+}
+
+function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+interface Review {
+  id: string;
+  rating: number;
+  comment: string | null;
+  customer_name: string;
+  created_at: string;
+}
+
+interface ReviewsResponse {
+  reviews: Review[];
+  pagination: {
+    page: number;
+    total_pages: number;
+    total_items: number;
+    has_next: boolean;
+    has_previous: boolean;
+  };
+  average_rating: number | null;
+  review_count: number;
+}
+
+function ReviewsSection({ productId }: { productId: string }) {
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [reviewCount, setReviewCount] = useState(0);
+  const [avgRating, setAvgRating] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchReviews = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: page.toString(), page_size: "10" });
+      const data = await apiClient.get<ReviewsResponse>(
+        `/api/v1/products/${productId}/reviews?${params}`
+      );
+      setReviews(data.reviews);
+      setTotalPages(data.pagination.total_pages);
+      setReviewCount(data.review_count);
+      setAvgRating(data.average_rating);
+    } catch {
+      // Silently fail - non-critical
+    } finally {
+      setLoading(false);
+    }
+  }, [productId, page]);
+
+  useEffect(() => {
+    fetchReviews();
+  }, [fetchReviews]);
+
+  return (
+    <section className="pt-6 border-t border-mocha/10" aria-label="Đánh giá">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-heading text-xl font-bold text-mocha">
+          Đánh giá ({reviewCount})
+        </h2>
+        {avgRating && (
+          <div className="flex items-center gap-1">
+            <span className="text-yellow-500 text-lg">⭐</span>
+            <span className="font-bold text-mocha">{avgRating.toFixed(1)}</span>
+            <span className="text-mocha/50 text-sm">/5</span>
+          </div>
+        )}
+      </div>
+
+      {loading && (
+        <div className="space-y-3">
+          {[1, 2].map((i) => (
+            <div key={i} className="bg-cream rounded-xl p-4 animate-pulse">
+              <div className="h-3 bg-mocha/10 rounded w-24 mb-2" />
+              <div className="h-4 bg-mocha/10 rounded w-full" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && reviews.length === 0 && (
+        <p className="text-mocha/60 text-sm">
+          Chưa có đánh giá nào. Hãy là người đầu tiên đánh giá sản phẩm này!
+        </p>
+      )}
+
+      {!loading && reviews.length > 0 && (
+        <div className="space-y-4">
+          {reviews.map((review) => (
+            <div key={review.id} className="bg-cream rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-mocha text-sm">{review.customer_name}</span>
+                  <div className="flex">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <span key={i} className={`text-sm ${i < review.rating ? "text-yellow-500" : "text-mocha/20"}`}>
+                        ★
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <span className="text-xs text-mocha/40">{formatDate(review.created_at)}</span>
+              </div>
+              {review.comment && (
+                <p className="text-sm text-mocha/80">{review.comment}</p>
+              )}
+            </div>
+          ))}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex justify-center gap-2 mt-4">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-2 rounded-full text-sm bg-white text-mocha border border-mocha/10 hover:bg-pink-pastel/10 disabled:opacity-40 disabled:cursor-not-allowed min-h-[44px] min-w-[44px]"
+              >
+                ←
+              </button>
+              <span className="flex items-center text-sm text-mocha/60 px-2">
+                {page}/{totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="px-3 py-2 rounded-full text-sm bg-white text-mocha border border-mocha/10 hover:bg-pink-pastel/10 disabled:opacity-40 disabled:cursor-not-allowed min-h-[44px] min-w-[44px]"
+              >
+                →
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
 }
 
 export default function ProductDetailPage() {
@@ -339,21 +481,8 @@ export default function ProductDetailPage() {
               Đặt hàng
             </button>
 
-            {/* Reviews Section Placeholder */}
-            <section className="pt-6 border-t border-mocha/10" aria-label="Đánh giá">
-              <h2 className="font-heading text-xl font-bold text-mocha mb-4">
-                Đánh giá ({product.review_count})
-              </h2>
-              {product.review_count === 0 ? (
-                <p className="text-mocha/60 text-sm">
-                  Chưa có đánh giá nào cho sản phẩm này.
-                </p>
-              ) : (
-                <p className="text-mocha/60 text-sm">
-                  Đang tải đánh giá...
-                </p>
-              )}
-            </section>
+            {/* Reviews Section */}
+            <ReviewsSection productId={productId} />
           </section>
         </div>
       </div>

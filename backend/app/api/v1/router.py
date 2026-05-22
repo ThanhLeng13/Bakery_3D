@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import admin_products, auth, catalog, chat, orders
+from app.api.v1.endpoints import admin_orders, admin_products, auth, baker_orders, catalog, chat, orders, reviews
 
 router = APIRouter()
 
@@ -15,12 +15,18 @@ router.include_router(catalog.router, prefix="/products", tags=["Catalog"])
 # Admin product management
 router.include_router(admin_products.router, prefix="/admin/products", tags=["Admin Products"])
 
+# Admin order management
+router.include_router(admin_orders.router, prefix="/admin/orders", tags=["Admin Orders"])
+
+# Baker order management
+router.include_router(baker_orders.router, prefix="/baker/orders", tags=["Baker Orders"])
+
 # Chat service (AI Chatbot)
 router.include_router(chat.router, prefix="/chat", tags=["Chat"])
 
 # Order service
 router.include_router(orders.router, prefix="/orders", tags=["Orders"])
 
-# Service routers will be included here as they are implemented:
-# from app.api.v1.endpoints import reviews
-# router.include_router(reviews.router, prefix="/reviews", tags=["Reviews"])
+# Review service - POST /reviews and GET /products/{id}/reviews (nested under catalog prefix)
+router.include_router(reviews.router, prefix="", tags=["Reviews"])
+
