@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import StarRating from "./StarRating";
 import { ProductListItem } from "@/types";
 
@@ -28,20 +29,29 @@ export default function ProductCard({ product }: ProductCardProps) {
   return (
     <Link
       href={`/products/${product.id}`}
-      className="group block rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden focus:outline-none focus:ring-2 focus:ring-pink-pastel focus:ring-offset-2"
+      className="group block rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden focus:outline-none focus:ring-2 focus:ring-pink-pastel focus:ring-offset-2 animate-fade-in"
     >
-      {/* Image */}
+      {/* Image – CLS-safe: explicit aspect ratio + next/image */}
       <div className="aspect-square relative bg-gray-100 overflow-hidden">
         {product.image_url && !imgError ? (
-          <img
+          <Image
             src={product.image_url}
             alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            className="object-cover group-hover:scale-105 transition-transform duration-300"
             onError={() => setImgError(true)}
             loading="lazy"
+            placeholder="blur"
+            blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmZGY2ZWUiLz48L3N2Zz4="
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-cream">
+          // Placeholder fallback – maintains same layout, prevents CLS
+          <div
+            className="w-full h-full flex items-center justify-center bg-cream"
+            role="img"
+            aria-label={`Hình ảnh chưa có cho ${product.name}`}
+          >
             <svg
               className="w-16 h-16 text-mocha/20"
               fill="none"
@@ -61,18 +71,18 @@ export default function ProductCard({ product }: ProductCardProps) {
       </div>
 
       {/* Content */}
-      <div className="p-4 space-y-2">
-        <h3 className="font-heading text-base font-semibold text-mocha line-clamp-1 group-hover:text-pink-pastel transition-colors">
+      <div className="p-3 sm:p-4 space-y-1.5">
+        <h3 className="font-heading text-sm sm:text-base font-semibold text-mocha line-clamp-1 group-hover:text-pink-pastel transition-colors">
           {product.name}
         </h3>
 
         {shortDescription && (
-          <p className="text-sm text-mocha/70 line-clamp-2">
+          <p className="text-xs sm:text-sm text-mocha/70 line-clamp-2 hidden sm:block">
             {shortDescription}
           </p>
         )}
 
-        <p className="text-base font-semibold text-pink-pastel">
+        <p className="text-sm sm:text-base font-semibold text-pink-pastel">
           {formatPrice(product.base_price)}
         </p>
 
