@@ -1,36 +1,68 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Trang chủ",
+  description:
+    "La Douceur – Thiết kế bánh kem theo ý muốn với công cụ trực quan 3D và AI tư vấn thông minh bằng tiếng Việt tại TP.HCM.",
+};
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-cream">
       {/* Navigation */}
-      <nav className="bg-white/80 backdrop-blur-sm border-b border-mocha/10 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/" className="font-heading text-xl text-mocha font-bold">
+      <nav
+        className="bg-white/80 backdrop-blur-sm border-b border-mocha/10 sticky top-0 z-40"
+        aria-label="Điều hướng chính"
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
+          <Link
+            href="/"
+            className="font-heading text-lg sm:text-xl text-mocha font-bold"
+            aria-label="La Douceur – Trang chủ"
+          >
             🎂 La Douceur
           </Link>
-          <div className="flex items-center gap-3">
+
+          {/* Desktop nav */}
+          <div className="hidden sm:flex items-center gap-1">
             <Link
               href="/products"
-              className="px-4 py-2 text-sm font-body text-mocha/70 hover:text-mocha transition-colors min-h-[44px] flex items-center"
+              className="px-3 py-2 text-sm font-body text-mocha/70 hover:text-mocha transition-colors min-h-[44px] flex items-center rounded-lg hover:bg-cream"
             >
               Menu
             </Link>
             <Link
               href="/cake-builder"
-              className="px-4 py-2 text-sm font-body text-mocha/70 hover:text-mocha transition-colors min-h-[44px] flex items-center"
+              className="px-3 py-2 text-sm font-body text-mocha/70 hover:text-mocha transition-colors min-h-[44px] flex items-center rounded-lg hover:bg-cream"
             >
               Thiết kế bánh
             </Link>
             <Link
               href="/orders"
-              className="px-4 py-2 text-sm font-body text-mocha/70 hover:text-mocha transition-colors min-h-[44px] flex items-center"
+              className="px-3 py-2 text-sm font-body text-mocha/70 hover:text-mocha transition-colors min-h-[44px] flex items-center rounded-lg hover:bg-cream"
             >
               Đơn hàng
             </Link>
             <Link
               href="/auth/login"
-              className="px-4 py-2 bg-pink-pastel text-white text-sm font-body font-medium rounded-full hover:bg-pink-pastel/90 transition-colors min-h-[44px] flex items-center"
+              className="ml-2 px-4 py-2 bg-pink-pastel text-white text-sm font-body font-medium rounded-full hover:bg-pink-pastel/90 transition-colors min-h-[44px] flex items-center"
+            >
+              Đăng nhập
+            </Link>
+          </div>
+
+          {/* Mobile nav – compact */}
+          <div className="flex sm:hidden items-center gap-2">
+            <Link
+              href="/products"
+              className="px-3 py-2 text-xs font-body text-mocha/70 hover:text-mocha transition-colors min-h-[44px] flex items-center"
+            >
+              Menu
+            </Link>
+            <Link
+              href="/auth/login"
+              className="px-3 py-2 bg-pink-pastel text-white text-xs font-body font-medium rounded-full hover:bg-pink-pastel/90 transition-colors min-h-[44px] flex items-center"
             >
               Đăng nhập
             </Link>
@@ -39,27 +71,33 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-4 py-16 md:py-24 text-center">
-        <h1 className="font-heading text-4xl md:text-6xl text-mocha font-bold mb-4">
+      <section
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-24 text-center"
+        aria-labelledby="hero-heading"
+      >
+        <h1
+          id="hero-heading"
+          className="font-heading text-3xl sm:text-4xl md:text-6xl text-mocha font-bold mb-3 sm:mb-4 animate-fade-in"
+        >
           Tiệm Bánh Kem
         </h1>
-        <h2 className="font-heading text-2xl md:text-3xl text-pink-pastel mb-6">
+        <p className="font-heading text-xl sm:text-2xl md:text-3xl text-pink-pastel mb-4 sm:mb-6 animate-fade-in animate-delay-100">
           La Douceur
-        </h2>
-        <p className="text-lg md:text-xl text-mocha/70 font-body max-w-2xl mx-auto mb-10">
+        </p>
+        <p className="text-base sm:text-lg md:text-xl text-mocha/70 font-body max-w-2xl mx-auto mb-8 sm:mb-10 animate-fade-in animate-delay-200">
           Thiết kế bánh kem theo ý muốn với công cụ trực quan và AI tư vấn thông minh.
           Mỗi chiếc bánh là một tác phẩm nghệ thuật dành riêng cho bạn.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center animate-fade-in animate-delay-300">
           <Link
             href="/cake-builder"
-            className="px-8 py-4 bg-pink-pastel text-white font-body font-semibold text-lg rounded-full hover:bg-pink-pastel/90 hover:shadow-lg transition-all min-h-[44px]"
+            className="px-6 sm:px-8 py-3 sm:py-4 bg-pink-pastel text-white font-body font-semibold text-base sm:text-lg rounded-full hover:bg-pink-pastel/90 hover:shadow-lg transition-all min-h-[44px] flex items-center justify-center"
           >
             ✨ Thiết kế bánh ngay
           </Link>
           <Link
             href="/products"
-            className="px-8 py-4 bg-white text-mocha font-body font-semibold text-lg rounded-full border-2 border-mocha/20 hover:border-pink-pastel hover:text-pink-pastel transition-all min-h-[44px]"
+            className="px-6 sm:px-8 py-3 sm:py-4 bg-white text-mocha font-body font-semibold text-base sm:text-lg rounded-full border-2 border-mocha/20 hover:border-pink-pastel hover:text-pink-pastel transition-all min-h-[44px] flex items-center justify-center"
           >
             Xem menu bánh
           </Link>
@@ -67,58 +105,67 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section className="max-w-7xl mx-auto px-4 py-16">
-        <h3 className="font-heading text-2xl md:text-3xl text-mocha font-bold text-center mb-12">
+      <section
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16"
+        aria-labelledby="features-heading"
+      >
+        <h2
+          id="features-heading"
+          className="font-heading text-2xl sm:text-3xl text-mocha font-bold text-center mb-8 sm:mb-12"
+        >
           Tại sao chọn La Douceur?
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 sm:gap-8">
           {/* Feature 1 */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm text-center">
-            <div className="text-4xl mb-4">🎨</div>
-            <h4 className="font-heading text-lg text-mocha font-bold mb-2">
+          <article className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm text-center hover:shadow-md transition-shadow">
+            <div className="text-3xl sm:text-4xl mb-3 sm:mb-4" aria-hidden="true">🎨</div>
+            <h3 className="font-heading text-base sm:text-lg text-mocha font-bold mb-2">
               Click-to-Customize
-            </h4>
+            </h3>
             <p className="text-mocha/70 font-body text-sm">
               Thiết kế bánh kem trực quan bằng SVG. Chọn màu, topping, trang trí — thấy kết quả ngay lập tức.
             </p>
-          </div>
+          </article>
 
           {/* Feature 2 */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm text-center">
-            <div className="text-4xl mb-4">🤖</div>
-            <h4 className="font-heading text-lg text-mocha font-bold mb-2">
+          <article className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm text-center hover:shadow-md transition-shadow">
+            <div className="text-3xl sm:text-4xl mb-3 sm:mb-4" aria-hidden="true">🤖</div>
+            <h3 className="font-heading text-base sm:text-lg text-mocha font-bold mb-2">
               AI Tư Vấn
-            </h4>
+            </h3>
             <p className="text-mocha/70 font-body text-sm">
               Chatbot AI giúp bạn chọn bánh phù hợp theo dịp, số người, ngân sách. Tư vấn bằng tiếng Việt.
             </p>
-          </div>
+          </article>
 
           {/* Feature 3 */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm text-center">
-            <div className="text-4xl mb-4">📦</div>
-            <h4 className="font-heading text-lg text-mocha font-bold mb-2">
+          <article className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm text-center hover:shadow-md transition-shadow sm:col-span-2 md:col-span-1">
+            <div className="text-3xl sm:text-4xl mb-3 sm:mb-4" aria-hidden="true">📦</div>
+            <h3 className="font-heading text-base sm:text-lg text-mocha font-bold mb-2">
               Đặt hàng dễ dàng
-            </h4>
+            </h3>
             <p className="text-mocha/70 font-body text-sm">
               Chọn ngày nhận, xác nhận đơn hàng, theo dõi trạng thái — tất cả trên một nền tảng.
             </p>
-          </div>
+          </article>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="bg-white py-16">
-        <div className="max-w-3xl mx-auto px-4 text-center">
-          <h3 className="font-heading text-2xl md:text-3xl text-mocha font-bold mb-4">
+      <section className="bg-white py-12 sm:py-16" aria-labelledby="cta-heading">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
+          <h2
+            id="cta-heading"
+            className="font-heading text-2xl sm:text-3xl text-mocha font-bold mb-3 sm:mb-4"
+          >
             Sẵn sàng tạo chiếc bánh của bạn?
-          </h3>
-          <p className="text-mocha/70 font-body mb-8">
+          </h2>
+          <p className="text-mocha/70 font-body mb-6 sm:mb-8 text-sm sm:text-base">
             Bắt đầu thiết kế ngay hoặc nhờ AI tư vấn — chỉ cần click nút chat ở góc phải.
           </p>
           <Link
             href="/cake-builder"
-            className="inline-block px-8 py-4 bg-pink-pastel text-white font-body font-semibold text-lg rounded-full hover:bg-pink-pastel/90 hover:shadow-lg transition-all min-h-[44px]"
+            className="inline-flex items-center justify-center px-6 sm:px-8 py-3 sm:py-4 bg-pink-pastel text-white font-body font-semibold text-base sm:text-lg rounded-full hover:bg-pink-pastel/90 hover:shadow-lg transition-all min-h-[44px]"
           >
             Bắt đầu thiết kế
           </Link>
@@ -126,9 +173,9 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-mocha text-white/80 py-8">
-        <div className="max-w-7xl mx-auto px-4 text-center font-body text-sm">
-          <p className="mb-2">🎂 La Douceur — Tiệm Bánh Kem Thủ Công</p>
+      <footer className="bg-mocha text-white/80 py-6 sm:py-8">
+        <div className="max-w-7xl mx-auto px-4 text-center font-body text-xs sm:text-sm">
+          <p className="mb-1 sm:mb-2">🎂 La Douceur — Tiệm Bánh Kem Thủ Công</p>
           <p className="text-white/50">TP. Hồ Chí Minh | ☎ 0901 234 567</p>
         </div>
       </footer>

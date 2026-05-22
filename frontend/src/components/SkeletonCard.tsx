@@ -1,22 +1,26 @@
 export default function SkeletonCard() {
   return (
     <div
-      className="animate-pulse rounded-2xl bg-white shadow-sm overflow-hidden"
+      className="rounded-2xl bg-white shadow-sm overflow-hidden"
       aria-hidden="true"
+      aria-busy="true"
     >
-      {/* Image placeholder */}
-      <div className="aspect-square bg-gray-200" />
+      {/* Image placeholder – same aspect-ratio as real card (prevents CLS) */}
+      <div className="aspect-square skeleton" />
+
       {/* Content placeholder */}
-      <div className="p-4 space-y-3">
+      <div className="p-3 sm:p-4 space-y-2">
         {/* Name */}
-        <div className="h-5 bg-gray-200 rounded w-3/4" />
-        {/* Description */}
-        <div className="h-4 bg-gray-200 rounded w-full" />
-        <div className="h-4 bg-gray-200 rounded w-2/3" />
+        <div className="skeleton h-4 sm:h-5 rounded w-3/4" />
+        {/* Description – hidden on mobile same as real card */}
+        <div className="hidden sm:block space-y-1.5">
+          <div className="skeleton h-3.5 rounded w-full" />
+          <div className="skeleton h-3.5 rounded w-2/3" />
+        </div>
         {/* Price */}
-        <div className="h-5 bg-gray-200 rounded w-1/3" />
+        <div className="skeleton h-4 sm:h-5 rounded w-1/3" />
         {/* Rating */}
-        <div className="h-4 bg-gray-200 rounded w-1/2" />
+        <div className="skeleton h-3.5 rounded w-1/2" />
       </div>
     </div>
   );

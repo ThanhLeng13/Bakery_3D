@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { apiClient } from "@/lib/api";
 
 interface ProductImage {
@@ -230,12 +231,14 @@ export default function AdminProductsPage() {
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-lg bg-cream flex items-center justify-center overflow-hidden flex-shrink-0">
+                          <div className="w-12 h-12 rounded-lg bg-cream flex items-center justify-center overflow-hidden flex-shrink-0 relative">
                             {product.images.length > 0 ? (
-                              <img
+                              <Image
                                 src={product.images[0].url}
                                 alt={product.name}
-                                className="w-full h-full object-cover"
+                                fill
+                                sizes="48px"
+                                className="object-cover"
                               />
                             ) : (
                               <span className="text-2xl">🎂</span>
@@ -298,12 +301,14 @@ export default function AdminProductsPage() {
               {products.map((product) => (
                 <div key={product.id} className="p-4 space-y-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-14 h-14 rounded-lg bg-cream flex items-center justify-center overflow-hidden flex-shrink-0">
+                    <div className="w-14 h-14 rounded-lg bg-cream flex items-center justify-center overflow-hidden flex-shrink-0 relative">
                       {product.images.length > 0 ? (
-                        <img
+                        <Image
                           src={product.images[0].url}
                           alt={product.name}
-                          className="w-full h-full object-cover"
+                          fill
+                          sizes="56px"
+                          className="object-cover"
                         />
                       ) : (
                         <span className="text-2xl">🎂</span>
