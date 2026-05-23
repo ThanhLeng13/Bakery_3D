@@ -241,8 +241,8 @@ Triển khai hệ thống Web Bán Bánh Kem Tích Hợp AI với kiến trúc b
     - Create OrderHistory page at `/orders` with pagination (10/page), status badges, pickup dates
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.6, 4.7_
 
-- [ ] 11. Admin dashboard
-  - [ ] 11.1 Implement admin order management backend
+- [x] 11. Admin dashboard
+  - [x] 11.1 Implement admin order management backend
     - Create GET /api/v1/admin/orders (all orders, paginated 20/page, sorted newest first)
     - Implement filters: status, date range, customer name (partial match, min 2 chars)
     - Return complete order detail: customization details, AI_Summary, customer contact, status history
@@ -253,15 +253,15 @@ Triển khai hệ thống Web Bán Bánh Kem Tích Hợp AI với kiến trúc b
     - **Property 19: Order filter correctness**
     - **Validates: Requirements 7.4**
 
-  - [ ] 11.3 Implement admin order management frontend
+  - [x] 11.3 Implement admin order management frontend
     - Create AdminOrders page at `/admin/orders` with paginated list, status/date/name filters
     - Create order detail view with customization details, AI_Summary, customer info, status history
     - Implement status update buttons with valid transition options only
     - Display confirmation on successful status update
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 12. Baker dashboard
-  - [ ] 12.1 Implement baker order service backend
+- [x] 12. Baker dashboard
+  - [x] 12.1 Implement baker order service backend
     - Create GET /api/v1/baker/orders (orders with status "confirmed" or "in_production", sorted by pickup_date ascending)
     - Create PATCH /api/v1/baker/orders/{id}/notes (add/edit baker_notes, max 500 chars)
     - Validate baker status transitions: confirmed→in_production, in_production→ready
@@ -272,18 +272,18 @@ Triển khai hệ thống Web Bán Bánh Kem Tích Hợp AI với kiến trúc b
     - **Property 21: Baker notes length validation**
     - **Validates: Requirements 8.1, 8.5**
 
-  - [ ] 12.3 Implement baker dashboard frontend
+  - [x] 12.3 Implement baker dashboard frontend
     - Create BakerDashboard page at `/baker/orders` with order list (confirmed + in_production)
     - Display order detail: customization details, AI_Summary, baker_notes, pickup date
     - Implement status update buttons (only valid next status)
     - Implement baker_notes text area (max 500 chars) with save functionality
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-- [ ] 13. Checkpoint - Order management verification
+- [x] 13. Checkpoint - Order management verification
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 14. Reviews system
-  - [ ] 14.1 Implement review service backend
+- [x] 14. Reviews system
+  - [x] 14.1 Implement review service backend
     - Create POST /api/v1/reviews (submit review: rating 1-5, comment max 1000 chars)
     - Validate review eligibility: order status "delivered" AND within last 30 days
     - Enforce uniqueness: one review per (product_id, customer_id, order_id)
@@ -297,7 +297,7 @@ Triển khai hệ thống Web Bán Bánh Kem Tích Hợp AI với kiến trúc b
     - **Property 24: Average rating calculation**
     - **Validates: Requirements 10.1, 10.3, 10.4, 10.6**
 
-  - [ ] 14.3 Implement review frontend
+  - [x] 14.3 Implement review frontend
     - Add review form on order history page (for delivered orders within 30 days)
     - Display star rating selector (1-5) and comment textarea (max 1000 chars)
     - Display reviews on product detail page: paginated (10/page), customer name, rating, comment
@@ -305,15 +305,15 @@ Triển khai hệ thống Web Bán Bánh Kem Tích Hợp AI với kiến trúc b
     - Show error messages for ineligible or duplicate reviews
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6_
 
-- [ ] 15. Responsive design and performance optimization
-  - [ ] 15.1 Implement responsive design system
+- [x] 15. Responsive design and performance optimization
+  - [x] 15.1 Implement responsive design system
     - Ensure all pages render correctly from 320px to 1920px (mobile-first approach)
     - Ensure minimum 44×44px touch targets on viewports below 768px
     - Eliminate horizontal scrolling on all viewport widths
     - Implement image placeholders matching final dimensions (CLS < 0.1)
     - _Requirements: 9.1, 9.6, 9.7_
 
-  - [ ] 15.2 Implement performance optimizations
+  - [x] 15.2 Implement performance optimizations
     - Configure Next.js Image component with proper sizing and lazy loading
     - Implement ISR caching for product catalog (60s TTL) and product detail pages
     - Optimize bundle size: code splitting, dynamic imports for Cake Builder and Chat Widget
@@ -321,7 +321,7 @@ Triển khai hệ thống Web Bán Bánh Kem Tích Hợp AI với kiến trúc b
     - Verify cross-browser compatibility (Chrome, Safari, Firefox, Edge - latest 2 versions)
     - _Requirements: 9.2, 9.5, 9.6_
 
-- [ ] 16. Final checkpoint - Full system verification
+- [x] 16. Final checkpoint - Full system verification
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
