@@ -75,7 +75,7 @@ async def get_current_user(
             .execute()
         )
 
-        if user_result.data is None:
+        if user_result is None or user_result.data is None:
             # User exists in auth but not in users table - treat as customer
             return {
                 "id": str(supabase_user.id),

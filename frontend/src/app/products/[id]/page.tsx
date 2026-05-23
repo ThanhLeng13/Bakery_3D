@@ -6,6 +6,7 @@ import Link from "next/link";
 import { apiClient } from "@/lib/api";
 import { ProductDetailResponse } from "@/types";
 import StarRating from "@/components/StarRating";
+import Header from "@/components/Header";
 
 function formatPrice(price: number): string {
   return new Intl.NumberFormat("vi-VN", {
@@ -277,6 +278,7 @@ export default function ProductDetailPage() {
 
   return (
     <main className="min-h-screen bg-cream">
+      <Header />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Breadcrumb */}
         <nav className="mb-6" aria-label="Breadcrumb">

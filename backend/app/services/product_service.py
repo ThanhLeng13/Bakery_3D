@@ -364,7 +364,7 @@ class ProductService:
                 .execute()
             )
 
-            if result.data is None:
+            if result is None or result.data is None:
                 raise ProductNotFoundError(product_id)
 
             return result.data

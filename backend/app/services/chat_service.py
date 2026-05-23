@@ -142,7 +142,7 @@ class ChatService:
             .execute()
         )
 
-        if result.data is None:
+        if result is None or result.data is None:
             raise SessionNotFoundError(session_id)
 
         return result.data

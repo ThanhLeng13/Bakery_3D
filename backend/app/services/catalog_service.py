@@ -173,7 +173,7 @@ class CatalogService:
             .execute()
         )
 
-        if product_result.data is None:
+        if product_result is None or product_result.data is None:
             raise ProductNotFoundError(product_id)
 
         product = product_result.data
@@ -202,14 +202,30 @@ class CatalogService:
             avg = sum(r["rating"] for r in reviews) / review_count
             average_rating = round(avg, 1)
 
+        raw_sizes = product.get("sizes") or []
+        sizes = []
+        for s in raw_sizes:
+            if isinstance(s, dict):
+                sizes.append(s)
+            elif isinstance(s, str):
+                sizes.append({"name": s, "price": product["base_price"]})
+
+        raw_flavors = product.get("flavors") or []
+        flavors = []
+        for f in raw_flavors:
+            if isinstance(f, dict):
+                flavors.append(f)
+            elif isinstance(f, str):
+                flavors.append({"name": f, "additional_cost": 0})
+
         return {
             "id": product["id"],
             "name": product["name"],
             "description": product.get("description"),
             "category": product["category"],
             "base_price": product["base_price"],
-            "sizes": product.get("sizes") or [],
-            "flavors": product.get("flavors") or [],
+            "sizes": sizes,
+            "flavors": flavors,
             "is_active": product["is_active"],
             "images": images,
             "average_rating": average_rating,

@@ -5,6 +5,7 @@ import { apiClient } from "@/lib/api";
 import { ProductListItem, ProductListResponse } from "@/types";
 import ProductCard from "@/components/ProductCard";
 import SkeletonCard from "@/components/SkeletonCard";
+import Header from "@/components/Header";
 
 type CategoryFilter = "all" | "bánh âu" | "bánh ngọt";
 
@@ -58,6 +59,7 @@ export default function ProductCatalogPage() {
 
   return (
     <main className="min-h-screen bg-cream">
+      <Header />
       {/* Header */}
       <div className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">

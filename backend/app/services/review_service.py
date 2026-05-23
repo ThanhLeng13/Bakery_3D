@@ -67,7 +67,7 @@ class ReviewService:
             .execute()
         )
 
-        if order_result.data is None:
+        if order_result is None or order_result.data is None:
             raise ReviewNotEligibleError(
                 "Đơn hàng không tồn tại hoặc không thuộc về bạn."
             )
@@ -106,7 +106,7 @@ class ReviewService:
             .execute()
         )
 
-        if existing.data is not None:
+        if existing is not None and existing.data is not None:
             raise ReviewDuplicateError()
 
     async def submit_review(
@@ -153,7 +153,7 @@ class ReviewService:
             .execute()
         )
 
-        if product_result.data is None:
+        if product_result is None or product_result.data is None:
             raise ReviewServiceError("Sản phẩm không tồn tại.", status_code=404)
 
         # Create review
