@@ -21,7 +21,7 @@ if not url or not service_key:
 supabase = create_client(url, service_key)
 
 # Local directories
-cake_dir = r"d:\DE_TAI\Bakery_3D\image\Image_cake"
+cake_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "image", "Image_cake"))
 
 # 18 Sweet Cakes mapping
 sweet_cakes = [
