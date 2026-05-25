@@ -257,7 +257,7 @@ def upload_image_to_storage(product_id, image_filename):
         supabase.storage.from_("product-images").upload(
             path=storage_path,
             file=file_bytes,
-            file_options={"content-type": mime_type, "cache-control": "3600"}
+            file_options={"contentType": mime_type, "cacheControl": "3600"}
         )
         
         # Get public url
