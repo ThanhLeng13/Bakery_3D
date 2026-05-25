@@ -10,15 +10,7 @@ from typing import Any, Optional
 from PIL import Image
 
 from app.core.config import settings
-
-def format_image_url(url: Optional[str]) -> Optional[str]:
-    if not url:
-        return None
-    if url.startswith("/storage/") or url.startswith("storage/"):
-        base_url = settings.SUPABASE_URL.rstrip("/")
-        path = url.lstrip("/")
-        return f"{base_url}/{path}"
-    return url
+from app.utils.image_url import format_image_url
 
 
 class ProductServiceError(Exception):

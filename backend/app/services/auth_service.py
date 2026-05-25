@@ -231,7 +231,10 @@ class AuthService:
                 .execute()
             )
 
-            if user_result is None or user_result.data is None:
+            if user_result is None:
+                raise LookupError(f"Database lookup failed: user_result is None for OAuth user {user.id}")
+
+            if user_result.data is None:
                 # Create new user record with customer role
                 user_metadata = user.user_metadata or {}
                 user_data = {

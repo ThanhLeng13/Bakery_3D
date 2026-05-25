@@ -75,7 +75,13 @@ async def get_current_user(
             .execute()
         )
 
-        if user_result is None or user_result.data is None:
+        if user_result is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Database query user_result is None for supabase_user {supabase_user.id}",
+            )
+
+        if user_result.data is None:
             # User exists in auth but not in users table - treat as customer
             return {
                 "id": str(supabase_user.id),

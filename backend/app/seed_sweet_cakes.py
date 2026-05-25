@@ -2,12 +2,15 @@ import os
 import sys
 import io
 import mimetypes
+import traceback
 
 # Set standard output encoding to utf-8 for Windows console
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 from dotenv import load_dotenv
 from supabase import create_client
+from postgrest.exceptions import APIError
+from storage3.utils import StorageException
 
 # Load environment variables
 load_dotenv()
@@ -189,32 +192,48 @@ sweet_cakes = [
     }
 ]
 
+def validate_all_images_exist():
+    print("Validating that all local images referenced in sweet_cakes exist...")
+    missing_images = []
+    for item in sweet_cakes:
+        main_path = os.path.join(cake_dir, item["main_image"])
+        if not os.path.isfile(main_path):
+            missing_images.append(item["main_image"])
+        for alt_img in item["alts"]:
+            alt_path = os.path.join(cake_dir, alt_img)
+            if not os.path.isfile(alt_path):
+                missing_images.append(alt_img)
+    
+    if missing_images:
+        print(f"Error: The following {len(missing_images)} image file(s) are missing from '{cake_dir}':")
+        for img in missing_images:
+            print(f"  - {img}")
+        sys.exit(1)
+    
+    print("All referenced images verified successfully.")
+
 def clean_old_sweet_cakes():
+    app_env = os.getenv("APP_ENV", "development")
+    if app_env not in ["development", "test"]:
+        print(f"Aborting clean_old_sweet_cakes: run environment '{app_env}' is not development or test.")
+        return
+
     print("Checking database for old 'bánh ngọt' category products...")
     
-    # 1. Get all products with category 'bánh ngọt'
-    res = supabase.table("products").select("id, name").eq("category", "bánh ngọt").execute()
+    # 1. Get all active products with category 'bánh ngọt'
+    res = supabase.table("products").select("id, name").eq("category", "bánh ngọt").eq("is_active", True).execute()
     old_products = res.data or []
     
     if not old_products:
-        print("No old 'bánh ngọt' products found.")
+        print("No active 'bánh ngọt' products found to deactivate.")
         return
         
     old_ids = [p["id"] for p in old_products]
-    print(f"Found {len(old_products)} old 'bánh ngọt' products to delete: {[p['name'] for p in old_products]}")
+    print(f"Found {len(old_products)} active 'bánh ngọt' products to deactivate: {[p['name'] for p in old_products]}")
     
-    # 2. Delete references in order_items if any (to avoid RESTRICT foreign key error)
-    # Note: In development/local seed this is safe.
-    res_items = supabase.table("order_items").delete().in_("product_id", old_ids).execute()
-    print(f"Deleted related order items: {len(res_items.data or [])}")
-    
-    # 3. Delete references in product_images
-    res_imgs = supabase.table("product_images").delete().in_("product_id", old_ids).execute()
-    print(f"Deleted related product image records: {len(res_imgs.data or [])}")
-    
-    # 4. Delete from products
-    res_del = supabase.table("products").delete().in_("id", old_ids).execute()
-    print(f"Deleted products successfully: {len(res_del.data or [])}")
+    # 2. Perform a non-destructive update on products (set is_active=False)
+    res_upd = supabase.table("products").update({"is_active": False}).in_("id", old_ids).execute()
+    print(f"Deactivated products successfully: {len(res_upd.data or [])}")
 
 def upload_image_to_storage(product_id, image_filename):
     local_path = os.path.join(cake_dir, image_filename)
@@ -244,22 +263,29 @@ def upload_image_to_storage(product_id, image_filename):
         # Get public url
         public_url = supabase.storage.from_("product-images").get_public_url(storage_path)
         return public_url
-    except Exception as e:
-        print(f"  Error uploading {image_filename}: {e}")
+    except StorageException as e:
+        print(f"  Storage SDK exception uploading {image_filename} to {storage_path}: {e}")
         # If it already exists, let's try to get public URL directly as fallback
         try:
             public_url = supabase.storage.from_("product-images").get_public_url(storage_path)
             print(f"  Fallback: Retrieve public URL: {public_url}")
             return public_url
-        except Exception:
+        except StorageException as fe:
+            print(f"  Storage SDK fallback error retrieving public URL for {image_filename} at {storage_path}: {fe}")
             return None
+        except Exception as fe:
+            print(f"  Unexpected fallback error retrieving public URL for {image_filename} at {storage_path}: {fe}")
+            return None
+    except Exception as e:
+        print(f"  Unexpected error during upload of {image_filename} to {storage_path}: {e}")
+        raise e
 
 def seed_products():
     print("\n--- SEEDING NEW SWEET CAKE PRODUCTS ---")
     for item in sweet_cakes:
         print(f"\nProcessing product: {item['name']}...")
         
-        # Insert product
+        # Insert/update product
         product_data = {
             "name": item["name"],
             "description": item["description"],
@@ -271,45 +297,69 @@ def seed_products():
         }
         
         try:
-            res_prod = supabase.table("products").insert(product_data).execute()
+            # Check for existing product by unique key (name)
+            res_exist = supabase.table("products").select("id").eq("name", item["name"]).execute()
+            if res_exist.data:
+                product_id = res_exist.data[0]["id"]
+                print(f"  Product '{item['name']}' already exists with ID: {product_id}. Updating details and setting active.")
+                res_prod = supabase.table("products").update(product_data).eq("id", product_id).execute()
+            else:
+                print(f"  Inserting new product '{item['name']}'...")
+                res_prod = supabase.table("products").insert(product_data).execute()
+
             if not res_prod.data:
-                print(f"  Error: Failed to insert product {item['name']}.")
+                print(f"  Error: Failed to insert/update product {item['name']}.")
                 continue
                 
             product = res_prod.data[0]
             product_id = product["id"]
-            print(f"  Inserted product '{item['name']}' with ID: {product_id}")
+            print(f"  Saved product '{item['name']}' with ID: {product_id}")
             
             # Upload main image
             main_img = item["main_image"]
             public_url = upload_image_to_storage(product_id, main_img)
             
             if public_url:
-                # Insert product image record
-                img_data = {
-                    "product_id": product_id,
-                    "url": public_url,
-                    "sort_order": 0
-                }
-                supabase.table("product_images").insert(img_data).execute()
-                print(f"  Associated main image: {main_img} -> {public_url}")
+                # Check if this image URL already exists for the product
+                res_img_exist = supabase.table("product_images").select("id").eq("product_id", product_id).eq("url", public_url).execute()
+                if not res_img_exist.data:
+                    # Insert product image record
+                    img_data = {
+                        "product_id": product_id,
+                        "url": public_url,
+                        "sort_order": 0
+                    }
+                    supabase.table("product_images").insert(img_data).execute()
+                    print(f"  Associated main image: {main_img} -> {public_url}")
+                else:
+                    print(f"  Main image {main_img} already associated.")
                 
             # Upload alternate images if any
             for alt_idx, alt_img in enumerate(item["alts"], start=1):
                 alt_url = upload_image_to_storage(product_id, alt_img)
                 if alt_url:
-                    alt_data = {
-                        "product_id": product_id,
-                        "url": alt_url,
-                        "sort_order": alt_idx
-                    }
-                    supabase.table("product_images").insert(alt_data).execute()
-                    print(f"  Associated alt image #{alt_idx}: {alt_img} -> {alt_url}")
+                    # Check if this alternate image URL already exists for the product
+                    res_alt_exist = supabase.table("product_images").select("id").eq("product_id", product_id).eq("url", alt_url).execute()
+                    if not res_alt_exist.data:
+                        alt_data = {
+                            "product_id": product_id,
+                            "url": alt_url,
+                            "sort_order": alt_idx
+                        }
+                        supabase.table("product_images").insert(alt_data).execute()
+                        print(f"  Associated alt image #{alt_idx}: {alt_img} -> {alt_url}")
+                    else:
+                        print(f"  Alt image #{alt_idx} {alt_img} already associated.")
                     
+        except APIError as e:
+            print(f"  Postgrest API Error processing product {item['name']}: {e}")
+            print(traceback.format_exc())
         except Exception as e:
-            print(f"  Error inserting product {item['name']}: {e}")
+            print(f"  Unexpected error processing product {item['name']}: {e}")
+            print(traceback.format_exc())
 
 if __name__ == "__main__":
+    validate_all_images_exist()
     clean_old_sweet_cakes()
     seed_products()
     print("\nSeeding finished successfully!")

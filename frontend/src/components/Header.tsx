@@ -9,6 +9,7 @@ export default function Header() {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isAuth, setIsAuth] = useState(false);
+  const [isAuthInitialized, setIsAuthInitialized] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -16,6 +17,7 @@ export default function Header() {
       setIsAuth(true);
       setUser(getStoredUser());
     }
+    setIsAuthInitialized(true);
   }, []);
 
   const handleLogout = async () => {
@@ -58,25 +60,27 @@ export default function Header() {
           >
             Đơn hàng
           </Link>
-          {isAuth && user ? (
-            <div className="flex items-center gap-3 pl-2 border-l border-mocha/10">
-              <span className="text-sm font-body text-mocha font-medium max-w-[120px] truncate" title={user.full_name}>
-                👤 {user.full_name}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-mocha/5 text-mocha hover:bg-mocha/10 text-sm font-body font-medium rounded-full transition-colors min-h-[44px] flex items-center"
+          {isAuthInitialized && (
+            isAuth && user ? (
+              <div className="flex items-center gap-3 pl-2 border-l border-mocha/10">
+                <span className="text-sm font-body text-mocha font-medium max-w-[120px] truncate" title={user.full_name}>
+                  👤 {user.full_name}
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 bg-mocha/5 text-mocha hover:bg-mocha/10 text-sm font-body font-medium rounded-full transition-colors min-h-[44px] flex items-center"
+                >
+                  Đăng xuất
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/auth/login"
+                className="px-4 py-2 bg-pink-pastel text-white text-sm font-body font-medium rounded-full hover:bg-pink-pastel/90 hover:shadow-sm transition-all min-h-[44px] flex items-center"
               >
-                Đăng xuất
-              </button>
-            </div>
-          ) : (
-            <Link
-              href="/auth/login"
-              className="px-4 py-2 bg-pink-pastel text-white text-sm font-body font-medium rounded-full hover:bg-pink-pastel/90 hover:shadow-sm transition-all min-h-[44px] flex items-center"
-            >
-              Đăng nhập
-            </Link>
+                Đăng nhập
+              </Link>
+            )
           )}
         </div>
 
@@ -140,26 +144,28 @@ export default function Header() {
             >
               Đơn hàng
             </Link>
-            {isAuth && user ? (
-              <div className="pt-2 border-t border-mocha/10 space-y-2">
-                <div className="px-4 py-2 text-sm font-body text-mocha font-medium flex items-center gap-2">
-                  👤 <span className="truncate">{user.full_name}</span>
+            {isAuthInitialized && (
+              isAuth && user ? (
+                <div className="pt-2 border-t border-mocha/10 space-y-2">
+                  <div className="px-4 py-2 text-sm font-body text-mocha font-medium flex items-center gap-2">
+                    👤 <span className="truncate">{user.full_name}</span>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-3 bg-mocha/5 text-mocha hover:bg-mocha/10 text-base font-body font-medium rounded-lg transition-colors"
+                  >
+                    Đăng xuất
+                  </button>
                 </div>
-                <button
-                  onClick={handleLogout}
-                  className="w-full text-left px-4 py-3 bg-mocha/5 text-mocha hover:bg-mocha/10 text-base font-body font-medium rounded-lg transition-colors"
+              ) : (
+                <Link
+                  href="/auth/login"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block text-center px-4 py-3 bg-pink-pastel text-white text-base font-body font-medium rounded-full hover:bg-pink-pastel/90 transition-all"
                 >
-                  Đăng xuất
-                </button>
-              </div>
-            ) : (
-              <Link
-                href="/auth/login"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="block text-center px-4 py-3 bg-pink-pastel text-white text-base font-body font-medium rounded-full hover:bg-pink-pastel/90 transition-all"
-              >
-                Đăng nhập
-              </Link>
+                  Đăng nhập
+                </Link>
+              )
             )}
           </div>
         </div>
