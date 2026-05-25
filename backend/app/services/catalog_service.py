@@ -211,7 +211,7 @@ class CatalogService:
             if isinstance(f, dict):
                 flavors.append(f)
             elif isinstance(f, str):
-                flavors.append({"name": f, "additional_cost": 0})
+                flavors.append({"name": f, "price": 0})
 
         return {
             "id": product["id"],
