@@ -280,10 +280,10 @@ def upload_image_to_storage(product_id, image_filename):
                 return public_url
             except StorageException as fe:
                 print(f"  Storage SDK fallback error retrieving public URL for {image_filename} at {storage_path}: {fe}")
-                return None
+                raise
             except Exception as fe:
                 print(f"  Unexpected fallback error retrieving public URL for {image_filename} at {storage_path}: {fe}")
-                return None
+                raise
         else:
             # Not a duplicate error - do not fallback, re-raise to fail the script
             raise e

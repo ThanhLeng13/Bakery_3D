@@ -71,10 +71,10 @@ class CatalogService:
         total_pages = math.ceil(total_items / page_size) if total_items > 0 else 0
         offset = (page - 1) * page_size
 
-        # Build data query
+        # Build data query — embed product_review_stats view for pre-aggregated ratings
         data_query = (
             self._supabase.table("products")
-            .select("id, name, description, category, base_price, created_at, product_images(url, sort_order), reviews(rating)")
+            .select("id, name, description, category, base_price, created_at, product_images(url, sort_order), product_review_stats(review_count, average_rating)")
             .eq("is_active", True)
             .order("created_at", desc=True)
             .range(offset, offset + page_size - 1)
@@ -86,7 +86,7 @@ class CatalogService:
         data_result = data_query.execute()
         products_data = data_result.data or []
 
-        # Fetch first image for each product and review aggregates
+        # Build product list with first image and pre-aggregated review stats
         products = []
         for product in products_data:
             product_id = product["id"]
@@ -94,18 +94,21 @@ class CatalogService:
             # Get first image (sorted by sort_order) from embedded relation
             images = product.get("product_images") or []
             if images:
-                images_sorted = sorted(images, key=lambda x: x.get("sort_order", 0))
+                images_sorted = sorted(images, key=lambda x: x.get("sort_order") or 0)
                 image_url = format_image_url(images_sorted[0].get("url"))
             else:
                 image_url = None
 
-            # Get average rating and review count from embedded relation
-            reviews = product.get("reviews") or []
-            review_count = len(reviews)
-            average_rating = None
-            if review_count > 0:
-                avg = sum(r["rating"] for r in reviews) / review_count
-                average_rating = round(avg, 1)
+            # Get pre-aggregated review stats from embedded view
+            stats_list = product.get("product_review_stats") or []
+            if stats_list:
+                stats = stats_list[0] if isinstance(stats_list, list) else stats_list
+                review_count = stats.get("review_count", 0) or 0
+                avg_raw = stats.get("average_rating")
+                average_rating = float(avg_raw) if avg_raw is not None else None
+            else:
+                review_count = 0
+                average_rating = None
 
             # Truncate description to 100 chars for list view
             description = product.get("description") or ""
@@ -181,19 +184,18 @@ class CatalogService:
             if "url" in img:
                 img["url"] = format_image_url(img["url"])
 
-        # Get average rating and review count
-        review_result = (
-            self._supabase.table("reviews")
-            .select("rating")
+        # Get pre-aggregated review stats from database view
+        stats_result = (
+            self._supabase.table("product_review_stats")
+            .select("review_count, average_rating")
             .eq("product_id", product_id)
+            .maybe_single()
             .execute()
         )
-        reviews = review_result.data or []
-        review_count = len(reviews)
-        average_rating = None
-        if review_count > 0:
-            avg = sum(r["rating"] for r in reviews) / review_count
-            average_rating = round(avg, 1)
+        stats = stats_result.data if (stats_result and stats_result.data) else {}
+        review_count = stats.get("review_count", 0) or 0
+        avg_raw = stats.get("average_rating")
+        average_rating = float(avg_raw) if avg_raw is not None else None
 
         raw_sizes = product.get("sizes") or []
         sizes = []

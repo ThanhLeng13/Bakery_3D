@@ -198,18 +198,16 @@ class ReviewService:
         )
         total_items = count_result.count if count_result.count is not None else 0
 
-        # Calculate average rating
-        ratings_result = (
-            self._supabase.table("reviews")
-            .select("rating")
+        # Get pre-aggregated review stats from database view
+        stats_result = (
+            self._supabase.table("product_review_stats")
+            .select("review_count, average_rating")
             .eq("product_id", product_id)
+            .maybe_single()
             .execute()
         )
-        ratings = [r["rating"] for r in (ratings_result.data or [])]
-        average_rating = None
-        if ratings:
-            avg = sum(ratings) / len(ratings)
-            average_rating = round(avg, 1)
+        stats = stats_result.data if (stats_result and stats_result.data) else {}
+        average_rating = float(stats["average_rating"]) if stats.get("average_rating") is not None else None
 
         # Pagination
         total_pages = math.ceil(total_items / page_size) if total_items > 0 else 0
