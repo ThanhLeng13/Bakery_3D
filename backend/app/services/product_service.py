@@ -11,6 +11,15 @@ from PIL import Image
 
 from app.core.config import settings
 
+def format_image_url(url: Optional[str]) -> Optional[str]:
+    if not url:
+        return None
+    if url.startswith("/storage/") or url.startswith("storage/"):
+        base_url = settings.SUPABASE_URL.rstrip("/")
+        path = url.lstrip("/")
+        return f"{base_url}/{path}"
+    return url
+
 
 class ProductServiceError(Exception):
     """Base exception for product service errors."""
@@ -301,7 +310,11 @@ class ProductService:
             # Trigger catalog revalidation
             await self._trigger_revalidation(product_id)
 
-            return result.data[0]
+            image_record = result.data[0]
+            if "url" in image_record:
+                image_record["url"] = format_image_url(image_record["url"])
+
+            return image_record
 
         except (ProductServiceError, ProductValidationError, ProductNotFoundError):
             raise
@@ -387,7 +400,11 @@ class ProductService:
             .execute()
         )
 
-        product["images"] = images_result.data if images_result.data else []
+        images = images_result.data if images_result.data else []
+        for img in images:
+            if "url" in img:
+                img["url"] = format_image_url(img["url"])
+        product["images"] = images
         return product
 
     async def _trigger_revalidation(self, product_id: str) -> None:

@@ -7,6 +7,18 @@ Only active products are returned for customer-facing endpoints.
 import math
 from typing import Any, Optional
 
+from app.core.config import settings
+
+
+def format_image_url(url: Optional[str]) -> Optional[str]:
+    if not url:
+        return None
+    if url.startswith("/storage/") or url.startswith("storage/"):
+        base_url = settings.SUPABASE_URL.rstrip("/")
+        path = url.lstrip("/")
+        return f"{base_url}/{path}"
+    return url
+
 
 class CatalogServiceError(Exception):
     """Base exception for catalog service errors."""
@@ -98,7 +110,7 @@ class CatalogService:
                 .execute()
             )
             image_url = (
-                image_result.data[0]["url"]
+                format_image_url(image_result.data[0]["url"])
                 if image_result.data
                 else None
             )
@@ -187,6 +199,9 @@ class CatalogService:
             .execute()
         )
         images = images_result.data or []
+        for img in images:
+            if "url" in img:
+                img["url"] = format_image_url(img["url"])
 
         # Get average rating and review count
         review_result = (
