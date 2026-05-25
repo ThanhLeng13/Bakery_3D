@@ -131,7 +131,7 @@ async def update_baker_notes(
             .execute()
         )
 
-        if order_result.data is None:
+        if order_result is None or order_result.data is None:
             raise HTTPException(status_code=404, detail="Order not found")
 
         order = order_result.data

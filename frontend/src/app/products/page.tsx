@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import ProductCatalogClient from "@/components/ProductCatalogClient";
 import { ProductListResponse } from "@/types";
-
+import Header from "@/components/Header";
 export const revalidate = 60; // ISR cache TTL 60 seconds
 
 export const metadata: Metadata = {
@@ -15,7 +15,6 @@ interface PageProps {
     category?: string;
   };
 }
-
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 async function getProducts(page: number, category: string): Promise<ProductListResponse> {
@@ -45,22 +44,28 @@ export default async function ProductCatalogPage({ searchParams }: PageProps) {
   try {
     const data = await getProducts(page, category);
     return (
-      <ProductCatalogClient
-        initialProducts={data.products}
-        initialTotalPages={data.pagination.total_pages}
-        currentPage={page}
-        currentCategory={category}
-      />
+      <>
+        <Header />
+        <ProductCatalogClient
+          initialProducts={data.products}
+          initialTotalPages={data.pagination.total_pages}
+          currentPage={page}
+          currentCategory={category}
+        />
+      </>
     );
   } catch {
     return (
-      <main className="min-h-screen bg-cream flex items-center justify-center">
-        <div className="text-center px-4">
-          <p className="text-mocha/70 text-lg mb-4">
-            Không thể tải danh mục sản phẩm. Vui lòng thử lại sau.
-          </p>
-        </div>
-      </main>
+      <>
+        <Header />
+        <main className="min-h-screen bg-cream flex items-center justify-center">
+          <div className="text-center px-4">
+            <p className="text-mocha/70 text-lg mb-4">
+              Không thể tải danh mục sản phẩm. Vui lòng thử lại sau.
+            </p>
+          </div>
+        </main>
+      </>
     );
   }
 }

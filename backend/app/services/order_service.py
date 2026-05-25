@@ -301,7 +301,7 @@ class OrderService:
             .execute()
         )
 
-        if order_result.data is None:
+        if order_result is None or order_result.data is None:
             raise OrderNotFoundError(order_id)
 
         order = order_result.data
@@ -391,7 +391,7 @@ class OrderService:
             .execute()
         )
 
-        if order_result.data is None:
+        if order_result is None or order_result.data is None:
             raise OrderNotFoundError(order_id)
 
         order = order_result.data

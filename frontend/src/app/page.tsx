@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Header from "@/components/Header";
 
 export const metadata: Metadata = {
   title: "Trang chủ",
@@ -11,64 +12,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-cream">
       {/* Navigation */}
-      <nav
-        className="bg-white/80 backdrop-blur-sm border-b border-mocha/10 sticky top-0 z-40"
-        aria-label="Điều hướng chính"
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
-          <Link
-            href="/"
-            className="font-heading text-lg sm:text-xl text-mocha font-bold"
-            aria-label="La Douceur – Trang chủ"
-          >
-            🎂 La Douceur
-          </Link>
-
-          {/* Desktop nav */}
-          <div className="hidden sm:flex items-center gap-1">
-            <Link
-              href="/products"
-              className="px-3 py-2 text-sm font-body text-mocha/70 hover:text-mocha transition-colors min-h-[44px] flex items-center rounded-lg hover:bg-cream"
-            >
-              Menu
-            </Link>
-            <Link
-              href="/cake-builder"
-              className="px-3 py-2 text-sm font-body text-mocha/70 hover:text-mocha transition-colors min-h-[44px] flex items-center rounded-lg hover:bg-cream"
-            >
-              Thiết kế bánh
-            </Link>
-            <Link
-              href="/orders"
-              className="px-3 py-2 text-sm font-body text-mocha/70 hover:text-mocha transition-colors min-h-[44px] flex items-center rounded-lg hover:bg-cream"
-            >
-              Đơn hàng
-            </Link>
-            <Link
-              href="/auth/login"
-              className="ml-2 px-4 py-2 bg-pink-pastel text-white text-sm font-body font-medium rounded-full hover:bg-pink-pastel/90 transition-colors min-h-[44px] flex items-center"
-            >
-              Đăng nhập
-            </Link>
-          </div>
-
-          {/* Mobile nav – compact */}
-          <div className="flex sm:hidden items-center gap-2">
-            <Link
-              href="/products"
-              className="px-3 py-2 text-xs font-body text-mocha/70 hover:text-mocha transition-colors min-h-[44px] flex items-center"
-            >
-              Menu
-            </Link>
-            <Link
-              href="/auth/login"
-              className="px-3 py-2 bg-pink-pastel text-white text-xs font-body font-medium rounded-full hover:bg-pink-pastel/90 transition-colors min-h-[44px] flex items-center"
-            >
-              Đăng nhập
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <Header />
 
       {/* Hero Section */}
       <section
