@@ -293,6 +293,7 @@ def upload_image_to_storage(product_id, image_filename):
 
 def seed_products():
     print("\n--- SEEDING NEW SWEET CAKE PRODUCTS ---")
+    failed_products = []
     for item in sweet_cakes:
         print(f"\nProcessing product: {item['name']}...")
         
@@ -320,6 +321,7 @@ def seed_products():
 
             if not res_prod.data:
                 print(f"  Error: Failed to insert/update product {item['name']}.")
+                failed_products.append(item["name"])
                 continue
                 
             product = res_prod.data[0]
@@ -365,12 +367,20 @@ def seed_products():
         except APIError as e:
             print(f"  Postgrest API Error processing product {item['name']}: {e}")
             print(traceback.format_exc())
+            failed_products.append(item["name"])
         except Exception as e:
             print(f"  Unexpected error processing product {item['name']}: {e}")
             print(traceback.format_exc())
+            failed_products.append(item["name"])
+
+    return failed_products
 
 if __name__ == "__main__":
     validate_all_images_exist()
     clean_old_sweet_cakes()
-    seed_products()
+    failed = seed_products()
+    if failed:
+        print(f"\nSeeding completed with {len(failed)} failure(s): {failed}")
+        sys.exit(1)
     print("\nSeeding finished successfully!")
+
