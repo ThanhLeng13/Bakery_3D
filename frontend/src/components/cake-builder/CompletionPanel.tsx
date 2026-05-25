@@ -111,8 +111,9 @@ export function CompletionPanel({
       onFlavorChange(flavor);
       // Clear error when user selects a value
       setErrors((prev) => {
-        const { flavor: _, ...rest } = prev;
-        return rest;
+        const next = { ...prev };
+        delete next.flavor;
+        return next;
       });
     },
     [onFlavorChange]
@@ -122,8 +123,9 @@ export function CompletionPanel({
     (creamType: string) => {
       onCreamTypeChange(creamType);
       setErrors((prev) => {
-        const { cream_type: _, ...rest } = prev;
-        return rest;
+        const next = { ...prev };
+        delete next.cream_type;
+        return next;
       });
     },
     [onCreamTypeChange]
@@ -133,8 +135,9 @@ export function CompletionPanel({
     (color: string) => {
       onCreamColorChange(color);
       setErrors((prev) => {
-        const { cream_color: _, ...rest } = prev;
-        return rest;
+        const next = { ...prev };
+        delete next.cream_color;
+        return next;
       });
     },
     [onCreamColorChange]
