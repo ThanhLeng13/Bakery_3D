@@ -74,7 +74,7 @@ class CatalogService:
         # Build data query
         data_query = (
             self._supabase.table("products")
-            .select("id, name, description, category, base_price, created_at")
+            .select("id, name, description, category, base_price, created_at, product_images(url, sort_order), reviews(rating)")
             .eq("is_active", True)
             .order("created_at", desc=True)
             .range(offset, offset + page_size - 1)
@@ -91,29 +91,16 @@ class CatalogService:
         for product in products_data:
             product_id = product["id"]
 
-            # Get first image (sorted by sort_order)
-            image_result = (
-                self._supabase.table("product_images")
-                .select("url")
-                .eq("product_id", product_id)
-                .order("sort_order", desc=False)
-                .limit(1)
-                .execute()
-            )
-            image_url = (
-                format_image_url(image_result.data[0]["url"])
-                if image_result.data
-                else None
-            )
+            # Get first image (sorted by sort_order) from embedded relation
+            images = product.get("product_images") or []
+            if images:
+                images_sorted = sorted(images, key=lambda x: x.get("sort_order", 0))
+                image_url = format_image_url(images_sorted[0].get("url"))
+            else:
+                image_url = None
 
-            # Get average rating and review count
-            review_result = (
-                self._supabase.table("reviews")
-                .select("rating")
-                .eq("product_id", product_id)
-                .execute()
-            )
-            reviews = review_result.data or []
+            # Get average rating and review count from embedded relation
+            reviews = product.get("reviews") or []
             review_count = len(reviews)
             average_rating = None
             if review_count > 0:

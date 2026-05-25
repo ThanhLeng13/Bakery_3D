@@ -8,6 +8,8 @@ Provides:
 - require_customer: Shortcut for require_role(["customer"])
 """
 
+import logging
+
 from typing import Callable
 
 from fastapi import Depends, HTTPException, Request, status
@@ -76,9 +78,13 @@ async def get_current_user(
         )
 
         if user_result is None:
+            logging.getLogger(__name__).error(
+                "Database query user_result is None for supabase_user %s",
+                supabase_user.id,
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Database query user_result is None for supabase_user {supabase_user.id}",
+                detail="Internal server error",
             )
 
         if user_result.data is None:

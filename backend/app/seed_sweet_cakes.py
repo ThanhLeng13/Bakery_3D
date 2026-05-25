@@ -213,9 +213,9 @@ def validate_all_images_exist():
     print("All referenced images verified successfully.")
 
 def clean_old_sweet_cakes():
-    app_env = os.getenv("APP_ENV", "development")
+    app_env = os.getenv("APP_ENV")
     if app_env not in ["development", "test"]:
-        print(f"Aborting clean_old_sweet_cakes: run environment '{app_env}' is not development or test.")
+        print(f"Aborting clean_old_sweet_cakes: APP_ENV='{app_env}' is not 'development' or 'test'.")
         return
 
     print("Checking database for old 'bánh ngọt' category products...")
@@ -265,17 +265,28 @@ def upload_image_to_storage(product_id, image_filename):
         return public_url
     except StorageException as e:
         print(f"  Storage SDK exception uploading {image_filename} to {storage_path}: {e}")
-        # If it already exists, let's try to get public URL directly as fallback
-        try:
-            public_url = supabase.storage.from_("product-images").get_public_url(storage_path)
-            print(f"  Fallback: Retrieve public URL: {public_url}")
-            return public_url
-        except StorageException as fe:
-            print(f"  Storage SDK fallback error retrieving public URL for {image_filename} at {storage_path}: {fe}")
-            return None
-        except Exception as fe:
-            print(f"  Unexpected fallback error retrieving public URL for {image_filename} at {storage_path}: {fe}")
-            return None
+        
+        # Verify if it is a duplicate resource error (statusCode 409, Duplicate, or already exists message)
+        is_duplicate = False
+        err_msg = str(e).lower()
+        if "duplicate" in err_msg or "already exists" in err_msg or "409" in err_msg:
+            is_duplicate = True
+            
+        if is_duplicate:
+            # If it already exists, let's try to get public URL directly as fallback
+            try:
+                public_url = supabase.storage.from_("product-images").get_public_url(storage_path)
+                print(f"  Fallback: Retrieve public URL: {public_url}")
+                return public_url
+            except StorageException as fe:
+                print(f"  Storage SDK fallback error retrieving public URL for {image_filename} at {storage_path}: {fe}")
+                return None
+            except Exception as fe:
+                print(f"  Unexpected fallback error retrieving public URL for {image_filename} at {storage_path}: {fe}")
+                return None
+        else:
+            # Not a duplicate error - do not fallback, re-raise to fail the script
+            raise e
     except Exception as e:
         print(f"  Unexpected error during upload of {image_filename} to {storage_path}: {e}")
         raise e
@@ -297,8 +308,8 @@ def seed_products():
         }
         
         try:
-            # Check for existing product by unique key (name)
-            res_exist = supabase.table("products").select("id").eq("name", item["name"]).execute()
+            # Check for existing product by name + category
+            res_exist = supabase.table("products").select("id").eq("name", item["name"]).eq("category", product_data["category"]).execute()
             if res_exist.data:
                 product_id = res_exist.data[0]["id"]
                 print(f"  Product '{item['name']}' already exists with ID: {product_id}. Updating details and setting active.")

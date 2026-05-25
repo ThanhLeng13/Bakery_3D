@@ -232,7 +232,10 @@ class AuthService:
             )
 
             if user_result is None:
-                raise LookupError(f"Database lookup failed: user_result is None for OAuth user {user.id}")
+                raise AuthServiceError(
+                    "Unexpected server error",
+                    status_code=500,
+                )
 
             if user_result.data is None:
                 # Create new user record with customer role

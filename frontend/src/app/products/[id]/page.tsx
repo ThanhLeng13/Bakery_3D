@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import Link from "next/link";
 import ProductDetailClient from "@/components/ProductDetailClient";
 import { ProductDetailResponse } from "@/types";
 import Header from "@/components/Header";
@@ -52,12 +53,12 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
         <main className="min-h-screen bg-cream flex items-center justify-center">
           <div className="text-center px-4">
             <p className="text-mocha/70 text-lg mb-4">Không tìm thấy sản phẩm.</p>
-            <a
+            <Link
               href="/products"
               className="inline-block px-6 py-2 bg-pink-pastel text-white rounded-full hover:bg-pink-pastel/90 transition-colors min-h-[44px]"
             >
               Quay lại danh mục
-            </a>
+            </Link>
           </div>
         </main>
       </>

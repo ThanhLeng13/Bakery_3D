@@ -1,10 +1,18 @@
 import os
+import html
+from urllib.parse import quote
 
 def generate_catalog():
     # Base paths
     image_dir = os.path.dirname(os.path.abspath(__file__))
     menu_dir = os.path.join(image_dir, "menu")
     cake_dir = os.path.join(image_dir, "Image_cake")
+    
+    # Validate directories exist before listing
+    if not os.path.isdir(menu_dir):
+        raise FileNotFoundError(f"Menu image directory not found: {menu_dir}")
+    if not os.path.isdir(cake_dir):
+        raise FileNotFoundError(f"Cake image directory not found: {cake_dir}")
     
     # Read files
     menu_files = sorted([f for f in os.listdir(menu_dir) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))])
@@ -13,19 +21,25 @@ def generate_catalog():
     # Generate Menu cards HTML
     menu_cards_html = ""
     for f in menu_files:
+        safe_src = "menu/" + quote(f, safe="")
+        safe_alt = html.escape(f, quote=True)
+        safe_text = html.escape(f)
         menu_cards_html += f"""
         <div class="card menu-card">
-            <img src="menu/{f}" alt="Menu — {f}">
-            <p>Menu: {f}</p>
+            <img src="{safe_src}" alt="Menu — {safe_alt}">
+            <p>Menu: {safe_text}</p>
         </div>"""
         
     # Generate Cake cards HTML
     cake_cards_html = ""
     for f in cake_files:
+        safe_src = "Image_cake/" + quote(f, safe="")
+        safe_alt = html.escape(f, quote=True)
+        safe_text = html.escape(f)
         cake_cards_html += f"""
         <div class="card">
-            <img src="Image_cake/{f}" alt="Cake — {f}">
-            <p>{f}</p>
+            <img src="{safe_src}" alt="Cake — {safe_alt}">
+            <p>{safe_text}</p>
         </div>"""
         
     # Full HTML content
