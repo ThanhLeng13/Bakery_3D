@@ -74,7 +74,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (result) {
             setUser(result.user);
           } else {
-            // Proactive refresh failed (e.g. refresh token revoked) — log out cleanly
+            // Proactive refresh failed — purge stale session from localStorage
+            // so subsequent page loads don't repeatedly attempt a failing refresh
+            await authLogout();
             setUser(null);
             stopAutoRefresh();
             setLoading(false);
@@ -90,7 +92,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(result.user);
           startAutoRefresh();
         } else {
-          // Refresh failed → session truly expired, stay logged out
+          // Silent refresh failed — purge stale session from localStorage
+          // to prevent repeated failed refresh attempts on every page load
+          await authLogout();
           setUser(null);
         }
       }

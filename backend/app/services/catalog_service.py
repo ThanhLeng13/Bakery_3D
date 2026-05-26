@@ -205,8 +205,31 @@ class CatalogService:
             avg = sum(r["rating"] for r in reviews) / review_count
             average_rating = round(avg, 1)
 
-        # Normalize flavors: DB có thể lưu dạng string hoặc dict
-        raw_flavors = product.get("flavors") or []
+        # Normalize flavors.
+        # DB may store: a JSON array of strings, an array of dicts, a bare
+        # string (legacy), or null.  Guard every case so we never iterate a
+        # string character-by-character.
+        raw = product.get("flavors")
+        if raw is None:
+            raw_flavors: list = []
+        elif isinstance(raw, str):
+            # Bare string → treat as a single flavor entry
+            logger.warning(
+                "Product %s: flavors stored as a bare string, wrapping in list",
+                product.get("id"),
+            )
+            raw_flavors = [raw]
+        elif isinstance(raw, list):
+            raw_flavors = raw
+        else:
+            logger.warning(
+                "Product %s: unexpected flavors type %s (%r) — treating as empty",
+                product.get("id"),
+                type(raw).__name__,
+                raw,
+            )
+            raw_flavors = []
+
         normalized_flavors = []
         for f in raw_flavors:
             if isinstance(f, str):
@@ -214,11 +237,12 @@ class CatalogService:
             elif isinstance(f, dict):
                 normalized_flavors.append({
                     "name": f.get("name", ""),
-                    "additional_cost": f.get("additional_cost", 0),
+                    # `or 0` handles explicit null stored in DB (f.get returns None)
+                    "additional_cost": f.get("additional_cost") or 0,
                 })
             else:
                 logger.warning(
-                    "Unexpected flavor type for product %s: got %s (%r) — skipping",
+                    "Unexpected flavor entry type for product %s: got %s (%r) — skipping",
                     product.get("id"),
                     type(f).__name__,
                     f,
