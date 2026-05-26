@@ -79,7 +79,7 @@ async def submit_review(
         raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
-@router.get("/{product_id}/product-reviews")
+@router.get("/products/{product_id}/reviews")
 async def get_product_reviews(
     product_id: str,
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),

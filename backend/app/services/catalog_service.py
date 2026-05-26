@@ -232,13 +232,6 @@ class CatalogService:
             elif isinstance(s, str):
                 sizes.append({"name": s, "price": product["base_price"]})
 
-        raw_flavors = product.get("flavors") or []
-        flavors = []
-        for f in raw_flavors:
-            if isinstance(f, dict):
-                flavors.append(f)
-            elif isinstance(f, str):
-                flavors.append({"name": f, "price": 0})
 
         # Normalize flavors.
         # DB may store: a JSON array of strings, an array of dicts, a bare
