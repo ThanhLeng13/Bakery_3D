@@ -77,9 +77,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               setUser(result.user);
             } else {
               // Proactive refresh failed — purge stale session from localStorage
-              await authLogout();
-              setUser(null);
-              stopAutoRefresh();
+              try {
+                await authLogout();
+              } finally {
+                setUser(null);
+                stopAutoRefresh();
+              }
               return;
             }
           }
@@ -92,8 +95,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             startAutoRefresh();
           } else {
             // Silent refresh failed — purge stale session from localStorage
-            await authLogout();
-            setUser(null);
+            try {
+              await authLogout();
+            } finally {
+              setUser(null);
+            }
           }
         }
       } catch (err) {
@@ -156,9 +162,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    await authLogout();
-    stopAutoRefresh();
-    setUser(null);
+    try {
+      await authLogout();
+    } finally {
+      stopAutoRefresh();
+      setUser(null);
+    }
   }, []);
 
   return (
