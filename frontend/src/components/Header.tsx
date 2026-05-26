@@ -12,12 +12,17 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-  // Ẩn header trên các trang auth
+  // Hide header on auth pages
   if (pathname?.startsWith("/auth")) return null;
 
   async function handleLogout() {
-    await logout();
+    try {
+      await logout();
+    } catch (e) {
+      console.error("Logout failed:", e);
+    }
     setUserMenuOpen(false);
+    setMenuOpen(false);
     router.push("/");
   }
 
@@ -28,13 +33,13 @@ export default function Header() {
   ];
 
   return (
-    <header className="bg-white/90 backdrop-blur-md border-b border-mocha/10 sticky top-0 z-40 shadow-sm">
+    <header className="bg-white/90 backdrop-blur-md border-b border-mocha/10 sticky top-0 z-50 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link
             href="/"
-            className="font-heading text-xl text-mocha font-bold flex items-center gap-2 hover:text-pink-pastel transition-colors"
+            className="font-heading text-xl text-mocha font-bold flex items-center gap-2 hover:text-pink-pastel transition-colors min-h-[44px]"
           >
             🎂 <span>La Douceur</span>
           </Link>
@@ -136,7 +141,7 @@ export default function Header() {
                         )}
                         <button
                           onClick={handleLogout}
-                          className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                          className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors text-left"
                         >
                           🚪 Đăng xuất
                         </button>

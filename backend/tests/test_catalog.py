@@ -96,29 +96,23 @@ class TestListProducts:
     async def test_list_products_returns_paginated_results(self, mock_supabase):
         """Should return products with pagination metadata."""
         product = make_product()
+        # Embed relations as PostgREST would return them
+        product["product_images"] = [{"url": "https://example.com/img.jpg", "sort_order": 0}]
+        product["product_review_stats"] = [{"review_count": 2, "average_rating": 4.5}]
 
         # Mock count query
         count_builder = MockQueryBuilder(data=[{"id": product["id"]}], count=1)
-        # Mock data query
+        # Mock data query (returns product with embedded relations)
         data_builder = MockQueryBuilder(data=[product])
-        # Mock images query
-        images_builder = MockQueryBuilder(data=[{"url": "https://example.com/img.jpg"}])
-        # Mock reviews query
-        reviews_builder = MockQueryBuilder(data=[{"rating": 4}, {"rating": 5}])
 
         call_count = {"value": 0}
 
         def mock_table(table_name):
             call_count["value"] += 1
             if table_name == "products":
-                # First call is count, second is data
                 if call_count["value"] == 1:
                     return count_builder
                 return data_builder
-            elif table_name == "product_images":
-                return images_builder
-            elif table_name == "reviews":
-                return reviews_builder
             return MockQueryBuilder()
 
         mock_supabase.table = mock_table
@@ -172,11 +166,11 @@ class TestListProducts:
         """Should truncate description to 100 characters in list view."""
         long_desc = "A" * 150
         product = make_product(description=long_desc)
+        product["product_images"] = []
+        product["product_review_stats"] = []
 
         count_builder = MockQueryBuilder(data=[{"id": product["id"]}], count=1)
         data_builder = MockQueryBuilder(data=[product])
-        images_builder = MockQueryBuilder(data=[])
-        reviews_builder = MockQueryBuilder(data=[])
 
         call_count = {"value": 0}
 
@@ -186,10 +180,6 @@ class TestListProducts:
                 if call_count["value"] == 1:
                     return count_builder
                 return data_builder
-            elif table_name == "product_images":
-                return images_builder
-            elif table_name == "reviews":
-                return reviews_builder
             return MockQueryBuilder()
 
         mock_supabase.table = mock_table
@@ -203,11 +193,11 @@ class TestListProducts:
     async def test_list_products_no_image_returns_none(self, mock_supabase):
         """Should return None for image_url when product has no images."""
         product = make_product()
+        product["product_images"] = []
+        product["product_review_stats"] = []
 
         count_builder = MockQueryBuilder(data=[{"id": product["id"]}], count=1)
         data_builder = MockQueryBuilder(data=[product])
-        images_builder = MockQueryBuilder(data=[])
-        reviews_builder = MockQueryBuilder(data=[])
 
         call_count = {"value": 0}
 
@@ -217,10 +207,6 @@ class TestListProducts:
                 if call_count["value"] == 1:
                     return count_builder
                 return data_builder
-            elif table_name == "product_images":
-                return images_builder
-            elif table_name == "reviews":
-                return reviews_builder
             return MockQueryBuilder()
 
         mock_supabase.table = mock_table
@@ -234,11 +220,11 @@ class TestListProducts:
     async def test_list_products_no_reviews_returns_null_rating(self, mock_supabase):
         """Should return None for average_rating when product has no reviews."""
         product = make_product()
+        product["product_images"] = []
+        product["product_review_stats"] = []
 
         count_builder = MockQueryBuilder(data=[{"id": product["id"]}], count=1)
         data_builder = MockQueryBuilder(data=[product])
-        images_builder = MockQueryBuilder(data=[])
-        reviews_builder = MockQueryBuilder(data=[])
 
         call_count = {"value": 0}
 
@@ -248,10 +234,6 @@ class TestListProducts:
                 if call_count["value"] == 1:
                     return count_builder
                 return data_builder
-            elif table_name == "product_images":
-                return images_builder
-            elif table_name == "reviews":
-                return reviews_builder
             return MockQueryBuilder()
 
         mock_supabase.table = mock_table
@@ -289,7 +271,7 @@ class TestGetProductDetail:
                 {"id": str(uuid4()), "url": "https://example.com/2.jpg", "sort_order": 1},
             ]
         )
-        reviews_builder = MockQueryBuilder(data=[{"rating": 3}, {"rating": 4}, {"rating": 5}])
+        stats_builder = MockQueryBuilder(data={"review_count": 3, "average_rating": 4.0})
 
         call_count = {"value": 0}
 
@@ -299,8 +281,8 @@ class TestGetProductDetail:
                 return product_builder
             elif table_name == "product_images":
                 return images_builder
-            elif table_name == "reviews":
-                return reviews_builder
+            elif table_name == "product_review_stats":
+                return stats_builder
             return MockQueryBuilder()
 
         mock_supabase.table = mock_table
@@ -358,7 +340,7 @@ class TestGetProductDetail:
 
         product_builder = MockQueryBuilder(data=product)
         images_builder = MockQueryBuilder(data=[])
-        reviews_builder = MockQueryBuilder(data=[])
+        stats_builder = MockQueryBuilder(data=None)
 
         call_count = {"value": 0}
 
@@ -368,8 +350,8 @@ class TestGetProductDetail:
                 return product_builder
             elif table_name == "product_images":
                 return images_builder
-            elif table_name == "reviews":
-                return reviews_builder
+            elif table_name == "product_review_stats":
+                return stats_builder
             return MockQueryBuilder()
 
         mock_supabase.table = mock_table
@@ -390,7 +372,7 @@ class TestGetProductDetail:
 
         product_builder = MockQueryBuilder(data=product)
         images_builder = MockQueryBuilder(data=[])
-        reviews_builder = MockQueryBuilder(data=[])
+        stats_builder = MockQueryBuilder(data=None)
 
         call_count = {"value": 0}
 
@@ -400,8 +382,8 @@ class TestGetProductDetail:
                 return product_builder
             elif table_name == "product_images":
                 return images_builder
-            elif table_name == "reviews":
-                return reviews_builder
+            elif table_name == "product_review_stats":
+                return stats_builder
             return MockQueryBuilder()
 
         mock_supabase.table = mock_table

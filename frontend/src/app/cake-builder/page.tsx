@@ -10,7 +10,13 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import CakeSVG, { type CakeZone } from "@/components/cake-builder/CakeSVG";
+import dynamic from "next/dynamic";
+import { type CakeZone } from "@/components/cake-builder/CakeSVG";
+
+const CakeSVG = dynamic(() => import("@/components/cake-builder/CakeSVG"), {
+  ssr: false,
+});
+
 import OptionsPanel from "@/components/cake-builder/OptionsPanel";
 import { SizeSelector } from "@/components/cake-builder/SizeSelector";
 import { PriceDisplay } from "@/components/cake-builder/PriceDisplay";
@@ -21,7 +27,7 @@ import type { ZoneCustomization } from "@/types";
 
 export default function CakeBuilderPage() {
   const router = useRouter();
-  const { design, priceBreakdown, totalPrice, actions } = useCakeBuilder({
+  const { design, priceBreakdown, actions } = useCakeBuilder({
     size: "20cm",
     cream_color: "#E8837A",
     zones: {

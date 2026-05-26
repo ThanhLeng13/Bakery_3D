@@ -231,6 +231,12 @@ class AuthService:
                 .execute()
             )
 
+            if user_result is None:
+                raise AuthServiceError(
+                    "Unexpected server error",
+                    status_code=500,
+                )
+
             if user_result.data is None:
                 # Create new user record with customer role
                 user_metadata = user.user_metadata or {}
@@ -299,7 +305,7 @@ class AuthService:
                 .execute()
             )
 
-            user_data = user_result.data if user_result.data else {}
+            user_data = user_result.data if (user_result and user_result.data) else {}
 
             return {
                 "access_token": session.access_token,

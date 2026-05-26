@@ -8,6 +8,9 @@ import logging
 import math
 from typing import Any, Optional
 
+from app.core.config import settings
+from app.utils.image_url import format_image_url
+
 logger = logging.getLogger(__name__)
 
 
@@ -95,10 +98,10 @@ class CatalogService:
         total_pages = math.ceil(total_items / page_size) if total_items > 0 else 0
         offset = (page - 1) * page_size
 
-        # Build data query
+        # Build data query — embed product_review_stats view for pre-aggregated ratings
         data_query = (
             self._supabase.table("products")
-            .select("id, name, description, category, base_price, created_at")
+            .select("id, name, description, category, base_price, created_at, product_images(url, sort_order), product_review_stats(review_count, average_rating)")
             .eq("is_active", True)
             .order("created_at", desc=True)
             .range(offset, offset + page_size - 1)
@@ -110,39 +113,29 @@ class CatalogService:
         data_result = data_query.execute()
         products_data = data_result.data or []
 
-        # Fetch first image for each product and review aggregates
+        # Build product list with first image and pre-aggregated review stats
         products = []
         for product in products_data:
             product_id = product["id"]
 
-            # Get first image (sorted by sort_order)
-            image_result = (
-                self._supabase.table("product_images")
-                .select("url")
-                .eq("product_id", product_id)
-                .order("sort_order", desc=False)
-                .limit(1)
-                .execute()
-            )
-            image_url = (
-                image_result.data[0]["url"]
-                if image_result.data
-                else None
-            )
+            # Get first image (sorted by sort_order) from embedded relation
+            images = product.get("product_images") or []
+            if images:
+                images_sorted = sorted(images, key=lambda x: x.get("sort_order") or 0)
+                image_url = format_image_url(images_sorted[0].get("url"))
+            else:
+                image_url = None
 
-            # Get average rating and review count
-            review_result = (
-                self._supabase.table("reviews")
-                .select("rating")
-                .eq("product_id", product_id)
-                .execute()
-            )
-            reviews = review_result.data or []
-            review_count = len(reviews)
-            average_rating = None
-            if review_count > 0:
-                avg = sum(r["rating"] for r in reviews) / review_count
-                average_rating = round(avg, 1)
+            # Get pre-aggregated review stats from embedded view
+            stats_list = product.get("product_review_stats") or []
+            if stats_list:
+                stats = stats_list[0] if isinstance(stats_list, list) else stats_list
+                review_count = stats.get("review_count", 0) or 0
+                avg_raw = stats.get("average_rating")
+                average_rating = float(avg_raw) if avg_raw is not None else None
+            else:
+                review_count = 0
+                average_rating = None
 
             # Truncate description to 100 chars for list view
             description = product.get("description") or ""
@@ -200,7 +193,7 @@ class CatalogService:
             .execute()
         )
 
-        if product_result.data is None:
+        if product_result is None or product_result.data is None:
             raise ProductNotFoundError(product_id)
 
         product = product_result.data
@@ -214,20 +207,38 @@ class CatalogService:
             .execute()
         )
         images = images_result.data or []
+        for img in images:
+            if "url" in img:
+                img["url"] = format_image_url(img["url"])
 
-        # Get average rating and review count
-        review_result = (
-            self._supabase.table("reviews")
-            .select("rating")
+        # Get pre-aggregated review stats from database view
+        stats_result = (
+            self._supabase.table("product_review_stats")
+            .select("review_count, average_rating")
             .eq("product_id", product_id)
+            .maybe_single()
             .execute()
         )
-        reviews = review_result.data or []
-        review_count = len(reviews)
-        average_rating = None
-        if review_count > 0:
-            avg = sum(r["rating"] for r in reviews) / review_count
-            average_rating = round(avg, 1)
+        stats = stats_result.data if (stats_result and stats_result.data) else {}
+        review_count = stats.get("review_count", 0) or 0
+        avg_raw = stats.get("average_rating")
+        average_rating = float(avg_raw) if avg_raw is not None else None
+
+        raw_sizes = product.get("sizes") or []
+        sizes = []
+        for s in raw_sizes:
+            if isinstance(s, dict):
+                sizes.append(s)
+            elif isinstance(s, str):
+                sizes.append({"name": s, "price": product["base_price"]})
+
+        raw_flavors = product.get("flavors") or []
+        flavors = []
+        for f in raw_flavors:
+            if isinstance(f, dict):
+                flavors.append(f)
+            elif isinstance(f, str):
+                flavors.append({"name": f, "price": 0})
 
         # Normalize flavors.
         # DB may store: a JSON array of strings, an array of dicts, a bare
@@ -277,7 +288,7 @@ class CatalogService:
             "description": product.get("description"),
             "category": product["category"],
             "base_price": product["base_price"],
-            "sizes": product.get("sizes") or [],
+            "sizes": sizes,
             "flavors": normalized_flavors,
             "is_active": product["is_active"],
             "images": images,

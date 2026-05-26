@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Playfair_Display, DM_Sans } from "next/font/google";
-import ChatWidget from "@/components/ChatWidget";
-import Header from "@/components/Header";
+import dynamic from "next/dynamic";
 import { AuthProvider } from "@/contexts/AuthContext";
 import "./globals.css";
 
+// ---- Fonts ----
 const playfair = Playfair_Display({
   subsets: ["latin", "vietnamese"],
   variable: "--font-playfair",
@@ -17,10 +17,43 @@ const dmSans = DM_Sans({
   display: "swap",
 });
 
+// ---- Dynamic import: ChatWidget loads AFTER page is interactive ----
+// This keeps the initial JS bundle small (ChatWidget is ~10KB+ with SSE logic)
+const ChatWidget = dynamic(() => import("@/components/ChatWidget"), {
+  ssr: false, // Chat is fully client-side
+  loading: () => null, // No flash while loading
+});
+
+// ---- SEO Metadata ----
 export const metadata: Metadata = {
-  title: "Tiệm Bánh Kem | Cake Shop",
+  title: {
+    template: "%s | La Douceur – Tiệm Bánh Kem",
+    default: "La Douceur – Tiệm Bánh Kem Thủ Công TP.HCM",
+  },
   description:
-    "Tiệm bánh kem tùy chỉnh tại TP.HCM - Thiết kế bánh kem theo ý muốn với AI tư vấn",
+    "Tiệm bánh kem tùy chỉnh tại TP.HCM – Thiết kế bánh kem theo ý muốn với công cụ trực quan và AI tư vấn thông minh bằng tiếng Việt.",
+  keywords: ["bánh kem", "cake shop", "tiệm bánh", "thiết kế bánh", "TP.HCM"],
+  authors: [{ name: "La Douceur Bakery" }],
+  openGraph: {
+    type: "website",
+    locale: "vi_VN",
+    siteName: "La Douceur",
+    title: "La Douceur – Tiệm Bánh Kem Thủ Công TP.HCM",
+    description:
+      "Thiết kế bánh kem theo ý muốn với công cụ trực quan và AI tư vấn thông minh.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
+// ---- Viewport config (prevents double-tap zoom on mobile) ----
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5, // Allow user zoom (accessibility)
+  themeColor: "#e8837a",
 };
 
 export default function RootLayout({
@@ -30,10 +63,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi" className={`${playfair.variable} ${dmSans.variable}`}>
+      <head>
+        {/* Preconnect to Google Fonts CDN (already loaded by next/font but good practice) */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      </head>
       <body className="font-body antialiased">
         <AuthProvider>
-          <Header />
           {children}
+          {/* ChatWidget loaded dynamically to not block initial paint */}
           <ChatWidget />
         </AuthProvider>
       </body>

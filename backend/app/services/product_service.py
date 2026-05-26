@@ -10,6 +10,7 @@ from typing import Any, Optional
 from PIL import Image
 
 from app.core.config import settings
+from app.utils.image_url import format_image_url
 
 
 class ProductServiceError(Exception):
@@ -301,7 +302,11 @@ class ProductService:
             # Trigger catalog revalidation
             await self._trigger_revalidation(product_id)
 
-            return result.data[0]
+            image_record = result.data[0]
+            if "url" in image_record:
+                image_record["url"] = format_image_url(image_record["url"])
+
+            return image_record
 
         except (ProductServiceError, ProductValidationError, ProductNotFoundError):
             raise
@@ -364,7 +369,7 @@ class ProductService:
                 .execute()
             )
 
-            if result.data is None:
+            if result is None or result.data is None:
                 raise ProductNotFoundError(product_id)
 
             return result.data
@@ -387,7 +392,11 @@ class ProductService:
             .execute()
         )
 
-        product["images"] = images_result.data if images_result.data else []
+        images = images_result.data if images_result.data else []
+        for img in images:
+            if "url" in img:
+                img["url"] = format_image_url(img["url"])
+        product["images"] = images
         return product
 
     async def _trigger_revalidation(self, product_id: str) -> None:
