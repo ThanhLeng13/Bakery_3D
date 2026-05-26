@@ -19,18 +19,19 @@ def _coerce_cost(value: Any) -> int:
     - Empty string ""          → 0
     - Numeric string "5000"    → 5000
     - Float 4999.9             → 4999
-    - Non-numeric string "abc" → 0  (with no exception)
-    - NaN / Infinity           → 0
+    - Non-numeric string "abc" → 0
+    - float("inf") / "inf"     → 0  (OverflowError caught)
+    - NaN                      → 0  (ValueError from int(float("nan")) is caught)
     """
     if value is None:
         return 0
     try:
-        coerced = int(float(value))
-        # Reject NaN / Infinity which survive float() but make no sense as cost
-        if coerced != coerced or coerced in (float("inf"), float("-inf")):
-            return 0
-        return max(0, coerced)
-    except (ValueError, TypeError):
+        # float() first to handle strings like "5000.5"; int() truncates.
+        # OverflowError: int(float("inf")) — infinity cannot convert to int.
+        # ValueError:    int(float("nan")) — NaN cannot convert to int.
+        # TypeError:     non-numeric types that float() rejects.
+        return max(0, int(float(value)))
+    except (ValueError, TypeError, OverflowError):
         return 0
 
 
