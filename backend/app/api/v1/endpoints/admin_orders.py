@@ -17,17 +17,18 @@ from app.services.order_service import OrderNotFoundError, OrderService, OrderSe
 router = APIRouter()
 
 
-def _get_supabase_client():
-    """Get Supabase client instance."""
+def _get_supabase_admin_client():
+    """Get Supabase client with service role key for admin operations."""
     from supabase import create_client
 
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
 
 def _get_order_service() -> OrderService:
-    """Create OrderService with Supabase client."""
-    client = _get_supabase_client()
+    """Create OrderService with admin Supabase client."""
+    client = _get_supabase_admin_client()
     return OrderService(client)
+
 
 
 @router.get("")
@@ -51,7 +52,7 @@ async def list_admin_orders(
     Sorted by created_at descending (newest first).
     Paginated (20/page default).
     """
-    supabase = _get_supabase_client()
+    supabase = _get_supabase_admin_client()
 
     try:
         # Build query for counting
@@ -118,7 +119,9 @@ async def list_admin_orders(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to fetch orders")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to fetch orders: {str(e)}")
 
 
 @router.get("/{order_id}")

@@ -9,7 +9,8 @@ Endpoints:
 All endpoints require Admin role authentication.
 """
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from typing import Optional
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Query
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
@@ -18,6 +19,7 @@ from app.schemas.admin_products import (
     CreateProductRequest,
     UpdateProductRequest,
     UpdateProductStatusRequest,
+    ProductListResponse,
 )
 from app.services.product_service import (
     ProductNotFoundError,
@@ -58,6 +60,92 @@ def _handle_product_error(e: ProductServiceError) -> JSONResponse:
         status_code=e.status_code,
         content={"detail": e.message},
     )
+
+
+@router.get("", response_model=ProductListResponse)
+async def list_admin_products(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    search: Optional[str] = Query(default=None),
+    category: Optional[str] = Query(default=None),
+    is_active: Optional[bool] = Query(default=None),
+    current_user: dict = Depends(require_admin),
+):
+    """
+    List all products for admin with pagination, search, and filtering.
+    """
+    supabase = _get_supabase_admin_client()
+    try:
+        # 1. Base query for counting
+        count_query = supabase.table("products").select("id", count="exact")
+        if search:
+            count_query = count_query.ilike("name", f"%{search}%")
+        if category:
+            count_query = count_query.eq("category", category)
+        if is_active is not None:
+            count_query = count_query.eq("is_active", is_active)
+            
+        count_result = count_query.execute()
+        total = count_result.count if count_result.count is not None else 0
+        
+        # 2. Base query for data
+        offset = (page - 1) * page_size
+        data_query = (
+            supabase.table("products")
+            .select("*, product_images(id, product_id, url, sort_order)")
+            .order("created_at", desc=True)
+            .range(offset, offset + page_size - 1)
+        )
+        if search:
+            data_query = data_query.ilike("name", f"%{search}%")
+        if category:
+            data_query = data_query.eq("category", category)
+        if is_active is not None:
+            data_query = data_query.eq("is_active", is_active)
+            
+        data_result = data_query.execute()
+        products_data = data_result.data or []
+        
+        # Format products to match ProductResponse
+        formatted_products = []
+        for p in products_data:
+            images = p.get("product_images") or []
+            images_sorted = sorted(images, key=lambda x: x.get("sort_order") or 0)
+            
+            from app.utils.image_url import format_image_url
+            formatted_images = []
+            for img in images_sorted:
+                formatted_images.append({
+                    "id": img["id"],
+                    "product_id": img["product_id"],
+                    "url": format_image_url(img["url"]),
+                    "sort_order": img.get("sort_order") or 0
+                })
+                
+            formatted_products.append({
+                "id": p["id"],
+                "name": p["name"],
+                "description": p.get("description"),
+                "category": p["category"],
+                "base_price": p["base_price"],
+                "sizes": p.get("sizes") or [],
+                "flavors": p.get("flavors") or [],
+                "is_active": p["is_active"],
+                "images": formatted_images,
+                "created_at": p["created_at"].isoformat() if hasattr(p["created_at"], "isoformat") else str(p["created_at"]),
+                "updated_at": p["updated_at"].isoformat() if hasattr(p["updated_at"], "isoformat") else str(p["updated_at"]),
+            })
+            
+        return {
+            "products": formatted_products,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to fetch products: {str(e)}")
 
 
 @router.post("", status_code=201)

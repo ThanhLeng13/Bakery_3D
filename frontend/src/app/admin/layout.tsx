@@ -48,9 +48,11 @@ function AdminShell({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside className="hidden md:flex md:w-64 flex-col bg-white border-r border-mocha/10 shadow-sm">
         <div className="p-6 border-b border-mocha/10">
-          <h1 className="font-heading text-xl text-mocha font-bold">
-            Admin Panel
-          </h1>
+          <Link href="/admin/products" className="hover:text-pink-pastel transition-colors">
+            <h1 className="font-heading text-xl text-mocha font-bold">
+              Admin Panel
+            </h1>
+          </Link>
           <p className="text-sm text-mocha/60 font-body mt-1">
             {user?.full_name || "Admin"}
           </p>
@@ -74,7 +76,14 @@ function AdminShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="p-4 border-t border-mocha/10">
+        <div className="p-4 border-t border-mocha/10 space-y-1">
+          <Link
+            href="/"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg font-body text-sm text-mocha/70 hover:bg-cream hover:text-mocha transition-colors"
+          >
+            <span className="text-lg">🏠</span>
+            Xem cửa hàng
+          </Link>
           <button
             onClick={logout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg font-body text-sm text-mocha/70 hover:bg-red-50 hover:text-red-600 transition-colors"
@@ -88,9 +97,11 @@ function AdminShell({ children }: { children: React.ReactNode }) {
       {/* Mobile header */}
       <div className="flex-1 flex flex-col">
         <header className="md:hidden flex items-center justify-between p-4 bg-white border-b border-mocha/10 shadow-sm">
-          <h1 className="font-heading text-lg text-mocha font-bold">
-            Admin Panel
-          </h1>
+          <Link href="/admin/products" className="hover:text-pink-pastel transition-colors">
+            <h1 className="font-heading text-lg text-mocha font-bold">
+              Admin Panel
+            </h1>
+          </Link>
           <MobileNav pathname={pathname} onLogout={logout} />
         </header>
 
@@ -126,6 +137,13 @@ function MobileNav({
           </Link>
         );
       })}
+      <Link
+        href="/"
+        className="px-3 py-2 rounded-lg text-sm text-mocha/70 hover:text-mocha"
+        title="Xem cửa hàng"
+      >
+        🏠
+      </Link>
       <button
         onClick={onLogout}
         className="px-3 py-2 rounded-lg text-sm text-mocha/70 hover:text-red-600"
