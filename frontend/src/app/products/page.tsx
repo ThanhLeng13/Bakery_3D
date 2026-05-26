@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { apiClient } from "@/lib/api";
 import { ProductListItem, ProductListResponse } from "@/types";
 import ProductCard from "@/components/ProductCard";
@@ -65,9 +66,9 @@ export default function ProductCatalogPage() {
           <nav className="mb-3" aria-label="Breadcrumb">
             <ol className="flex items-center gap-2 text-sm text-mocha/50">
               <li>
-                <a href="/" className="hover:text-pink-pastel transition-colors flex items-center gap-1">
+                <Link href="/" className="hover:text-pink-pastel transition-colors flex items-center gap-1">
                   🏠 Trang chủ
-                </a>
+                </Link>
               </li>
               <li aria-hidden="true">/</li>
               <li className="text-mocha font-medium">Danh mục</li>
