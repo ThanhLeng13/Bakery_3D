@@ -4,11 +4,38 @@ Handles product listing with pagination, filtering, and detail retrieval.
 Only active products are returned for customer-facing endpoints.
 """
 
+import logging
 import math
 from typing import Any, Optional
 
 from app.core.config import settings
 from app.utils.image_url import format_image_url
+
+logger = logging.getLogger(__name__)
+
+
+def _coerce_cost(value: Any) -> int:
+    """Safely coerce a flavor's additional_cost to a non-negative int.
+
+    Handles every pathological DB value:
+    - None / missing           → 0
+    - Empty string ""          → 0
+    - Numeric string "5000"    → 5000
+    - Float 4999.9             → 4999
+    - Non-numeric string "abc" → 0
+    - float("inf") / "inf"     → 0  (OverflowError caught)
+    - NaN                      → 0  (ValueError from int(float("nan")) is caught)
+    """
+    if value is None:
+        return 0
+    try:
+        # float() first to handle strings like "5000.5"; int() truncates.
+        # OverflowError: int(float("inf")) — infinity cannot convert to int.
+        # ValueError:    int(float("nan")) — NaN cannot convert to int.
+        # TypeError:     non-numeric types that float() rejects.
+        return max(0, int(float(value)))
+    except (ValueError, TypeError, OverflowError):
+        return 0
 
 
 class CatalogServiceError(Exception):
@@ -205,13 +232,48 @@ class CatalogService:
             elif isinstance(s, str):
                 sizes.append({"name": s, "price": product["base_price"]})
 
-        raw_flavors = product.get("flavors") or []
-        flavors = []
+
+        # Normalize flavors.
+        # DB may store: a JSON array of strings, an array of dicts, a bare
+        # string (legacy), or null.  Guard every case so we never iterate a
+        # string character-by-character.
+        raw = product.get("flavors")
+        if raw is None:
+            raw_flavors: list = []
+        elif isinstance(raw, str):
+            # Bare string → treat as a single flavor entry
+            logger.warning(
+                "Product %s: flavors stored as a bare string, wrapping in list",
+                product.get("id"),
+            )
+            raw_flavors = [raw]
+        elif isinstance(raw, list):
+            raw_flavors = raw
+        else:
+            logger.warning(
+                "Product %s: unexpected flavors type %s (%r) — treating as empty",
+                product.get("id"),
+                type(raw).__name__,
+                raw,
+            )
+            raw_flavors = []
+
+        normalized_flavors = []
         for f in raw_flavors:
-            if isinstance(f, dict):
-                flavors.append(f)
-            elif isinstance(f, str):
-                flavors.append({"name": f, "price": 0})
+            if isinstance(f, str):
+                normalized_flavors.append({"name": f, "additional_cost": 0})
+            elif isinstance(f, dict):
+                normalized_flavors.append({
+                    "name": f.get("name", ""),
+                    "additional_cost": _coerce_cost(f.get("additional_cost")),
+                })
+            else:
+                logger.warning(
+                    "Unexpected flavor entry type for product %s: got %s (%r) — skipping",
+                    product.get("id"),
+                    type(f).__name__,
+                    f,
+                )
 
         return {
             "id": product["id"],
@@ -220,7 +282,7 @@ class CatalogService:
             "category": product["category"],
             "base_price": product["base_price"],
             "sizes": sizes,
-            "flavors": flavors,
+            "flavors": normalized_flavors,
             "is_active": product["is_active"],
             "images": images,
             "average_rating": average_rating,

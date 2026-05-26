@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Playfair_Display, DM_Sans } from "next/font/google";
 import dynamic from "next/dynamic";
+import { AuthProvider } from "@/contexts/AuthContext";
 import "./globals.css";
 
 // ---- Fonts ----
@@ -68,9 +69,11 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className="font-body antialiased">
-        {children}
-        {/* ChatWidget loaded dynamically to not block initial paint */}
-        <ChatWidget />
+        <AuthProvider>
+          {children}
+          {/* ChatWidget loaded dynamically to not block initial paint */}
+          <ChatWidget />
+        </AuthProvider>
       </body>
     </html>
   );

@@ -9,7 +9,7 @@
 import { Suspense, useState, FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuthContext } from "@/contexts/AuthContext";
 import { ApiError } from "@/lib/api";
 
 export default function LoginPage() {
@@ -32,7 +32,7 @@ export default function LoginPage() {
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login } = useAuth();
+  const { login } = useAuthContext();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

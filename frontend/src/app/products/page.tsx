@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import ProductCatalogClient from "@/components/ProductCatalogClient";
 import { ProductListResponse } from "@/types";
 import Header from "@/components/Header";
+
 export const revalidate = 60; // ISR cache TTL 60 seconds
 
 export const metadata: Metadata = {
@@ -15,6 +16,7 @@ interface PageProps {
     category?: string;
   };
 }
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 async function getProducts(page: number, category: string): Promise<ProductListResponse> {
