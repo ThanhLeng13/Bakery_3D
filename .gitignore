@@ -67,3 +67,7 @@ docker-compose.override.yml
 
 # ---- Local Guides ----
 HUONG_DAN_CHAY_CODE.txt
+
+# ---- Local Images / Assets ----
+image/
+
