@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.core.dependencies import require_admin
+from app.utils.image_url import format_image_url
 from app.schemas.admin_products import (
     CreateProductRequest,
     UpdateProductRequest,
@@ -76,23 +77,11 @@ async def list_admin_products(
     """
     supabase = _get_supabase_admin_client()
     try:
-        # 1. Base query for counting
-        count_query = supabase.table("products").select("id", count="exact")
-        if search:
-            count_query = count_query.ilike("name", f"%{search}%")
-        if category:
-            count_query = count_query.eq("category", category)
-        if is_active is not None:
-            count_query = count_query.eq("is_active", is_active)
-            
-        count_result = count_query.execute()
-        total = count_result.count if count_result.count is not None else 0
-        
-        # 2. Base query for data
+        # Base query for data and exact count in a single request
         offset = (page - 1) * page_size
         data_query = (
             supabase.table("products")
-            .select("*, product_images(id, product_id, url, sort_order)")
+            .select("*, product_images(id, product_id, url, sort_order)", count="exact")
             .order("created_at", desc=True)
             .range(offset, offset + page_size - 1)
         )
@@ -105,6 +94,7 @@ async def list_admin_products(
             
         data_result = data_query.execute()
         products_data = data_result.data or []
+        total = data_result.count if data_result.count is not None else 0
         
         # Format products to match ProductResponse
         formatted_products = []
@@ -112,7 +102,6 @@ async def list_admin_products(
             images = p.get("product_images") or []
             images_sorted = sorted(images, key=lambda x: x.get("sort_order") or 0)
             
-            from app.utils.image_url import format_image_url
             formatted_images = []
             for img in images_sorted:
                 formatted_images.append({
