@@ -143,9 +143,10 @@ async def list_admin_products(
             "page_size": page_size,
         }
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Failed to fetch products: {str(e)}")
+        import logging
+        logging.getLogger(__name__).exception("Failed to fetch products")
+        raise HTTPException(status_code=500, detail="Failed to fetch products")
+
 
 
 @router.post("", status_code=201)

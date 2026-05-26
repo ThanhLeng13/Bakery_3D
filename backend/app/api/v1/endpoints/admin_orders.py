@@ -119,9 +119,10 @@ async def list_admin_orders(
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Failed to fetch orders: {str(e)}")
+        import logging
+        logging.getLogger(__name__).exception("Failed to fetch orders")
+        raise HTTPException(status_code=500, detail="Failed to fetch orders")
+
 
 
 @router.get("/{order_id}")

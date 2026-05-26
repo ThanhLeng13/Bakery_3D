@@ -77,7 +77,18 @@ async def get_current_user(
         supabase_user = user_response.user
 
         # Fetch user role from users table using admin client to bypass RLS
-        supabase_admin = _get_supabase_admin_client()
+        try:
+            supabase_admin = _get_supabase_admin_client()
+        except Exception as init_err:
+            logging.getLogger(__name__).error(
+                "Failed to initialize admin client: %s",
+                str(init_err),
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal server error initializing admin client",
+            )
+
         try:
             user_result = (
                 supabase_admin.table("users")
@@ -96,6 +107,7 @@ async def get_current_user(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Internal server error",
             )
+
 
         if user_result is None or user_result.data is None:
             # User exists in auth but not in users table - treat as customer

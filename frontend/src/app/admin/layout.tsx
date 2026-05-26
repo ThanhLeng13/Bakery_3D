@@ -141,6 +141,7 @@ function MobileNav({
         href="/"
         className="px-3 py-2 rounded-lg text-sm text-mocha/70 hover:text-mocha"
         title="Xem cửa hàng"
+        aria-label="Xem cửa hàng"
       >
         🏠
       </Link>
