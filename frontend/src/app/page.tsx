@@ -3,40 +3,6 @@ import Link from "next/link";
 export default function Home() {
   return (
     <main className="min-h-screen bg-cream">
-      {/* Navigation */}
-      <nav className="bg-white/80 backdrop-blur-sm border-b border-mocha/10 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/" className="font-heading text-xl text-mocha font-bold">
-            🎂 La Douceur
-          </Link>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/products"
-              className="px-4 py-2 text-sm font-body text-mocha/70 hover:text-mocha transition-colors min-h-[44px] flex items-center"
-            >
-              Menu
-            </Link>
-            <Link
-              href="/cake-builder"
-              className="px-4 py-2 text-sm font-body text-mocha/70 hover:text-mocha transition-colors min-h-[44px] flex items-center"
-            >
-              Thiết kế bánh
-            </Link>
-            <Link
-              href="/orders"
-              className="px-4 py-2 text-sm font-body text-mocha/70 hover:text-mocha transition-colors min-h-[44px] flex items-center"
-            >
-              Đơn hàng
-            </Link>
-            <Link
-              href="/auth/login"
-              className="px-4 py-2 bg-pink-pastel text-white text-sm font-body font-medium rounded-full hover:bg-pink-pastel/90 transition-colors min-h-[44px] flex items-center"
-            >
-              Đăng nhập
-            </Link>
-          </div>
-        </div>
-      </nav>
 
       {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-4 py-16 md:py-24 text-center">

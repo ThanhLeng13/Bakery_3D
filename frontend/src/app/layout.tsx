@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Playfair_Display, DM_Sans } from "next/font/google";
 import ChatWidget from "@/components/ChatWidget";
+import Header from "@/components/Header";
+import { AuthProvider } from "@/contexts/AuthContext";
 import "./globals.css";
 
 const playfair = Playfair_Display({
@@ -29,8 +31,11 @@ export default function RootLayout({
   return (
     <html lang="vi" className={`${playfair.variable} ${dmSans.variable}`}>
       <body className="font-body antialiased">
-        {children}
-        <ChatWidget />
+        <AuthProvider>
+          <Header />
+          {children}
+          <ChatWidget />
+        </AuthProvider>
       </body>
     </html>
   );

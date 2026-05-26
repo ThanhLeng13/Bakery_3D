@@ -27,6 +27,6 @@ router.include_router(chat.router, prefix="/chat", tags=["Chat"])
 # Order service
 router.include_router(orders.router, prefix="/orders", tags=["Orders"])
 
-# Review service - POST /reviews and GET /products/{id}/reviews (nested under catalog prefix)
-router.include_router(reviews.router, prefix="", tags=["Reviews"])
+# Review service - POST /reviews and GET /products/{id}/reviews
+router.include_router(reviews.router, prefix="/reviews", tags=["Reviews"])
 

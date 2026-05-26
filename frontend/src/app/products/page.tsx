@@ -58,9 +58,21 @@ export default function ProductCatalogPage() {
 
   return (
     <main className="min-h-screen bg-cream">
-      {/* Header */}
+      {/* Page Title */}
       <div className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          {/* Breadcrumb về trang chủ */}
+          <nav className="mb-3" aria-label="Breadcrumb">
+            <ol className="flex items-center gap-2 text-sm text-mocha/50">
+              <li>
+                <a href="/" className="hover:text-pink-pastel transition-colors flex items-center gap-1">
+                  🏠 Trang chủ
+                </a>
+              </li>
+              <li aria-hidden="true">/</li>
+              <li className="text-mocha font-medium">Danh mục</li>
+            </ol>
+          </nav>
           <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl font-bold text-mocha">
             Danh Mục Bánh Kem
           </h1>

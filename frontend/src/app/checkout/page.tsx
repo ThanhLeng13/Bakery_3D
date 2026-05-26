@@ -12,7 +12,7 @@
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuthContext } from "@/contexts/AuthContext";
 import { apiClient } from "@/lib/api";
 import type { CakeDesign, CakeSize } from "@/types";
 
@@ -84,7 +84,7 @@ function formatDisplayDate(dateStr: string): string {
 
 function CheckoutContent() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user } = useAuthContext();
 
   const [cakeDesign, setCakeDesign] = useState<CakeDesign | null>(null);
   const [fullName, setFullName] = useState("");

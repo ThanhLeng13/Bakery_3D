@@ -9,7 +9,7 @@
 import { Suspense, useState, FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuthContext } from "@/contexts/AuthContext";
 import { ApiError } from "@/lib/api";
 
 interface FieldError {
@@ -37,7 +37,7 @@ export default function RegisterPage() {
 function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { register } = useAuth();
+  const { register } = useAuthContext();
 
   const [formData, setFormData] = useState({
     email: "",

@@ -202,6 +202,18 @@ class CatalogService:
             avg = sum(r["rating"] for r in reviews) / review_count
             average_rating = round(avg, 1)
 
+        # Normalize flavors: DB có thể lưu dạng string hoặc dict
+        raw_flavors = product.get("flavors") or []
+        normalized_flavors = []
+        for f in raw_flavors:
+            if isinstance(f, str):
+                normalized_flavors.append({"name": f, "additional_cost": 0})
+            elif isinstance(f, dict):
+                normalized_flavors.append({
+                    "name": f.get("name", ""),
+                    "additional_cost": f.get("additional_cost", 0),
+                })
+
         return {
             "id": product["id"],
             "name": product["name"],
@@ -209,7 +221,7 @@ class CatalogService:
             "category": product["category"],
             "base_price": product["base_price"],
             "sizes": product.get("sizes") or [],
-            "flavors": product.get("flavors") or [],
+            "flavors": normalized_flavors,
             "is_active": product["is_active"],
             "images": images,
             "average_rating": average_rating,

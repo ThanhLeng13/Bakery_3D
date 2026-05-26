@@ -56,7 +56,7 @@ function ReviewsSection({ productId }: { productId: string }) {
     try {
       const params = new URLSearchParams({ page: page.toString(), page_size: "10" });
       const data = await apiClient.get<ReviewsResponse>(
-        `/api/v1/products/${productId}/reviews?${params}`
+        `/api/v1/reviews/${productId}/product-reviews?${params}`
       );
       setReviews(data.reviews);
       setTotalPages(data.pagination.total_pages);

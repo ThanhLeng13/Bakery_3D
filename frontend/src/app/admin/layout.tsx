@@ -9,7 +9,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 const navItems = [
   { href: "/admin/products", label: "Sản phẩm", icon: "🧁" },
@@ -41,7 +41,7 @@ export default function AdminLayout({
 
 function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, logout } = useAuthContext();
 
   return (
     <div className="min-h-screen bg-cream flex">
