@@ -44,7 +44,7 @@ def _get_review_service() -> ReviewService:
     return ReviewService(client)
 
 
-@router.post("/", status_code=201)
+@router.post("", status_code=201)
 async def submit_review(
     body: SubmitReviewRequest,
     customer: dict = Depends(require_customer),
