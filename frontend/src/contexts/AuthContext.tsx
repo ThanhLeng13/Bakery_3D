@@ -61,44 +61,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true;
 
     const initAuth = async () => {
-      const storedUser = getStoredUser();
+      try {
+        const storedUser = getStoredUser();
 
-      if (!storedUser) {
-        if (active) setLoading(false);
-        return;
-      }
+        if (!storedUser) {
+          return;
+        }
 
-      if (checkAuth()) {
-        if (active) setUser(storedUser);
-        if (isTokenExpiringSoon(5)) {
+        if (checkAuth()) {
+          if (active) setUser(storedUser);
+          if (isTokenExpiringSoon(5)) {
+            const result = await refreshToken();
+            if (!active) return; // component unmounted during await
+            if (result) {
+              setUser(result.user);
+            } else {
+              // Proactive refresh failed — purge stale session from localStorage
+              await authLogout();
+              setUser(null);
+              stopAutoRefresh();
+              return;
+            }
+          }
+          if (active) startAutoRefresh();
+        } else {
           const result = await refreshToken();
           if (!active) return; // component unmounted during await
           if (result) {
             setUser(result.user);
+            startAutoRefresh();
           } else {
-            // Proactive refresh failed — purge stale session from localStorage
+            // Silent refresh failed — purge stale session from localStorage
             await authLogout();
             setUser(null);
-            stopAutoRefresh();
-            setLoading(false);
-            return;
           }
         }
-        if (active) startAutoRefresh();
-      } else {
-        const result = await refreshToken();
-        if (!active) return; // component unmounted during await
-        if (result) {
-          setUser(result.user);
-          startAutoRefresh();
-        } else {
-          // Silent refresh failed — purge stale session from localStorage
-          await authLogout();
+      } catch (err) {
+        console.error("Auth initialization failed:", err);
+        // Fallback: clear user state on error to prevent broken states
+        if (active) {
           setUser(null);
+          stopAutoRefresh();
         }
+      } finally {
+        if (active) setLoading(false);
       }
-
-      if (active) setLoading(false);
     };
 
     initAuth();
