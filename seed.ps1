@@ -38,6 +38,13 @@ Set-Location $backendDir
 
 & "$venvActivate"
 pip install -r requirements.txt -q
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "" 
+    Write-Host "[!] Cai dat thu vien THAT BAI (pip install exit $LASTEXITCODE)." -ForegroundColor Red
+    Write-Host "    Kiem tra ket noi mang hoac file requirements.txt." -ForegroundColor Red
+    Read-Host "Nhan Enter de thoat"
+    exit 1
+}
 Write-Host ""
 Write-Host "[*] Dang chay seed_sweet_cakes.py..." -ForegroundColor Yellow
 python app/seed_sweet_cakes.py

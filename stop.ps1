@@ -10,7 +10,16 @@ Write-Host "========================================" -ForegroundColor Red
 Write-Host ""
 
 Write-Host "[*] Dang tat cac tien trinh backend (uvicorn)..." -ForegroundColor Yellow
-Get-Process -Name "python" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*uvicorn*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+
+# Get-Process trong PS 5.1 khong co .CommandLine — dung Get-CimInstance thay the
+$uvicornProcs = Get-CimInstance Win32_Process -Filter "Name = 'python.exe'" |
+    Where-Object { $_.CommandLine -like "*uvicorn*" }
+
+if ($uvicornProcs) {
+    $uvicornProcs | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    Write-Host "[OK] Da tat tien trinh uvicorn." -ForegroundColor Green
+}
+
 # Backup: kill theo cong 8000
 $port8000 = netstat -ano | findstr ":8000" | Select-String "LISTENING"
 if ($port8000) {

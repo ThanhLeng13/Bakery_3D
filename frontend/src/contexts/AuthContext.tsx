@@ -2,8 +2,11 @@
 
 /**
  * AuthContext - Global auth state shared across the entire app.
- * Fixes the issue where Header doesn't update after login/register
- * without a page reload.
+ *
+ * Design notes:
+ * - user state initializes to null to avoid SSR/client hydration mismatch
+ *   (window is undefined on server; useEffect runs only on client after hydration)
+ * - storage event handler manages auto-refresh timers to prevent timer leaks
  */
 
 import {
@@ -41,13 +44,15 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Init user đồng bộ từ localStorage (dùng stored user ngay, validate async sau)
-  const [user, setUser] = useState<AuthUser | null>(() => {
-    if (typeof window === "undefined") return null;
-    // Trả về stored user ngay cả khi token chưa kiểm tra — async effect sẽ validate
-    return getStoredUser();
-  });
-  // loading = true cho đến khi async validate xong
+  /**
+   * Initialize to null — NOT from localStorage.
+   *
+   * Reason: The server renders with window=undefined (user=null). If the client
+   * immediately initializes from localStorage, the initial HTML differs between
+   * server and client, causing a React hydration mismatch.
+   * The useEffect below safely hydrates auth state after the client mounts.
+   */
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -55,31 +60,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const storedUser = getStoredUser();
 
       if (!storedUser) {
-        // Không có user nào trong localStorage → chắc chắn chưa đăng nhập
-        setUser(null);
+        // No stored user → definitely not logged in
         setLoading(false);
         return;
       }
 
       if (checkAuth()) {
-        // Access token còn hạn
+        // Access token is still valid
         setUser(storedUser);
         if (isTokenExpiringSoon(5)) {
-          // Sắp hết hạn → refresh ngay
+          // Token expiring soon — refresh proactively
           const result = await refreshToken();
-          if (result) setUser(result.user);
-          // Nếu refresh fail, giữ nguyên user (token vẫn còn một chút hạn)
+          if (result) {
+            setUser(result.user);
+          } else {
+            // Proactive refresh failed (e.g. refresh token revoked) — log out cleanly
+            setUser(null);
+            stopAutoRefresh();
+            setLoading(false);
+            return;
+          }
         }
         startAutoRefresh();
       } else {
-        // Access token hết hạn → thử refresh bằng refresh_token
+        // Access token expired — attempt silent refresh
         const result = await refreshToken();
         if (result) {
-          // Refresh thành công → vẫn đăng nhập
+          // Refresh succeeded → still logged in
           setUser(result.user);
           startAutoRefresh();
         } else {
-          // Refresh thất bại → phiên hết hạn, đăng xuất
+          // Refresh failed → session truly expired, stay logged out
           setUser(null);
         }
       }
@@ -89,19 +100,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     initAuth();
 
-    // Lắng nghe thay đổi auth từ tab khác
+    /**
+     * Handle auth changes from other tabs via the storage event.
+     * Also manages auto-refresh timers to avoid leaks:
+     * - On login in another tab  → start auto-refresh here too
+     * - On logout in another tab → stop auto-refresh here to prevent stale timers
+     */
     const handleStorage = (e: StorageEvent) => {
       if (e.key === "auth_user") {
         if (e.newValue) {
-          try { setUser(JSON.parse(e.newValue)); }
-          catch { setUser(null); }
+          try {
+            setUser(JSON.parse(e.newValue));
+            startAutoRefresh(); // New session started in another tab
+          } catch {
+            setUser(null);
+            stopAutoRefresh();
+          }
         } else {
+          // auth_user removed → logged out in another tab
           setUser(null);
+          stopAutoRefresh();
         }
       }
     };
 
     window.addEventListener("storage", handleStorage);
+
     return () => {
       stopAutoRefresh();
       window.removeEventListener("storage", handleStorage);

@@ -44,21 +44,23 @@ if (-not (Test-Path $frontendEnv)) {
 
 # ---- BACKEND ----
 Write-Host "[1/2] Khoi dong BACKEND (FastAPI - cong 8000)..." -ForegroundColor Yellow
-$backendJob = Start-Process powershell -ArgumentList @(
+Start-Process powershell -ArgumentList @(
+    "-ExecutionPolicy", "Bypass",
     "-NoExit",
     "-Command",
-    "cd '$backendDir'; .\venv\Scripts\Activate.ps1; Write-Host '[BACKEND] Dang cai thu vien...' -ForegroundColor Cyan; pip install -r requirements.txt -q; Write-Host '[BACKEND] Dang chay server...' -ForegroundColor Green; python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload"
-) -PassThru
+    "cd '$backendDir'; .\venv\Scripts\Activate.ps1; Write-Host '[BACKEND] Dang cai thu vien...' -ForegroundColor Cyan; pip install -r requirements.txt -q; if (`$LASTEXITCODE -ne 0) { Write-Host '[BACKEND] Cai dat thu vien THAT BAI!' -ForegroundColor Red; Read-Host 'Nhan Enter de dong'; exit 1 }; Write-Host '[BACKEND] Dang chay server...' -ForegroundColor Green; python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload"
+)
 
 Start-Sleep -Seconds 3
 
 # ---- FRONTEND ----
 Write-Host "[2/2] Khoi dong FRONTEND (Next.js - cong 3000)..." -ForegroundColor Yellow
-$frontendJob = Start-Process powershell -ArgumentList @(
+Start-Process powershell -ArgumentList @(
+    "-ExecutionPolicy", "Bypass",
     "-NoExit",
     "-Command",
-    "cd '$frontendDir'; Write-Host '[FRONTEND] Dang kiem tra packages...' -ForegroundColor Cyan; if (-not (Test-Path 'node_modules')) { npm install }; Write-Host '[FRONTEND] Dang chay server...' -ForegroundColor Green; npm run dev"
-) -PassThru
+    "cd '$frontendDir'; Write-Host '[FRONTEND] Dang kiem tra packages...' -ForegroundColor Cyan; if (-not (Test-Path 'node_modules')) { npm install; if (`$LASTEXITCODE -ne 0) { Write-Host '[FRONTEND] npm install THAT BAI!' -ForegroundColor Red; Read-Host 'Nhan Enter de dong'; exit 1 } }; Write-Host '[FRONTEND] Dang chay server...' -ForegroundColor Green; npm run dev"
+)
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Green

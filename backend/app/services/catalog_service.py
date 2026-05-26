@@ -4,8 +4,11 @@ Handles product listing with pagination, filtering, and detail retrieval.
 Only active products are returned for customer-facing endpoints.
 """
 
+import logging
 import math
 from typing import Any, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class CatalogServiceError(Exception):
@@ -213,6 +216,13 @@ class CatalogService:
                     "name": f.get("name", ""),
                     "additional_cost": f.get("additional_cost", 0),
                 })
+            else:
+                logger.warning(
+                    "Unexpected flavor type for product %s: got %s (%r) — skipping",
+                    product.get("id"),
+                    type(f).__name__,
+                    f,
+                )
 
         return {
             "id": product["id"],
