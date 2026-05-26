@@ -36,7 +36,7 @@ if (-not (Test-Path $backendEnv)) {
 Write-Host "[*] Dang kich hoat moi truong ao va chay seed..." -ForegroundColor Cyan
 Set-Location $backendDir
 
-& "$venvActivate"
+. "$venvActivate"
 pip install -r requirements.txt -q
 if ($LASTEXITCODE -ne 0) {
     Write-Host "" 

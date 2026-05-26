@@ -11,6 +11,29 @@ from typing import Any, Optional
 logger = logging.getLogger(__name__)
 
 
+def _coerce_cost(value: Any) -> int:
+    """Safely coerce a flavor's additional_cost to a non-negative int.
+
+    Handles every pathological DB value:
+    - None / missing           → 0
+    - Empty string ""          → 0
+    - Numeric string "5000"    → 5000
+    - Float 4999.9             → 4999
+    - Non-numeric string "abc" → 0  (with no exception)
+    - NaN / Infinity           → 0
+    """
+    if value is None:
+        return 0
+    try:
+        coerced = int(float(value))
+        # Reject NaN / Infinity which survive float() but make no sense as cost
+        if coerced != coerced or coerced in (float("inf"), float("-inf")):
+            return 0
+        return max(0, coerced)
+    except (ValueError, TypeError):
+        return 0
+
+
 class CatalogServiceError(Exception):
     """Base exception for catalog service errors."""
 
@@ -237,8 +260,7 @@ class CatalogService:
             elif isinstance(f, dict):
                 normalized_flavors.append({
                     "name": f.get("name", ""),
-                    # `or 0` handles explicit null stored in DB (f.get returns None)
-                    "additional_cost": f.get("additional_cost") or 0,
+                    "additional_cost": _coerce_cost(f.get("additional_cost")),
                 })
             else:
                 logger.warning(
