@@ -36,13 +36,16 @@ export default function ProtectedRoute({
       return;
     }
 
-    // Kiểm tra role
-    if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-      router.replace("/");
+    // Kiểm tra role: nếu yêu cầu role cụ thể mà user null hoặc không đủ quyền → về trang chủ
+    // Dùng !user thay vì user && ... để tránh bỏ lọt khi user bị null do lỗi đồng bộ
+    if (allowedRoles) {
+      if (!user || !allowedRoles.includes(user.role)) {
+        router.replace("/");
+      }
     }
   }, [loading, isAuthenticated, user, allowedRoles, router, pathname, searchParams]);
 
-  // Hiện spinner trong khi đang xác thực token (kể cả khi có stored user)
+  // Hiện spinner trong khi đang xác thực token
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-cream">
@@ -59,9 +62,12 @@ export default function ProtectedRoute({
     return null;
   }
 
-  // Không đủ quyền
-  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    return null;
+  // Kiểm tra role tại render: nếu allowedRoles được chỉ định,
+  // user phải tồn tại và có role hợp lệ — user=null không được pass
+  if (allowedRoles) {
+    if (!user || !allowedRoles.includes(user.role)) {
+      return null;
+    }
   }
 
   return <>{children}</>;
