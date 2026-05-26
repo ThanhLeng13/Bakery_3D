@@ -56,26 +56,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Guard flag: prevents state updates / timer starts if this provider
+    // unmounts while initAuth is still awaiting a network call (refreshToken)
+    let active = true;
+
     const initAuth = async () => {
       const storedUser = getStoredUser();
 
       if (!storedUser) {
-        // No stored user → definitely not logged in
-        setLoading(false);
+        if (active) setLoading(false);
         return;
       }
 
       if (checkAuth()) {
-        // Access token is still valid
-        setUser(storedUser);
+        if (active) setUser(storedUser);
         if (isTokenExpiringSoon(5)) {
-          // Token expiring soon — refresh proactively
           const result = await refreshToken();
+          if (!active) return; // component unmounted during await
           if (result) {
             setUser(result.user);
           } else {
             // Proactive refresh failed — purge stale session from localStorage
-            // so subsequent page loads don't repeatedly attempt a failing refresh
             await authLogout();
             setUser(null);
             stopAutoRefresh();
@@ -83,23 +84,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
           }
         }
-        startAutoRefresh();
+        if (active) startAutoRefresh();
       } else {
-        // Access token expired — attempt silent refresh
         const result = await refreshToken();
+        if (!active) return; // component unmounted during await
         if (result) {
-          // Refresh succeeded → still logged in
           setUser(result.user);
           startAutoRefresh();
         } else {
           // Silent refresh failed — purge stale session from localStorage
-          // to prevent repeated failed refresh attempts on every page load
           await authLogout();
           setUser(null);
         }
       }
 
-      setLoading(false);
+      if (active) setLoading(false);
     };
 
     initAuth();
@@ -131,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener("storage", handleStorage);
 
     return () => {
+      active = false; // cancel any in-flight initAuth state updates
       stopAutoRefresh();
       window.removeEventListener("storage", handleStorage);
     };

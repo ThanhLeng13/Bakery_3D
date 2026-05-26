@@ -6,7 +6,7 @@
  * Preserves the current URL as redirect parameter.
  */
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { UserRole } from "@/types";
@@ -26,6 +26,14 @@ export default function ProtectedRoute({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  // Serialize allowedRoles to a stable string to avoid re-running the effect
+  // every render when the caller passes an inline array literal (new ref each time)
+  const allowedRolesKey = useMemo(
+    () => allowedRoles?.join(",") ?? "",
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allowedRoles?.join(",")]
+  );
+
   useEffect(() => {
     // Chờ async validate xong mới xử lý
     if (loading) return;
@@ -37,13 +45,12 @@ export default function ProtectedRoute({
     }
 
     // Kiểm tra role: nếu yêu cầu role cụ thể mà user null hoặc không đủ quyền → về trang chủ
-    // Dùng !user thay vì user && ... để tránh bỏ lọt khi user bị null do lỗi đồng bộ
     if (allowedRoles) {
       if (!user || !allowedRoles.includes(user.role)) {
         router.replace("/");
       }
     }
-  }, [loading, isAuthenticated, user, allowedRoles, router, pathname, searchParams]);
+  }, [loading, isAuthenticated, user, allowedRolesKey, router, pathname, searchParams]);
 
   // Hiện spinner trong khi đang xác thực token
   if (loading) {
