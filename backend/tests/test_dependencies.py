@@ -120,13 +120,18 @@ class TestGetCurrentUser:
 
         mock_supabase = MagicMock()
         mock_supabase.auth.get_user.return_value = mock_auth_response
-        mock_supabase.table.return_value.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value = (
+
+        mock_admin_client = MagicMock()
+        mock_admin_client.table.return_value.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value = (
             mock_db_result
         )
 
         with patch(
             "app.core.dependencies._get_supabase_client",
             return_value=mock_supabase,
+        ), patch(
+            "app.core.dependencies._get_supabase_admin_client",
+            return_value=mock_admin_client,
         ):
             user = await get_current_user(credentials=credentials)
 
@@ -155,13 +160,18 @@ class TestGetCurrentUser:
 
         mock_supabase = MagicMock()
         mock_supabase.auth.get_user.return_value = mock_auth_response
-        mock_supabase.table.return_value.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value = (
+
+        mock_admin_client = MagicMock()
+        mock_admin_client.table.return_value.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value = (
             mock_db_result
         )
 
         with patch(
             "app.core.dependencies._get_supabase_client",
             return_value=mock_supabase,
+        ), patch(
+            "app.core.dependencies._get_supabase_admin_client",
+            return_value=mock_admin_client,
         ):
             user = await get_current_user(credentials=credentials)
 

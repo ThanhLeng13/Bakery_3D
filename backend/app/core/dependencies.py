@@ -36,7 +36,7 @@ def get_supabase_client(token: str | None = None, use_service_role: bool = False
     else:
         client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
 
-    if token:
+    if token and not use_service_role:
         client.postgrest.auth(token)
     return client
 
@@ -44,6 +44,12 @@ def get_supabase_client(token: str | None = None, use_service_role: bool = False
 def _get_supabase_client(token: str | None = None):
     """Get Supabase client instance for auth validation."""
     return get_supabase_client(token, use_service_role=False)
+
+
+def _get_supabase_admin_client():
+    """Get Supabase client instance with service role key for admin database queries."""
+    return get_supabase_client(use_service_role=True)
+
 
 
 async def get_current_user(
@@ -85,26 +91,40 @@ async def get_current_user(
 
         supabase_user = user_response.user
 
-        # Fetch user role from users table
-        user_result = (
-            supabase.table("users")
-            .select("id, email, full_name, phone, role")
-            .eq("id", str(supabase_user.id))
-            .maybe_single()
-            .execute()
-        )
-
-        if user_result is None:
+        # Fetch user role from users table using admin client to bypass RLS
+        try:
+            supabase_admin = _get_supabase_admin_client()
+        except Exception as init_err:
             logging.getLogger(__name__).error(
-                "Database query user_result is None for supabase_user %s",
+                "Failed to initialize admin client: %s",
+                str(init_err),
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal server error initializing admin client",
+            )
+
+        try:
+            user_result = (
+                supabase_admin.table("users")
+                .select("id, email, full_name, phone, role")
+                .eq("id", str(supabase_user.id))
+                .maybe_single()
+                .execute()
+            )
+        except Exception as db_err:
+            logging.getLogger(__name__).error(
+                "Failed to query users table for user %s: %s",
                 supabase_user.id,
+                str(db_err),
             )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Internal server error",
             )
 
-        if user_result.data is None:
+
+        if user_result is None or user_result.data is None:
             # User exists in auth but not in users table - treat as customer
             return {
                 "id": str(supabase_user.id),
