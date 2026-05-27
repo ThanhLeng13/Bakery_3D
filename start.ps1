@@ -42,52 +42,62 @@ if (-not (Test-Path $frontendEnv)) {
     exit 1
 }
 
+# ---- FRONTEND PORT RESOLUTION ----
+$frontendPort = 3000
+$portFound = $false
+while (-not $portFound) {
+    $portInUse = netstat -ano | findstr ":$frontendPort " | Select-String "LISTENING"
+    if ($portInUse) {
+        $pid = ($portInUse -split '\s+')[-1]
+        $pidInt = $null
+        if ([int]::TryParse($pid, [ref]$pidInt)) {
+            $proc = Get-Process -Id $pidInt -ErrorAction SilentlyContinue
+            $procName = if ($proc) { $proc.ProcessName } else { "Unknown" }
+            if ($procName -eq "node" -or $procName -eq "next-router-worker") {
+                $procObj = Get-CimInstance Win32_Process -Filter "ProcessId = $pidInt" -ErrorAction SilentlyContinue
+                $cmdLine = if ($procObj) { $procObj.CommandLine } else { "" }
+                $execPath = if ($procObj) { $procObj.ExecutablePath } else { "" }
+                
+                $isOurProcess = $false
+                if (($cmdLine -and ($cmdLine -like "*Bakery_3D*" -or $cmdLine -like "*next*")) -or 
+                    ($execPath -and ($execPath -like "*Bakery_3D*" -or $execPath -like "*next*"))) {
+                    $isOurProcess = $true
+                }
+                
+                if ($isOurProcess) {
+                    Write-Host "[*] Phat hien frontend dang chay o cong $frontendPort. Dang dung tien trinh cu (PID $pidInt)..." -ForegroundColor Yellow
+                    Stop-Process -Id $pidInt -Force -ErrorAction SilentlyContinue
+                    Start-Sleep -Seconds 1
+                    $portFound = $true
+                } else {
+                    Write-Host "[!] Cong $frontendPort dang duoc dung boi tien trinh Node/Next khac khong thuoc du an nay (PID: $pidInt, Command: $cmdLine)." -ForegroundColor Yellow
+                    Write-Host "    Chuyen sang cong tiep theo..." -ForegroundColor Yellow
+                    $frontendPort++
+                }
+            } else {
+                Write-Host "[!] Cong $frontendPort dang bi chiem boi ung dung khac (PID: $pidInt, ten: $procName)." -ForegroundColor Yellow
+                $frontendPort++
+            }
+        } else {
+            $frontendPort++
+        }
+    } else {
+        $portFound = $true
+    }
+}
+
 # ---- BACKEND ----
 Write-Host "[1/2] Khoi dong BACKEND (FastAPI - cong 8000)..." -ForegroundColor Yellow
 Start-Process powershell -ArgumentList @(
     "-ExecutionPolicy", "Bypass",
     "-NoExit",
     "-Command",
-    "cd '$backendDir'; .\venv\Scripts\Activate.ps1; Write-Host '[BACKEND] Dang cai thu vien...' -ForegroundColor Cyan; pip install -r requirements.txt -q; if (`$LASTEXITCODE -ne 0) { Write-Host '[BACKEND] Cai dat thu vien THAT BAI!' -ForegroundColor Red; Read-Host 'Nhan Enter de dong'; exit 1 }; Write-Host '[BACKEND] Dang chay server...' -ForegroundColor Green; python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload"
+    "cd '$backendDir'; .\venv\Scripts\Activate.ps1; `$env:FRONTEND_PORT = $frontendPort; Write-Host '[BACKEND] Dang cai thu vien...' -ForegroundColor Cyan; pip install -r requirements.txt -q; if (`$LASTEXITCODE -ne 0) { Write-Host '[BACKEND] Cai dat thu vien THAT BAI!' -ForegroundColor Red; Read-Host 'Nhan Enter de dong'; exit 1 }; Write-Host '[BACKEND] Dang chay server...' -ForegroundColor Green; python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload"
 )
 
 Start-Sleep -Seconds 3
 
 # ---- FRONTEND ----
-$frontendPort = 3000
-$port3000InUse = netstat -ano | findstr ":3000 " | Select-String "LISTENING"
-if ($port3000InUse) {
-    $pid3000 = ($port3000InUse -split '\s+')[-1]
-    $proc3000 = Get-Process -Id $pid3000 -ErrorAction SilentlyContinue
-    $procName3000 = if ($proc3000) { $proc3000.ProcessName } else { "Unknown" }
-    if ($procName3000 -eq "node" -or $procName3000 -eq "next-router-worker") {
-        Write-Host "[*] Phat hien frontend dang chay o cong 3000. Dang dung tien trinh cu (PID $pid3000)..." -ForegroundColor Yellow
-        Stop-Process -Id $pid3000 -Force -ErrorAction SilentlyContinue
-        Start-Sleep -Seconds 1
-    } else {
-        Write-Host "[!] Cong 3000 dang bi chiem boi ung dung khac (PID: $pid3000, ten: $procName3000)." -ForegroundColor Yellow
-        Write-Host "    Chuyen frontend sang cong 3001..." -ForegroundColor Yellow
-        $frontendPort = 3001
-        
-        # Kiem tra tiep xem cong 3001 co bi chiem khong
-        $port3001InUse = netstat -ano | findstr ":3001 " | Select-String "LISTENING"
-        if ($port3001InUse) {
-            $pid3001 = ($port3001InUse -split '\s+')[-1]
-            $proc3001 = Get-Process -Id $pid3001 -ErrorAction SilentlyContinue
-            $procName3001 = if ($proc3001) { $proc3001.ProcessName } else { "Unknown" }
-            if ($procName3001 -eq "node" -or $procName3001 -eq "next-router-worker") {
-                Write-Host "[*] Phat hien frontend dang chay o cong 3001. Dang dung tien trinh cu (PID $pid3001)..." -ForegroundColor Yellow
-                Stop-Process -Id $pid3001 -Force -ErrorAction SilentlyContinue
-                Start-Sleep -Seconds 1
-            } else {
-                Write-Host "[!] Cong 3001 cung bi chiem boi ung dung khac (PID: $pid3001, ten: $procName3001)." -ForegroundColor Yellow
-                Write-Host "    Chuyen frontend sang cong 3002..." -ForegroundColor Yellow
-                $frontendPort = 3002
-            }
-        }
-    }
-}
-
 Write-Host "[2/2] Khoi dong FRONTEND (Next.js - cong $frontendPort)..." -ForegroundColor Yellow
 Start-Process powershell -ArgumentList @(
     "-ExecutionPolicy", "Bypass",

@@ -8,10 +8,11 @@ Endpoints:
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 
-from app.core.config import settings
-from app.core.dependencies import require_baker
+from app.core.dependencies import require_baker, security_scheme, get_supabase_client
+from app.core.logging import get_logger
 from app.services.order_service import (
     InsufficientPermissionError,
     InvalidStatusTransitionError,
@@ -21,6 +22,7 @@ from app.services.order_service import (
 )
 
 router = APIRouter()
+logger = get_logger(__name__)
 
 
 class BakerNotesRequest(BaseModel):
@@ -33,21 +35,16 @@ class BakerStatusRequest(BaseModel):
     status: str = Field(..., description="New status: in_production or ready")
 
 
-def _get_supabase_client():
-    """Get Supabase client instance."""
-    from supabase import create_client
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
-
-
-def _get_order_service() -> OrderService:
+def _get_order_service(token: str | None = None) -> OrderService:
     """Create OrderService with Supabase client."""
-    client = _get_supabase_client()
+    client = get_supabase_client(token, use_service_role=False)
     return OrderService(client)
 
 
 @router.get("")
 async def list_baker_orders(
     baker: dict = Depends(require_baker),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ):
     """
     List orders with status 'confirmed' or 'in_production' (Baker only).
@@ -55,7 +52,8 @@ async def list_baker_orders(
     Sorted by pickup_date ascending so baker sees most urgent orders first.
     Returns complete order info including customization details and AI summary.
     """
-    supabase = _get_supabase_client()
+    token = credentials.credentials if credentials else None
+    supabase = get_supabase_client(token, use_service_role=False)
 
     try:
         result = (
@@ -73,8 +71,7 @@ async def list_baker_orders(
         return {"orders": orders, "total": len(orders)}
 
     except Exception:
-        import traceback
-        traceback.print_exc()
+        logger.exception("Failed to fetch baker orders")
         raise HTTPException(status_code=500, detail="Failed to fetch baker orders")
 
 
@@ -82,6 +79,7 @@ async def list_baker_orders(
 async def get_baker_order_detail(
     order_id: str,
     baker: dict = Depends(require_baker),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ):
     """
     Get full order detail for baker (Baker only).
@@ -89,7 +87,8 @@ async def get_baker_order_detail(
     Returns order with customization details, AI_Summary, baker_notes,
     and pickup date for production planning.
     """
-    order_service = _get_order_service()
+    token = credentials.credentials if credentials else None
+    order_service = _get_order_service(token)
 
     try:
         result = await order_service.get_order_detail(order_id, baker)
@@ -115,13 +114,15 @@ async def update_baker_notes(
     order_id: str,
     body: BakerNotesRequest,
     baker: dict = Depends(require_baker),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ):
     """
     Add or update baker notes for an order (Baker only).
 
     Notes max 500 characters. Order must be in confirmed or in_production status.
     """
-    supabase = _get_supabase_client()
+    token = credentials.credentials if credentials else None
+    supabase = get_supabase_client(token, use_service_role=False)
 
     try:
         # Verify order exists and is accessible
@@ -163,6 +164,7 @@ async def update_baker_notes(
     except HTTPException:
         raise
     except Exception:
+        logger.exception("Failed to update baker notes for order %s", order_id)
         raise HTTPException(status_code=500, detail="Failed to update baker notes")
 
 
@@ -171,6 +173,7 @@ async def update_baker_order_status(
     order_id: str,
     body: BakerStatusRequest,
     baker: dict = Depends(require_baker),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ):
     """
     Update order status (Baker only).
@@ -181,7 +184,8 @@ async def update_baker_order_status(
 
     Invalid transitions return 400 with valid next statuses.
     """
-    order_service = _get_order_service()
+    token = credentials.credentials if credentials else None
+    order_service = _get_order_service(token)
 
     # Validate allowed baker statuses
     baker_allowed_statuses = {"in_production", "ready"}

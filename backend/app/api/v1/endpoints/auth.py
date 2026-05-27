@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 
-from app.core.config import settings
+from app.core.dependencies import get_supabase_client
 from app.schemas.auth import (
     AuthResponse,
     GoogleOAuthRequest,
@@ -32,16 +32,9 @@ from app.services.auth_service import (
 router = APIRouter()
 
 
-def _get_supabase_client():
-    """Get Supabase client instance."""
-    from supabase import create_client
-
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
-
-
 def _get_auth_service() -> AuthService:
     """Create AuthService with Supabase client."""
-    client = _get_supabase_client()
+    client = get_supabase_client(use_service_role=False)
     return AuthService(client)
 
 

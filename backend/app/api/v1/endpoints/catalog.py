@@ -9,7 +9,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.core.config import settings
+from app.core.dependencies import get_supabase_client
 from app.schemas.catalog import ProductDetailResponse, ProductListResponse
 from app.services.catalog_service import (
     CatalogService,
@@ -20,16 +20,9 @@ from app.services.catalog_service import (
 router = APIRouter()
 
 
-def _get_supabase_client():
-    """Get Supabase client instance."""
-    from supabase import create_client
-
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
-
-
 def _get_catalog_service() -> CatalogService:
     """Create CatalogService with Supabase client."""
-    client = _get_supabase_client()
+    client = get_supabase_client(use_service_role=False)
     return CatalogService(client)
 
 

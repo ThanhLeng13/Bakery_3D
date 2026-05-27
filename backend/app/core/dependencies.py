@@ -17,16 +17,34 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import settings
 
+# Validate SUPABASE_SERVICE_ROLE_KEY at startup to fail fast
+if not getattr(settings, "SUPABASE_SERVICE_ROLE_KEY", None):
+    raise RuntimeError(
+        "SUPABASE_SERVICE_ROLE_KEY is not configured in settings.SUPABASE_SERVICE_ROLE_KEY. "
+        "This will cause create_client to fail when creating a service role client."
+    )
+
 # HTTPBearer scheme extracts token from "Authorization: Bearer <token>" header
 # auto_error=False so we can return a custom 401 message
 security_scheme = HTTPBearer(auto_error=False)
 
 
-def _get_supabase_client():
-    """Get Supabase client instance for auth validation."""
+def get_supabase_client(token: str | None = None, use_service_role: bool = False):
+    """Centralized Supabase client factory."""
     from supabase import create_client
 
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+    if use_service_role:
+        return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+
+    client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+    if token:
+        client.postgrest.auth(token)
+    return client
+
+
+def _get_supabase_client(token: str | None = None):
+    """Get Supabase client instance for auth validation."""
+    return get_supabase_client(token, use_service_role=False)
 
 
 async def get_current_user(
@@ -54,7 +72,7 @@ async def get_current_user(
     token = credentials.credentials
 
     try:
-        supabase = _get_supabase_client()
+        supabase = _get_supabase_client(token)
 
         # Validate token via Supabase Auth - this checks expiry and signature
         user_response = supabase.auth.get_user(token)

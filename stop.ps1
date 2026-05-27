@@ -36,12 +36,29 @@ foreach ($port in @(3000, 3001, 3002)) {
     $portCheck = netstat -ano | findstr ":$port " | Select-String "LISTENING"
     if ($portCheck) {
         $pidCheck = ($portCheck -split '\s+')[-1]
-        $procCheck = Get-Process -Id $pidCheck -ErrorAction SilentlyContinue
-        $procName = if ($procCheck) { $procCheck.ProcessName } else { "Unknown" }
-        if ($procName -eq "node" -or $procName -eq "next-router-worker") {
-            Stop-Process -Id $pidCheck -Force -ErrorAction SilentlyContinue
-            Write-Host "[OK] Da tat frontend (cong $port)." -ForegroundColor Green
-            $frontendStopped = $true
+        $pidCheckInt = $null
+        if ([int]::TryParse($pidCheck, [ref]$pidCheckInt)) {
+            $procCheck = Get-Process -Id $pidCheckInt -ErrorAction SilentlyContinue
+            $procName = if ($procCheck) { $procCheck.ProcessName } else { "Unknown" }
+            if ($procName -eq "node" -or $procName -eq "next-router-worker") {
+                $procObj = Get-CimInstance Win32_Process -Filter "ProcessId = $pidCheckInt" -ErrorAction SilentlyContinue
+                $cmdLine = if ($procObj) { $procObj.CommandLine } else { "" }
+                $execPath = if ($procObj) { $procObj.ExecutablePath } else { "" }
+                
+                $isOurProcess = $false
+                if (($cmdLine -and ($cmdLine -like "*Bakery_3D*" -or $cmdLine -like "*next*")) -or 
+                    ($execPath -and ($execPath -like "*Bakery_3D*" -or $execPath -like "*next*"))) {
+                    $isOurProcess = $true
+                }
+                
+                if ($isOurProcess) {
+                    Stop-Process -Id $pidCheckInt -Force -ErrorAction SilentlyContinue
+                    Write-Host "[OK] Da tat frontend (cong $port)." -ForegroundColor Green
+                    $frontendStopped = $true
+                } else {
+                    Write-Host "[!] Canh bao: Cong $port dang duoc dung boi tien trinh Node/Next khac khong thuoc du an nay (PID: $pidCheckInt). Bo qua." -ForegroundColor Yellow
+                }
+            }
         }
     }
 }

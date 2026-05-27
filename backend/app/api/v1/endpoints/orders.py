@@ -8,9 +8,9 @@ Endpoints:
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.security import HTTPAuthorizationCredentials
 
-from app.core.config import settings
-from app.core.dependencies import get_current_user, require_customer
+from app.core.dependencies import get_current_user, require_customer, security_scheme, get_supabase_client
 from app.schemas.orders import (
     CreateOrderRequest,
     OrderDetailResponse,
@@ -29,16 +29,9 @@ from app.services.order_service import (
 router = APIRouter()
 
 
-def _get_supabase_client():
-    """Get Supabase client instance."""
-    from supabase import create_client
-
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
-
-
-def _get_order_service() -> OrderService:
+def _get_order_service(token: str | None = None) -> OrderService:
     """Create OrderService with Supabase client."""
-    client = _get_supabase_client()
+    client = get_supabase_client(token, use_service_role=False)
     return OrderService(client)
 
 
@@ -46,6 +39,7 @@ def _get_order_service() -> OrderService:
 async def create_order(
     body: CreateOrderRequest,
     customer: dict = Depends(require_customer),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ):
     """
     Create a new order with status 'pending'.
@@ -57,7 +51,8 @@ async def create_order(
 
     Stores customization_json and AI_Summary when from Cake Builder.
     """
-    order_service = _get_order_service()
+    token = credentials.credentials if credentials else None
+    order_service = _get_order_service(token)
 
     # Convert request to dict for service layer
     order_data = {
@@ -95,13 +90,15 @@ async def list_orders(
         default=10, ge=1, le=50, description="Items per page (default 10)"
     ),
     customer: dict = Depends(require_customer),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ):
     """
     List customer's own orders, paginated (10/page default), sorted by date desc.
 
     Requires authenticated customer.
     """
-    order_service = _get_order_service()
+    token = credentials.credentials if credentials else None
+    order_service = _get_order_service(token)
 
     try:
         result = await order_service.list_customer_orders(
@@ -118,6 +115,7 @@ async def list_orders(
 async def get_order_detail(
     order_id: str,
     user: dict = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ):
     """
     Get full order detail by ID.
@@ -125,7 +123,8 @@ async def get_order_detail(
     Customers can only view their own orders.
     Admin and Baker can view any order.
     """
-    order_service = _get_order_service()
+    token = credentials.credentials if credentials else None
+    order_service = _get_order_service(token)
 
     try:
         result = await order_service.get_order_detail(order_id, user)
@@ -141,6 +140,7 @@ async def update_order_status(
     order_id: str,
     body: UpdateStatusRequest,
     user: dict = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ):
     """
     Update order status (Admin/Baker only).
@@ -154,7 +154,8 @@ async def update_order_status(
     Invalid transitions return 400 with valid next statuses.
     Insufficient role returns 403.
     """
-    order_service = _get_order_service()
+    token = credentials.credentials if credentials else None
+    order_service = _get_order_service(token)
 
     try:
         result = await order_service.update_order_status(order_id, body.status, user)
