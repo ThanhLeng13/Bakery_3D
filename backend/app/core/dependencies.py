@@ -26,7 +26,7 @@ def _get_supabase_client():
     """Get Supabase client instance for auth validation."""
     from supabase import create_client
 
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
 
 async def get_current_user(

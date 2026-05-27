@@ -31,12 +31,21 @@ if ($port8000) {
 }
 
 Write-Host "[*] Dang tat cac tien trinh frontend (node/next)..." -ForegroundColor Yellow
-$port3000 = netstat -ano | findstr ":3000" | Select-String "LISTENING"
-if ($port3000) {
-    $pid3000 = ($port3000 -split '\s+')[-1]
-    Stop-Process -Id $pid3000 -Force -ErrorAction SilentlyContinue
-    Write-Host "[OK] Da tat frontend (cong 3000)." -ForegroundColor Green
-} else {
+$frontendStopped = $false
+foreach ($port in @(3000, 3001, 3002)) {
+    $portCheck = netstat -ano | findstr ":$port " | Select-String "LISTENING"
+    if ($portCheck) {
+        $pidCheck = ($portCheck -split '\s+')[-1]
+        $procCheck = Get-Process -Id $pidCheck -ErrorAction SilentlyContinue
+        $procName = if ($procCheck) { $procCheck.ProcessName } else { "Unknown" }
+        if ($procName -eq "node" -or $procName -eq "next-router-worker") {
+            Stop-Process -Id $pidCheck -Force -ErrorAction SilentlyContinue
+            Write-Host "[OK] Da tat frontend (cong $port)." -ForegroundColor Green
+            $frontendStopped = $true
+        }
+    }
+}
+if (-not $frontendStopped) {
     Write-Host "[OK] Frontend khong chay hoac da tat." -ForegroundColor Green
 }
 

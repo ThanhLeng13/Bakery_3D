@@ -36,7 +36,7 @@ def _get_supabase_client():
     """Get Supabase client instance."""
     from supabase import create_client
 
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
 
 def _get_auth_service() -> AuthService:
