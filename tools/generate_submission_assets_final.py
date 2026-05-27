@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import os
+import sys
 from pathlib import Path
 from textwrap import wrap
 
@@ -14,8 +16,19 @@ from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
 from matplotlib.patches import Circle, Ellipse, FancyArrowPatch, FancyBboxPatch, Polygon, Rectangle
 
+# Configurable output directory
+_out_env = os.environ.get("ASSETS_OUT_DIR")
+if not _out_env:
+    for idx, arg in enumerate(sys.argv):
+        if arg == "--out-dir" and idx + 1 < len(sys.argv):
+            _out_env = sys.argv[idx + 1]
+            break
 
-OUT = Path(r"D:\DE_TAI\tai_lieu_nop")
+if _out_env:
+    OUT = Path(_out_env)
+else:
+    OUT = Path(__file__).resolve().parent.parent.parent / "tai_lieu_nop"
+
 USECASE_PATH = OUT / "so_do_use_case_banh_kem_ai.png"
 ACTIVITY_PATH = OUT / "so_do_flowchart_dat_banh_ai.png"
 DOCX_PATH = OUT / "Mo_ta_chuc_nang_Web_Ban_Banh_Kem_Tich_Hop_AI.docx"
@@ -247,7 +260,7 @@ def arrow(ax, start, end, label=None, curve=0.0):
         ax.text((start[0] + end[0]) / 2, (start[1] + end[1]) / 2 + 0.12, label, fontsize=7, color=GRAY, ha="center")
 
 
-def create_activity_diagram():
+def _create_activity_diagram_v1():
     fig, ax = plt.subplots(figsize=(14, 18.5), dpi=200)
     ax.set_xlim(0, 15.8)
     ax.set_ylim(0, 18.5)
@@ -357,7 +370,7 @@ def create_activity_diagram():
     plt.close(fig)
 
 
-def create_activity_diagram():
+def _create_activity_diagram_v2():
     fig, ax = plt.subplots(figsize=(14, 18), dpi=200)
     ax.set_xlim(0, 15.8)
     ax.set_ylim(0, 18)
@@ -455,7 +468,7 @@ def create_activity_diagram():
     plt.close(fig)
 
 
-def create_activity_diagram():
+def _create_activity_diagram_v3():
     fig, ax = plt.subplots(figsize=(11, 16.5), dpi=200)
     ax.set_xlim(0, 11)
     ax.set_ylim(0, 16.5)
@@ -609,7 +622,7 @@ def create_activity_diagram():
     plt.close(fig)
 
 
-def create_activity_diagram():
+def _create_activity_diagram_v4():
     fig, ax = plt.subplots(figsize=(11, 16.5), dpi=200)
     ax.set_xlim(0, 11)
     ax.set_ylim(0, 16.5)
@@ -725,7 +738,7 @@ def create_activity_diagram():
     plt.close(fig)
 
 
-def create_activity_diagram():
+def _create_activity_diagram_v5():
     fig, ax = plt.subplots(figsize=(11, 17.2), dpi=200)
     ax.set_xlim(0, 11)
     ax.set_ylim(0, 17.2)
@@ -845,7 +858,7 @@ def create_activity_diagram():
     plt.close(fig)
 
 
-def create_activity_diagram():
+def _create_activity_diagram_v6():
     fig, ax = plt.subplots(figsize=(10.5, 16.2), dpi=220)
     ax.set_xlim(0, 10.5)
     ax.set_ylim(-0.65, 16.2)
@@ -1007,6 +1020,22 @@ def create_activity_diagram():
 
     fig.savefig(ACTIVITY_PATH, bbox_inches="tight", facecolor="white")
     plt.close(fig)
+
+
+def create_activity_diagram(version: int = 6):
+    """Canonical function consolidating all activity diagram styles."""
+    if version == 1:
+        _create_activity_diagram_v1()
+    elif version == 2:
+        _create_activity_diagram_v2()
+    elif version == 3:
+        _create_activity_diagram_v3()
+    elif version == 4:
+        _create_activity_diagram_v4()
+    elif version == 5:
+        _create_activity_diagram_v5()
+    else:
+        _create_activity_diagram_v6()
 
 
 def set_run_font(run, size=11, bold=False, color=None):
@@ -1236,7 +1265,12 @@ def create_docx():
     doc.add_heading("9. Ghi chú phạm vi so với tài liệu phân tích thiết kế", level=1)
     add_para(doc, "Tài liệu phân tích thiết kế có nhắc đến VNPay, Zalo OA, thống kê doanh thu và các hướng phát triển nâng cao. Tuy nhiên, để bài nộp Use Case/Activity Diagram bám sát chức năng hiện có và dễ bảo vệ, bản mô tả này chỉ đưa các chức năng chính đã có hoặc phù hợp với phạm vi hiện tại vào sơ đồ. Các chức năng mở rộng có thể trình bày riêng trong phần hướng phát triển nếu giảng viên hỏi thêm.")
 
-    doc.save(DOCX_PATH)
+    try:
+        doc.save(DOCX_PATH)
+    except PermissionError:
+        fallback = DOCX_PATH.with_name(DOCX_PATH.stem + "_Moi.docx")
+        print(f"Warning: Cannot save to {DOCX_PATH} because it might be open/locked. Saving to fallback path: {fallback}")
+        doc.save(fallback)
 
 
 def main():

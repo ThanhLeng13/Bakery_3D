@@ -1,3 +1,5 @@
+import os
+import sys
 from pathlib import Path
 from textwrap import wrap
 
@@ -10,8 +12,19 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Inches, Pt, RGBColor
 from matplotlib.patches import Circle, Ellipse, FancyBboxPatch, Rectangle
 
+# Configurable output directory
+_out_env = os.environ.get("OUT_DIR")
+if not _out_env:
+    for idx, arg in enumerate(sys.argv):
+        if arg == "--out-dir" and idx + 1 < len(sys.argv):
+            _out_env = sys.argv[idx + 1]
+            break
 
-OUT = Path(r"D:\DE_TAI\tai_lieu_nop")
+if _out_env:
+    OUT = Path(_out_env)
+else:
+    OUT = Path(__file__).resolve().parent.parent.parent / "tai_lieu_nop"
+
 IMAGE_DIR = OUT / "usecase_tach_tung_tac_nhan"
 DOCX_PATH = OUT / "UseCase_Tach_Tung_Tac_Nhan_Web_Ban_Banh_Kem_AI.docx"
 ACTIVITY_PATH = OUT / "so_do_flowchart_dat_banh_ai.png"
@@ -291,7 +304,11 @@ def build_docx(image_paths):
     )
     paragraph = doc.add_paragraph()
     paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    paragraph.add_run().add_picture(str(ACTIVITY_PATH), width=Inches(6.85))
+    if ACTIVITY_PATH.exists():
+        paragraph.add_run().add_picture(str(ACTIVITY_PATH), width=Inches(6.85))
+    else:
+        run = paragraph.add_run("[Hình ảnh Activity Diagram không tìm thấy]")
+        run.italic = True
 
     try:
         doc.save(DOCX_PATH)

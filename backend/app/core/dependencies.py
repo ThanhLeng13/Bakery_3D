@@ -17,13 +17,6 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import settings
 
-# Validate SUPABASE_SERVICE_ROLE_KEY at startup to fail fast
-if not getattr(settings, "SUPABASE_SERVICE_ROLE_KEY", None):
-    raise RuntimeError(
-        "SUPABASE_SERVICE_ROLE_KEY is not configured in settings.SUPABASE_SERVICE_ROLE_KEY. "
-        "This will cause create_client to fail when creating a service role client."
-    )
-
 # HTTPBearer scheme extracts token from "Authorization: Bearer <token>" header
 # auto_error=False so we can return a custom 401 message
 security_scheme = HTTPBearer(auto_error=False)
@@ -34,9 +27,15 @@ def get_supabase_client(token: str | None = None, use_service_role: bool = False
     from supabase import create_client
 
     if use_service_role:
-        return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+        if not getattr(settings, "SUPABASE_SERVICE_ROLE_KEY", None):
+            raise RuntimeError(
+                "SUPABASE_SERVICE_ROLE_KEY is not configured in settings.SUPABASE_SERVICE_ROLE_KEY. "
+                "This will cause create_client to fail when creating a service role client."
+            )
+        client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+    else:
+        client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
 
-    client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
     if token:
         client.postgrest.auth(token)
     return client

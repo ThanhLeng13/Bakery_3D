@@ -46,8 +46,8 @@ foreach ($port in @(3000, 3001, 3002)) {
                 $execPath = if ($procObj) { $procObj.ExecutablePath } else { "" }
                 
                 $isOurProcess = $false
-                if (($cmdLine -and ($cmdLine -like "*Bakery_3D*" -or $cmdLine -like "*next*")) -or 
-                    ($execPath -and ($execPath -like "*Bakery_3D*" -or $execPath -like "*next*"))) {
+                if (($cmdLine -and ($cmdLine -like "*Bakery_3D*frontend*" -or $cmdLine -like "*Bakery_3D/frontend*")) -or 
+                    ($execPath -and ($execPath -like "*Bakery_3D*frontend*" -or $execPath -like "*Bakery_3D/frontend*"))) {
                     $isOurProcess = $true
                 }
                 

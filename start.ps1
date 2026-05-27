@@ -48,34 +48,34 @@ $portFound = $false
 while (-not $portFound) {
     $portInUse = netstat -ano | findstr ":$frontendPort " | Select-String "LISTENING"
     if ($portInUse) {
-        $pid = ($portInUse -split '\s+')[-1]
-        $pidInt = $null
-        if ([int]::TryParse($pid, [ref]$pidInt)) {
-            $proc = Get-Process -Id $pidInt -ErrorAction SilentlyContinue
-            $procName = if ($proc) { $proc.ProcessName } else { "Unknown" }
-            if ($procName -eq "node" -or $procName -eq "next-router-worker") {
-                $procObj = Get-CimInstance Win32_Process -Filter "ProcessId = $pidInt" -ErrorAction SilentlyContinue
+        $listenerPid = ($portInUse -split '\s+')[-1]
+        $listenerPidInt = $null
+        if ([int]::TryParse($listenerPid, [ref]$listenerPidInt)) {
+            $listenerProc = Get-Process -Id $listenerPidInt -ErrorAction SilentlyContinue
+            $listenerProcName = if ($listenerProc) { $listenerProc.ProcessName } else { "Unknown" }
+            if ($listenerProcName -eq "node" -or $listenerProcName -eq "next-router-worker") {
+                $procObj = Get-CimInstance Win32_Process -Filter "ProcessId = $listenerPidInt" -ErrorAction SilentlyContinue
                 $cmdLine = if ($procObj) { $procObj.CommandLine } else { "" }
                 $execPath = if ($procObj) { $procObj.ExecutablePath } else { "" }
                 
                 $isOurProcess = $false
-                if (($cmdLine -and ($cmdLine -like "*Bakery_3D*" -or $cmdLine -like "*next*")) -or 
-                    ($execPath -and ($execPath -like "*Bakery_3D*" -or $execPath -like "*next*"))) {
+                if (($cmdLine -and ($cmdLine -like "*Bakery_3D*frontend*" -or $cmdLine -like "*Bakery_3D/frontend*")) -or 
+                    ($execPath -and ($execPath -like "*Bakery_3D*frontend*" -or $execPath -like "*Bakery_3D/frontend*"))) {
                     $isOurProcess = $true
                 }
                 
                 if ($isOurProcess) {
-                    Write-Host "[*] Phat hien frontend dang chay o cong $frontendPort. Dang dung tien trinh cu (PID $pidInt)..." -ForegroundColor Yellow
-                    Stop-Process -Id $pidInt -Force -ErrorAction SilentlyContinue
+                    Write-Host "[*] Phat hien frontend dang chay o cong $frontendPort. Dang dung tien trinh cu (PID $listenerPidInt)..." -ForegroundColor Yellow
+                    Stop-Process -Id $listenerPidInt -Force -ErrorAction SilentlyContinue
                     Start-Sleep -Seconds 1
                     $portFound = $true
                 } else {
-                    Write-Host "[!] Cong $frontendPort dang duoc dung boi tien trinh Node/Next khac khong thuoc du an nay (PID: $pidInt, Command: $cmdLine)." -ForegroundColor Yellow
+                    Write-Host "[!] Cong $frontendPort dang duoc dung boi tien trinh Node/Next khac khong thuoc du an nay (PID: $listenerPidInt, Command: $cmdLine)." -ForegroundColor Yellow
                     Write-Host "    Chuyen sang cong tiep theo..." -ForegroundColor Yellow
                     $frontendPort++
                 }
             } else {
-                Write-Host "[!] Cong $frontendPort dang bi chiem boi ung dung khac (PID: $pidInt, ten: $procName)." -ForegroundColor Yellow
+                Write-Host "[!] Cong $frontendPort dang bi chiem boi ung dung khac (PID: $listenerPidInt, ten: $listenerProcName)." -ForegroundColor Yellow
                 $frontendPort++
             }
         } else {

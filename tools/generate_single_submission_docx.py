@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import os
+import sys
 from pathlib import Path
 
 from docx import Document
@@ -7,8 +9,19 @@ from docx.shared import Inches, Pt, RGBColor
 
 import generate_submission_assets_final as assets
 
+# Configurable output directory
+_out_env = os.environ.get("OUTPUT_DIR")
+if not _out_env:
+    for idx, arg in enumerate(sys.argv):
+        if arg == "--out-dir" and idx + 1 < len(sys.argv):
+            _out_env = sys.argv[idx + 1]
+            break
 
-OUT = Path(r"D:\DE_TAI\tai_lieu_nop")
+if _out_env:
+    OUT = Path(_out_env)
+else:
+    OUT = Path(__file__).resolve().parent.parent.parent / "tai_lieu_nop"
+
 FINAL_DOCX = OUT / "Bai_Nop_UseCase_Activity_Web_Ban_Banh_Kem_AI_Ly_Thanh_Long.docx"
 FALLBACK_DOCX = OUT / "Bai_Nop_UseCase_Activity_Web_Ban_Banh_Kem_AI_Ly_Thanh_Long_Gon_Mat.docx"
 
