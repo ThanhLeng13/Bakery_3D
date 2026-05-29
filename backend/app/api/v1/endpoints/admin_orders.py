@@ -9,17 +9,16 @@ import math
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.security import HTTPAuthorizationCredentials
 
-from app.core.dependencies import require_admin, security_scheme, get_supabase_client
+from app.core.dependencies import require_admin, get_supabase_client
 from app.services.order_service import OrderNotFoundError, OrderService, OrderServiceError
 
 router = APIRouter()
 
 
-def _get_order_service(token: str | None = None) -> OrderService:
+def _get_order_service() -> OrderService:
     """Create OrderService with Supabase client."""
-    client = get_supabase_client(token, use_service_role=True)
+    client = get_supabase_client(use_service_role=True)
     return OrderService(client)
 
 
@@ -33,7 +32,6 @@ async def list_admin_orders(
     date_to: Optional[str] = Query(default=None, description="Filter orders to date (ISO format)"),
     customer_name: Optional[str] = Query(default=None, min_length=2, description="Filter by customer name (partial, min 2 chars)"),
     admin: dict = Depends(require_admin),
-    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ):
     """
     List all orders with optional filters (Admin only).
@@ -46,8 +44,7 @@ async def list_admin_orders(
     Sorted by created_at descending (newest first).
     Paginated (20/page default).
     """
-    token = credentials.credentials if credentials else None
-    supabase = get_supabase_client(token, use_service_role=True)
+    supabase = get_supabase_client(use_service_role=True)
 
     try:
         # Build query for counting
@@ -115,7 +112,6 @@ async def list_admin_orders(
 async def get_admin_order_detail(
     order_id: str,
     admin: dict = Depends(require_admin),
-    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ):
     """
     Get full order detail for admin (Admin only).
@@ -123,8 +119,7 @@ async def get_admin_order_detail(
     Returns complete order with customization details, AI_Summary,
     customer contact, and status history.
     """
-    token = credentials.credentials if credentials else None
-    order_service = _get_order_service(token)
+    order_service = _get_order_service()
 
     try:
         result = await order_service.get_order_detail(order_id, admin)

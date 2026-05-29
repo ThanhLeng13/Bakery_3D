@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from docx import Document
@@ -8,7 +9,15 @@ from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 
 
-OUT = Path(r"D:\DE_TAI")
+OUT_ENV = os.environ.get("DE_TAI_OUTPUT_DIR")
+if OUT_ENV:
+    OUT = Path(OUT_ENV)
+else:
+    try:
+        OUT = Path(__file__).resolve().parents[2]
+    except Exception:
+        OUT = Path.home() / "DE_TAI"
+
 DOCX_PATH = OUT / "Bao_Cao_Tien_Do_Thuc_Tap_Tuan_1_Ly_Thanh_Long.docx"
 
 SCHOOL = "TRƯỜNG ĐẠI HỌC KIẾN TRÚC ĐÀ NẴNG"
@@ -104,7 +113,7 @@ def add_info_table(doc):
     doc.add_paragraph()
 
 
-def build_docx():
+def build_docx(output_dir=None):
     doc = Document()
     style_doc(doc)
 
@@ -164,13 +173,27 @@ def build_docx():
     run = sign.add_run("Sinh viên thực hiện\n\n\nLý Thành Long")
     set_run_font(run, bold=True)
 
+    target_dir = Path(output_dir) if output_dir else OUT
+    target_path = target_dir / "Bao_Cao_Tien_Do_Thuc_Tap_Tuan_1_Ly_Thanh_Long.docx"
+
     try:
-        doc.save(DOCX_PATH)
-        return DOCX_PATH
-    except PermissionError:
-        fallback = DOCX_PATH.with_name(DOCX_PATH.stem + "_Moi.docx")
-        doc.save(fallback)
-        return fallback
+        target_dir.mkdir(parents=True, exist_ok=True)
+        doc.save(target_path)
+        return target_path
+    except (PermissionError, FileNotFoundError, OSError) as e:
+        print(f"Could not save document to {target_path} due to: {e}. Trying fallback...")
+        try:
+            fallback = target_path.with_name(target_path.stem + "_Moi.docx")
+            fallback.parent.mkdir(parents=True, exist_ok=True)
+            doc.save(fallback)
+            return fallback
+        except Exception:
+            try:
+                fallback_cwd = Path.cwd() / (target_path.stem + "_Moi.docx")
+                doc.save(fallback_cwd)
+                return fallback_cwd
+            except Exception:
+                raise OSError(f"Failed to save document to {target_path} or any fallback paths. Original error: {e}") from e
 
 
 if __name__ == "__main__":

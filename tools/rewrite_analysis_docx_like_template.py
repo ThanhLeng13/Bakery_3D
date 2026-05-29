@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from docx import Document
@@ -8,7 +9,15 @@ from docx.oxml.ns import qn
 from docx.shared import Cm, Inches, Pt, RGBColor
 
 
-OUT = Path(r"D:\DE_TAI")
+OUT_ENV = os.environ.get("DE_TAI_OUTPUT_DIR")
+if OUT_ENV:
+    OUT = Path(OUT_ENV)
+else:
+    try:
+        OUT = Path(__file__).resolve().parents[2]
+    except Exception:
+        OUT = Path.home() / "DE_TAI"
+
 OUTPUT = OUT / "PhanTich_ThietKe_DoAn_BanhKem_AI_Chinh_Sua_Theo_Mau.docx"
 
 SCHOOL = "TRƯỜNG ĐẠI HỌC KIẾN TRÚC ĐÀ NẴNG"
@@ -135,7 +144,7 @@ def add_cover(doc):
         ("Tên đề tài:", TITLE),
         ("Đơn vị thực tập:", INTERNSHIP_UNIT),
     ]
-    for row, (left, right) in zip(info.rows, rows):
+    for row, (left, right) in zip(info.rows, rows, strict=True):
         set_cell_text(row.cells[0], left, bold=True)
         set_cell_text(row.cells[1], right)
     doc.add_paragraph()
@@ -162,7 +171,7 @@ def add_toc(doc):
     doc.add_page_break()
 
 
-def build_document():
+def build_document(output_dir=None):
     doc = Document()
     style_document(doc)
     add_cover(doc)
@@ -317,13 +326,27 @@ def build_document():
         widths=[1.35, 3.6, 2.2],
     )
 
+    target_dir = Path(output_dir) if output_dir else OUT
+    target_path = target_dir / "PhanTich_ThietKe_DoAn_BanhKem_AI_Chinh_Sua_Theo_Mau.docx"
+
     try:
-        doc.save(OUTPUT)
-        return OUTPUT
-    except PermissionError:
-        fallback = OUTPUT.with_name(OUTPUT.stem + "_Can_Le.docx")
-        doc.save(fallback)
-        return fallback
+        target_dir.mkdir(parents=True, exist_ok=True)
+        doc.save(target_path)
+        return target_path
+    except (PermissionError, FileNotFoundError, OSError) as e:
+        print(f"Could not save document to {target_path} due to: {e}. Trying fallback...")
+        try:
+            fallback = target_path.with_name(target_path.stem + "_Can_Le.docx")
+            fallback.parent.mkdir(parents=True, exist_ok=True)
+            doc.save(fallback)
+            return fallback
+        except Exception:
+            try:
+                fallback_cwd = Path.cwd() / (target_path.stem + "_Can_Le.docx")
+                doc.save(fallback_cwd)
+                return fallback_cwd
+            except Exception:
+                raise OSError(f"Failed to save document to {target_path} or any fallback paths. Original error: {e}") from e
 
 
 if __name__ == "__main__":
