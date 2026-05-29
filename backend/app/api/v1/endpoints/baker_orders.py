@@ -42,7 +42,7 @@ def _get_order_service(token: str | None = None) -> OrderService:
 
 
 @router.get("")
-async def list_baker_orders(
+def list_baker_orders(
     baker: dict = Depends(require_baker),
     credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ):

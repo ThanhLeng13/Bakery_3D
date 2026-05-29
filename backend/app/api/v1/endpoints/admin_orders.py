@@ -24,7 +24,7 @@ def _get_order_service() -> OrderService:
 
 
 @router.get("")
-async def list_admin_orders(
+def list_admin_orders(
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(default=20, ge=1, le=100, description="Items per page (default 20)"),
     status: Optional[str] = Query(default=None, description="Filter by order status"),

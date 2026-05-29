@@ -52,7 +52,7 @@ def _get_supabase_admin_client():
 
 
 
-async def get_current_user(
+def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ) -> dict:
     """
@@ -176,7 +176,7 @@ def require_role(roles: list[str]) -> Callable:
         HTTPException 403: If user's role is not in the allowed roles
     """
 
-    async def role_checker(
+    def role_checker(
         current_user: dict = Depends(get_current_user),
     ) -> dict:
         user_role = current_user.get("role", "")

@@ -56,7 +56,7 @@ def _handle_product_error(e: ProductServiceError) -> JSONResponse:
 
 
 @router.get("", response_model=ProductListResponse)
-async def list_admin_products(
+def list_admin_products(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     search: Optional[str] = Query(default=None),
