@@ -1,0 +1,64 @@
+%%{init: {"theme": "base", "flowchart": {"curve": "linear", "nodeSpacing": 55, "rankSpacing": 72}}}%%
+flowchart TB
+    %% Activity Diagram - Quy trình khách hàng đặt bánh và thanh toán COD
+    %% Đề tài: Website bán bánh kem tích hợp AI
+    %% Sinh viên: Lý Thành Long - MSSV: 2251220144
+
+    classDef customer fill:#FFF7EF,stroke:#E8837A,stroke-width:1.5px,color:#5C3D2E
+    classDef web fill:#EAF4FE,stroke:#E8837A,stroke-width:1.5px,color:#5C3D2E
+    classDef ai fill:#EDE7FF,stroke:#E8837A,stroke-width:1.5px,color:#5C3D2E
+    classDef admin fill:#FFF3D5,stroke:#E8837A,stroke-width:1.5px,color:#5C3D2E
+    classDef baker fill:#E7F7EF,stroke:#E8837A,stroke-width:1.5px,color:#5C3D2E
+    classDef decision fill:#FFF8DC,stroke:#D4A574,stroke-width:1.7px,color:#5C3D2E
+    classDef terminal fill:#111111,stroke:#111111,color:#ffffff
+
+    Start(("Bắt đầu"))
+    A1["Khách hàng: Truy cập website"]
+    A2["Hệ thống Web: Hiển thị menu và Cake Builder"]
+    A3["Khách hàng: Xem/lọc sản phẩm hoặc tùy chỉnh bánh"]
+    D1{"Cần AI tư vấn?"}
+    A4["Hệ thống AI: Tư vấn và gợi ý bánh"]
+    M1{"Gộp luồng tư vấn"}
+    A5["Hệ thống Web: Tính giá tự động và hiển thị tóm tắt"]
+    D2{"Khách xác nhận đặt bánh?"}
+    X1["Quay lại xem/lọc hoặc chỉnh sửa bánh"]
+    D3{"Đã đăng nhập?"}
+    A6["Khách hàng: Đăng ký / đăng nhập tài khoản"]
+    M2{"Gộp luồng đăng nhập"}
+    A7["Khách hàng: Nhập thông tin nhận bánh và ngày nhận"]
+    D4{"Thông tin hợp lệ?"}
+    X2["Hệ thống Web: Báo lỗi và yêu cầu nhập lại"]
+    A8["Khách hàng: Chọn thanh toán khi nhận bánh (COD)"]
+    A9["Hệ thống Web: Tạo đơn pending và lưu tùy chỉnh"]
+    A10["Hệ thống AI: Tạo phiếu đặt hàng và ghi chú cho thợ"]
+    A11["Admin / Chủ tiệm: Xem chi tiết đơn hàng"]
+    D5{"Đơn hợp lệ?"}
+    X3["Hệ thống Web: Thông báo bổ sung hoặc hủy đơn"]
+    A12["Admin / Chủ tiệm: Xác nhận đơn pending -> confirmed"]
+    A13["Thợ làm bánh: Xem phiếu và cập nhật in_production"]
+    A14["Thợ làm bánh: Hoàn tất bánh, cập nhật ready"]
+    A15["Khách nhận bánh, thanh toán COD; Admin cập nhật delivered"]
+    A16["Khách hàng: Đánh giá sản phẩm"]
+    End((("Kết thúc")))
+
+    Start --> A1 --> A2 --> A3 --> D1
+    D1 -- "Có" --> A4 --> M1
+    D1 -- "Không" --> M1
+    M1 --> A5 --> D2
+    D2 -- "Không" --> X1 --> A3
+    D2 -- "Có" --> D3
+    D3 -- "Chưa" --> A6 --> M2
+    D3 -- "Rồi" --> M2
+    M2 --> A7 --> D4
+    D4 -- "Không" --> X2 --> A7
+    D4 -- "Có" --> A8 --> A9 --> A10 --> A11 --> D5
+    D5 -- "Không" --> X3 --> End
+    D5 -- "Có" --> A12 --> A13 --> A14 --> A15 --> A16 --> End
+
+    class Start,End terminal
+    class A1,A3,A6,A7,A8,A15,A16,X1 customer
+    class A2,A5,A9,X2,X3 web
+    class A4,A10 ai
+    class A11,A12 admin
+    class A13,A14 baker
+    class D1,D2,D3,D4,D5,M1,M2 decision

@@ -6,10 +6,10 @@ Endpoints:
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 
-from app.core.config import settings
-from app.core.dependencies import get_current_user, require_customer
+from app.core.dependencies import get_current_user, require_customer, security_scheme, get_supabase_client
 from app.services.review_service import (
     ReviewDuplicateError,
     ReviewNotEligibleError,
@@ -32,15 +32,9 @@ class SubmitReviewRequest(BaseModel):
     )
 
 
-def _get_supabase_client():
-    """Get Supabase client instance."""
-    from supabase import create_client
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
-
-
-def _get_review_service() -> ReviewService:
+def _get_review_service(token: str | None = None) -> ReviewService:
     """Create ReviewService with Supabase client."""
-    client = _get_supabase_client()
+    client = get_supabase_client(token, use_service_role=False)
     return ReviewService(client)
 
 
@@ -48,6 +42,7 @@ def _get_review_service() -> ReviewService:
 async def submit_review(
     body: SubmitReviewRequest,
     customer: dict = Depends(require_customer),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ):
     """
     Submit a product review (Customer only).
@@ -60,7 +55,8 @@ async def submit_review(
 
     Rating must be 1-5. Comment is optional, max 1000 chars.
     """
-    review_service = _get_review_service()
+    token = credentials.credentials if credentials else None
+    review_service = _get_review_service(token)
 
     try:
         result = await review_service.submit_review(

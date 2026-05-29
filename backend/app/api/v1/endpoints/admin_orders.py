@@ -10,29 +10,21 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.core.config import settings
-from app.core.dependencies import require_admin
+from app.core.dependencies import require_admin, get_supabase_client
 from app.services.order_service import OrderNotFoundError, OrderService, OrderServiceError
 
 router = APIRouter()
 
 
-def _get_supabase_admin_client():
-    """Get Supabase client with service role key for admin operations."""
-    from supabase import create_client
-
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
-
-
 def _get_order_service() -> OrderService:
-    """Create OrderService with admin Supabase client."""
-    client = _get_supabase_admin_client()
+    """Create OrderService with Supabase client."""
+    client = get_supabase_client(use_service_role=True)
     return OrderService(client)
 
 
 
 @router.get("")
-async def list_admin_orders(
+def list_admin_orders(
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(default=20, ge=1, le=100, description="Items per page (default 20)"),
     status: Optional[str] = Query(default=None, description="Filter by order status"),
@@ -52,7 +44,7 @@ async def list_admin_orders(
     Sorted by created_at descending (newest first).
     Paginated (20/page default).
     """
-    supabase = _get_supabase_admin_client()
+    supabase = get_supabase_client(use_service_role=True)
 
     try:
         # Build query for counting

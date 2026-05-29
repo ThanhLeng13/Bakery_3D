@@ -120,7 +120,7 @@ export default function Home() {
       <footer className="bg-mocha text-white/80 py-6 sm:py-8">
         <div className="max-w-7xl mx-auto px-4 text-center font-body text-xs sm:text-sm">
           <p className="mb-1 sm:mb-2">🎂 La Douceur — Tiệm Bánh Kem Thủ Công</p>
-          <p className="text-white/50">TP. Hồ Chí Minh | ☎ 0901 234 567</p>
+          <p className="text-white/50">TP. Đà Nẵng | ☎ 0901 234 567</p>
         </div>
       </footer>
     </main>

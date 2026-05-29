@@ -13,8 +13,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Query
 from fastapi.responses import JSONResponse
 
-from app.core.config import settings
-from app.core.dependencies import require_admin
+from app.core.dependencies import require_admin, get_supabase_client
 from app.utils.image_url import format_image_url
 from app.schemas.admin_products import (
     CreateProductRequest,
@@ -32,16 +31,9 @@ from app.services.product_service import (
 router = APIRouter()
 
 
-def _get_supabase_admin_client():
-    """Get Supabase client with service role key for admin operations."""
-    from supabase import create_client
-
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
-
-
 def _get_product_service() -> ProductService:
     """Create ProductService with admin Supabase client."""
-    client = _get_supabase_admin_client()
+    client = get_supabase_client(use_service_role=True)
     return ProductService(client)
 
 
@@ -64,7 +56,7 @@ def _handle_product_error(e: ProductServiceError) -> JSONResponse:
 
 
 @router.get("", response_model=ProductListResponse)
-async def list_admin_products(
+def list_admin_products(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     search: Optional[str] = Query(default=None),
@@ -75,7 +67,7 @@ async def list_admin_products(
     """
     List all products for admin with pagination, search, and filtering.
     """
-    supabase = _get_supabase_admin_client()
+    supabase = get_supabase_client(use_service_role=True)
     try:
         # Base query for data and exact count in a single request
         offset = (page - 1) * page_size
