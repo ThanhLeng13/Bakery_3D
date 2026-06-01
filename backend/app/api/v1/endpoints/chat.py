@@ -8,9 +8,9 @@ Endpoints:
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from fastapi.security import HTTPAuthorizationCredentials
 
-from app.core.config import settings
-from app.core.dependencies import get_current_user, require_customer
+from app.core.dependencies import get_current_user, require_customer, security_scheme, get_supabase_client
 from app.schemas.chat import (
     ChatHistoryResponse,
     CreateSessionResponse,
@@ -28,29 +28,24 @@ from app.services.chat_service import (
 router = APIRouter()
 
 
-def _get_supabase_client():
-    """Get Supabase client instance."""
-    from supabase import create_client
-
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
-
-
-def _get_chat_service() -> ChatService:
+def _get_chat_service(token: str | None = None) -> ChatService:
     """Create ChatService with Supabase client."""
-    client = _get_supabase_client()
+    client = get_supabase_client(token, use_service_role=False)
     return ChatService(client)
 
 
 @router.post("/sessions", response_model=CreateSessionResponse, status_code=201)
 async def create_session(
     current_user: dict = Depends(require_customer),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ):
     """
     Create a new chat session for the authenticated customer.
 
     Requires customer authentication.
     """
-    chat_service = _get_chat_service()
+    token = credentials.credentials if credentials else None
+    chat_service = _get_chat_service(token)
 
     try:
         result = await chat_service.create_session(
@@ -67,6 +62,7 @@ async def send_message(
     request: SendMessageRequest,
     stream: bool = Query(default=True, description="Whether to stream the response via SSE"),
     current_user: dict = Depends(require_customer),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ):
     """
     Send a message in a chat session and receive AI response.
@@ -82,7 +78,8 @@ async def send_message(
 
     On Claude API error, returns 503 with fallback message.
     """
-    chat_service = _get_chat_service()
+    token = credentials.credentials if credentials else None
+    chat_service = _get_chat_service(token)
 
     try:
         if stream:
@@ -130,6 +127,7 @@ async def send_message(
 async def get_chat_history(
     session_id: str,
     current_user: dict = Depends(require_customer),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ):
     """
     Get chat history for a session.
@@ -137,7 +135,8 @@ async def get_chat_history(
     Returns all messages in chronological order.
     Only the session owner can access the history.
     """
-    chat_service = _get_chat_service()
+    token = credentials.credentials if credentials else None
+    chat_service = _get_chat_service(token)
 
     try:
         result = await chat_service.get_chat_history(

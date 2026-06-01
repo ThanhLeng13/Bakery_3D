@@ -10,30 +10,21 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.core.config import settings
-from app.core.dependencies import require_admin
+from app.core.dependencies import require_admin, get_supabase_client
 from app.services.order_service import OrderNotFoundError, OrderService, OrderServiceError
 
 router = APIRouter()
 
 
-def _get_supabase_client():
-    """Get Supabase admin client (service role) to bypass RLS.
-    Auth is enforced via require_admin dependency at the route level.
-    """
-    from supabase import create_client
-
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
-
-
 def _get_order_service() -> OrderService:
     """Create OrderService with Supabase client."""
-    client = _get_supabase_client()
+    client = get_supabase_client(use_service_role=True)
     return OrderService(client)
 
 
+
 @router.get("")
-async def list_admin_orders(
+def list_admin_orders(
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(default=20, ge=1, le=100, description="Items per page (default 20)"),
     status: Optional[str] = Query(default=None, description="Filter by order status"),
@@ -53,7 +44,7 @@ async def list_admin_orders(
     Sorted by created_at descending (newest first).
     Paginated (20/page default).
     """
-    supabase = _get_supabase_client()
+    supabase = get_supabase_client(use_service_role=True)
 
     try:
         # Build query for counting
@@ -61,41 +52,30 @@ async def list_admin_orders(
         if status and status not in valid_statuses:
             raise HTTPException(status_code=400, detail=f"Invalid status. Valid values: {', '.join(valid_statuses)}")
 
-        # Base query
-        count_query = supabase.table("orders").select("id", count="exact")
+        # Base query with exact count in a single request
         data_query = supabase.table("orders").select(
             "id, status, total_price, pickup_date, customer_name, "
-            "customer_phone, customer_email, ai_summary, baker_notes, created_at, updated_at"
+            "customer_phone, customer_email, ai_summary, baker_notes, created_at, updated_at",
+            count="exact"
         )
 
         # Apply filters
         if status:
-            count_query = count_query.eq("status", status)
             data_query = data_query.eq("status", status)
 
         if date_from:
-            count_query = count_query.gte("created_at", date_from)
             data_query = data_query.gte("created_at", date_from)
 
         if date_to:
-            count_query = count_query.lte("created_at", date_to)
             data_query = data_query.lte("created_at", date_to)
 
         if customer_name:
             # Supabase ilike for partial case-insensitive match
             pattern = f"%{customer_name}%"
-            count_query = count_query.ilike("customer_name", pattern)
             data_query = data_query.ilike("customer_name", pattern)
 
-        # Count total
-        count_result = count_query.execute()
-        total_items = count_result.count if count_result.count is not None else 0
-
-        # Pagination
-        total_pages = math.ceil(total_items / page_size) if total_items > 0 else 0
+        # Pagination and Fetch
         offset = (page - 1) * page_size
-
-        # Fetch data
         data_result = (
             data_query
             .order("created_at", desc=True)
@@ -104,6 +84,8 @@ async def list_admin_orders(
         )
 
         orders = data_result.data or []
+        total_items = data_result.count if data_result.count is not None else 0
+        total_pages = math.ceil(total_items / page_size) if total_items > 0 else 0
 
         return {
             "orders": orders,
@@ -120,7 +102,10 @@ async def list_admin_orders(
     except HTTPException:
         raise
     except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception("Failed to fetch orders")
         raise HTTPException(status_code=500, detail="Failed to fetch orders")
+
 
 
 @router.get("/{order_id}")

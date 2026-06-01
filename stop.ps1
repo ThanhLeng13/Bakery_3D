@@ -31,12 +31,38 @@ if ($port8000) {
 }
 
 Write-Host "[*] Dang tat cac tien trinh frontend (node/next)..." -ForegroundColor Yellow
-$port3000 = netstat -ano | findstr ":3000" | Select-String "LISTENING"
-if ($port3000) {
-    $pid3000 = ($port3000 -split '\s+')[-1]
-    Stop-Process -Id $pid3000 -Force -ErrorAction SilentlyContinue
-    Write-Host "[OK] Da tat frontend (cong 3000)." -ForegroundColor Green
-} else {
+$frontendStopped = $false
+foreach ($port in @(3000, 3001, 3002)) {
+    $portCheck = netstat -ano | findstr ":$port " | Select-String "LISTENING"
+    if ($portCheck) {
+        $pidCheck = ($portCheck -split '\s+')[-1]
+        $pidCheckInt = $null
+        if ([int]::TryParse($pidCheck, [ref]$pidCheckInt)) {
+            $procCheck = Get-Process -Id $pidCheckInt -ErrorAction SilentlyContinue
+            $procName = if ($procCheck) { $procCheck.ProcessName } else { "Unknown" }
+            if ($procName -eq "node" -or $procName -eq "next-router-worker") {
+                $procObj = Get-CimInstance Win32_Process -Filter "ProcessId = $pidCheckInt" -ErrorAction SilentlyContinue
+                $cmdLine = if ($procObj) { $procObj.CommandLine } else { "" }
+                $execPath = if ($procObj) { $procObj.ExecutablePath } else { "" }
+                
+                $isOurProcess = $false
+                if (($cmdLine -and ($cmdLine -like "*Bakery_3D*frontend*" -or $cmdLine -like "*Bakery_3D/frontend*")) -or 
+                    ($execPath -and ($execPath -like "*Bakery_3D*frontend*" -or $execPath -like "*Bakery_3D/frontend*"))) {
+                    $isOurProcess = $true
+                }
+                
+                if ($isOurProcess) {
+                    Stop-Process -Id $pidCheckInt -Force -ErrorAction SilentlyContinue
+                    Write-Host "[OK] Da tat frontend (cong $port)." -ForegroundColor Green
+                    $frontendStopped = $true
+                } else {
+                    Write-Host "[!] Canh bao: Cong $port dang duoc dung boi tien trinh Node/Next khac khong thuoc du an nay (PID: $pidCheckInt). Bo qua." -ForegroundColor Yellow
+                }
+            }
+        }
+    }
+}
+if (-not $frontendStopped) {
     Write-Host "[OK] Frontend khong chay hoac da tat." -ForegroundColor Green
 }
 

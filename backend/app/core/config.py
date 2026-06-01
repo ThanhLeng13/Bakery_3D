@@ -41,5 +41,15 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
+    def __init__(self, **values):
+        super().__init__(**values)
+        import os
+        frontend_port = os.environ.get("FRONTEND_PORT")
+        if frontend_port:
+            for host in ["localhost", "127.0.0.1"]:
+                origin = f"http://{host}:{frontend_port}"
+                if origin not in self.CORS_ORIGINS:
+                    self.CORS_ORIGINS = list(self.CORS_ORIGINS) + [origin]
+
 
 settings = Settings()

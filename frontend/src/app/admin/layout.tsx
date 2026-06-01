@@ -48,9 +48,11 @@ function AdminShell({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside className="hidden md:flex md:w-64 flex-col bg-white border-r border-mocha/10 shadow-sm">
         <div className="p-6 border-b border-mocha/10">
-          <h1 className="font-heading text-xl text-mocha font-bold">
-            Admin Panel
-          </h1>
+          <Link href="/admin/products" className="hover:text-pink-pastel transition-colors">
+            <h1 className="font-heading text-xl text-mocha font-bold">
+              Admin Panel
+            </h1>
+          </Link>
           <p className="text-sm text-mocha/60 font-body mt-1">
             {user?.full_name || "Admin"}
           </p>
@@ -80,7 +82,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg font-body text-sm text-mocha/70 hover:bg-cream hover:text-mocha transition-colors"
           >
             <span className="text-lg">🏠</span>
-            Về trang chủ
+            Xem cửa hàng
           </Link>
           <button
             onClick={logout}
@@ -95,14 +97,11 @@ function AdminShell({ children }: { children: React.ReactNode }) {
       {/* Mobile header */}
       <div className="flex-1 flex flex-col">
         <header className="md:hidden flex items-center justify-between p-4 bg-white border-b border-mocha/10 shadow-sm">
-          <div className="flex items-center gap-2">
-            <Link href="/" className="font-heading text-base text-mocha font-bold flex items-center gap-1 hover:text-pink-pastel transition-colors" aria-label="Về trang chủ" title="Về trang chủ">
-              🎂
-            </Link>
+          <Link href="/admin/products" className="hover:text-pink-pastel transition-colors">
             <h1 className="font-heading text-lg text-mocha font-bold">
               Admin Panel
             </h1>
-          </div>
+          </Link>
           <MobileNav pathname={pathname} onLogout={logout} />
         </header>
 
@@ -138,6 +137,14 @@ function MobileNav({
           </Link>
         );
       })}
+      <Link
+        href="/"
+        className="px-3 py-2 rounded-lg text-sm text-mocha/70 hover:text-mocha"
+        title="Xem cửa hàng"
+        aria-label="Xem cửa hàng"
+      >
+        🏠
+      </Link>
       <button
         onClick={onLogout}
         className="px-3 py-2 rounded-lg text-sm text-mocha/70 hover:text-red-600"

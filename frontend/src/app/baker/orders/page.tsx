@@ -11,10 +11,10 @@
  */
 
 import { useEffect, useState, useCallback, Suspense } from "react";
-import Link from "next/link";
 import { apiClient } from "@/lib/api";
 import type { OrderStatus } from "@/types";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import Link from "next/link";
 
 interface BakerOrder {
   id: string;
@@ -186,38 +186,33 @@ function BakerDashboardContent() {
       {/* Header */}
       <header className="bg-white/90 backdrop-blur-sm border-b border-gray-100 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div>
+            <h1 className="font-heading text-xl md:text-2xl text-mocha font-bold">
+              Bảng điều khiển thợ bánh
+            </h1>
+            <p className="text-xs text-mocha/50">
+              {orders.length} đơn hàng đang hoạt động
+              {urgentOrders.length > 0 && (
+                <span className="ml-2 text-red-600 font-medium">
+                  ⚠ {urgentOrders.length} đơn khẩn
+                </span>
+              )}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
             <Link
               href="/"
-              className="font-heading text-lg text-mocha font-bold flex items-center gap-1.5 hover:text-pink-pastel transition-colors min-h-[44px]"
-              aria-label="Về trang chủ"
+              className="text-sm font-medium text-mocha/60 hover:text-pink-pastel transition-colors flex items-center gap-1.5 mr-2 px-3 py-1.5 rounded-full hover:bg-cream"
             >
-              🎂 <span className="hidden sm:inline">Bơ Nơ</span>
-            </Link>
-            <div>
-              <h1 className="font-heading text-xl md:text-2xl text-mocha font-bold">
-                Bảng điều khiển thợ bánh
-              </h1>
-              <p className="text-xs text-mocha/50">
-                {orders.length} đơn hàng đang hoạt động
-                {urgentOrders.length > 0 && (
-                  <span className="ml-2 text-red-600 font-medium">
-                    ⚠ {urgentOrders.length} đơn khẩn
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/baker/inventory"
-              className="flex items-center gap-1.5 px-4 py-2 bg-pink-pastel text-white rounded-full text-sm font-medium hover:bg-pink-pastel/90 transition-all shadow-sm"
-            >
-              📦 Quản lý kho bánh
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
+              </svg>
+              <span>Trang chủ</span>
             </Link>
             <button
               onClick={fetchOrders}
-              className="p-2 text-mocha/60 hover:text-pink-pastel transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+              className="p-2 text-mocha/60 hover:text-pink-pastel transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-cream"
               title="Làm mới"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

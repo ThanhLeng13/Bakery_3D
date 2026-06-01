@@ -425,8 +425,17 @@ class InventoryService:
 
                 if not update_result.data:
                     # Conflict: row đã bị thay đổi bởi request đồng thời
-                    # Rollback các decrement đã làm trong vòng lặp này rồi retry
-                    self._rollback_decrements(decrements)
+                    # Rollback các decrement đã làm trong vòng lặp này rồi retry.
+                    # Nếu rollback thất bại → raise ngay, KHÔNG tiếp tục retry
+                    # (tiếp tục retry trên nền unrestored state gây stock leakage).
+                    try:
+                        self._rollback_decrements(decrements)
+                    except Exception as rb_err:
+                        raise InventoryServiceError(
+                            "Lỗi nghiêm trọng: không thể hoàn tác stock sau xung đột. "
+                            "Vui lòng liên hệ quản trị viên.",
+                            status_code=503,
+                        ) from rb_err
                     conflict_detected = True
                     break
 
