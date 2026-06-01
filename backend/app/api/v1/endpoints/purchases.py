@@ -105,10 +105,16 @@ def create_purchase(
             )
 
     # 3. Check stock availability for all items (branch-aware)
+    # Aggregate quantities per product_id first — duplicate entries must be
+    # summed so the check reflects the true combined requested quantity.
+    aggregated: dict[str, int] = {}
     for item in body.items:
+        aggregated[item.product_id] = aggregated.get(item.product_id, 0) + item.quantity
+
+    for product_id, total_qty in aggregated.items():
         if body.branch_id:
             # Check stock for the SPECIFIC branch
-            branch_stock = inv_svc.get_stock_by_branch(item.product_id)
+            branch_stock = inv_svc.get_stock_by_branch(product_id)
             branch = next(
                 (b for b in branch_stock["branches"] if b["branch_id"] == body.branch_id),
                 None,
@@ -116,16 +122,16 @@ def create_purchase(
             available = branch["quantity_available"] if branch else 0
         else:
             # No branch specified — check global stock
-            stock = inv_svc.get_product_stock(item.product_id)
+            stock = inv_svc.get_product_stock(product_id)
             available = stock["total_available"]
 
-        if available < item.quantity:
-            pname = products_map[item.product_id]["name"]
+        if available < total_qty:
+            pname = products_map[product_id]["name"]
             raise HTTPException(
                 status_code=409,
                 detail=(
                     f"'{pname}': Còn {available} cái, "
-                    f"yêu cầu {item.quantity} cái."
+                    f"yêu cầu {total_qty} cái."
                 ),
             )
 

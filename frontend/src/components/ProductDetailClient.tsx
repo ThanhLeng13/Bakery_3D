@@ -190,6 +190,9 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
 
   useEffect(() => {
     if (!isSweet) return;
+    // Reset stale state from previous product BEFORE fetching new data
+    setSelectedBranch(null);
+    setStockByBranch(null);
     // Always fetch fresh data on the client
     setBranchLoading(true);
     fetch(`${API_BASE}/api/v1/products/${product.id}/stock-by-branch`, {
