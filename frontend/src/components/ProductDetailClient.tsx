@@ -190,6 +190,9 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
 
   useEffect(() => {
     if (!isSweet) return;
+    // active flag: if the effect re-runs (product.id changed) the cleanup sets
+    // active=false so any in-flight response for the previous product is ignored
+    let active = true;
     // Reset stale state from previous product BEFORE fetching new data
     setSelectedBranch(null);
     setStockByBranch(null);
@@ -200,10 +203,11 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
     })
       .then((res) => res.ok ? res.json() : null)
       .then((data: StockByBranchResponse | null) => {
-        if (data) setStockByBranch(data);
+        if (active && data) setStockByBranch(data);
       })
       .catch(() => {})
-      .finally(() => setBranchLoading(false));
+      .finally(() => { if (active) setBranchLoading(false); });
+    return () => { active = false; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product.id]);
 

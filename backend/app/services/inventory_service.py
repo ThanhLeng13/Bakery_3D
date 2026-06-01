@@ -7,7 +7,10 @@ Chức năng:
 """
 
 from datetime import date, datetime
+import logging
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class InventoryServiceError(Exception):
@@ -117,10 +120,11 @@ class InventoryService:
         """
         today = date.today().isoformat()
 
-        # 1. Fetch ALL branches (no is_active filter — branches table doesn't have this column)
+        # 1. Fetch only ACTIVE branches (is_active column confirmed present in DB)
         all_branches_result = (
             self._db.table("branches")
             .select("id, name, address")
+            .eq("is_active", True)
             .order("name", desc=False)
             .execute()
         )
@@ -444,11 +448,13 @@ class InventoryService:
         """
         Hoàn tác các decrement đã thực hiện bằng CAS retry loop.
 
-        Dùng compare-and-swap (giống decrement_stock) để tránh clobber concurrent
-        updates: đọc stale value → UPDATE với điều kiện eq(quantity_sold, stale)
+        Dùng compare-and-swap (để tránh clobber concurrent updates):
+        đọc stale value → UPDATE với điều kiện eq(quantity_sold, stale)
         → nếu conflict (0 rows updated) thì retry.
+        Nếu hết lượt retry mà vẫn chưa rollback được → ghi log lỗi để không bị bỏ qua.
         """
         for dec in decrements:
+            success = False
             for _ in range(max_retries):
                 row = (
                     self._db.table("product_batches")
@@ -458,7 +464,8 @@ class InventoryService:
                     .execute()
                 )
                 if not row or not row.data:
-                    break  # batch không còn tồn tại, bỏ qua
+                    success = True  # batch không tồn tại, không cần rollback
+                    break
                 stale = row.data["quantity_sold"]
                 restored = max(0, stale - dec["quantity_decremented"])
                 result = (
@@ -469,5 +476,15 @@ class InventoryService:
                     .execute()
                 )
                 if result.data:
+                    success = True
                     break  # thành công
                 # Conflict → retry (stale đã thay đổi, đọc lại ở vòng lặp kế)
+
+            if not success:
+                logger.error(
+                    "STOCK ROLLBACK FAILED after %d retries: batch_id=%s qty=%d — "
+                    "manual correction required!",
+                    max_retries,
+                    dec["batch_id"],
+                    dec["quantity_decremented"],
+                )
