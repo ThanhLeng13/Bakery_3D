@@ -497,7 +497,7 @@ function CheckoutContent() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-mocha text-sm truncate">{item.productName}</p>
                       <div className="flex flex-wrap gap-x-2 text-xs text-mocha/55 mt-0.5">
-                        {item.expiresAt && <span className="text-amber-600">HSD: {new Date(item.expiresAt).toLocaleDateString("vi-VN")}</span>}
+                        {item.expiresAt && <span className="text-amber-600">HSD: {item.expiresAt.split("T")[0].split("-").reverse().join("/")}</span>}
                         <span>• SL: {item.quantity}</span>
                       </div>
                     </div>

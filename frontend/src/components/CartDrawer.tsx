@@ -144,7 +144,7 @@ export default function CartDrawer() {
                   <p className="font-medium text-mocha text-sm truncate">{item.productName}</p>
                   {item.expiresAt && (
                     <p className="text-xs text-amber-600 mt-0.5">
-                      HSD: {new Date(item.expiresAt).toLocaleDateString("vi-VN")}
+                      HSD: {item.expiresAt.split("T")[0].split("-").reverse().join("/")}
                     </p>
                   )}
                   <p className="text-pink-pastel font-semibold text-sm mt-1">

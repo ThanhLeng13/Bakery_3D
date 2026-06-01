@@ -17,12 +17,13 @@ function formatPrice(price: number): string {
   }).format(price);
 }
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+/** Format a YYYY-MM-DD date string as DD/MM/YYYY without timezone conversion.
+ * Using new Date(dateStr) treats the string as UTC midnight and calling
+ * toLocaleDateString() shifts it to the previous day in timezones behind UTC.
+ */
+function formatDateOnly(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-");
+  return `${d}/${m}/${y}`;
 }
 
 interface Review {
@@ -124,7 +125,7 @@ function ReviewsSection({ productId }: { productId: string }) {
                     ))}
                   </div>
                 </div>
-                <span className="text-xs text-mocha/40">{formatDate(review.created_at)}</span>
+                <span className="text-xs text-mocha/40">{formatDateOnly(review.created_at.split("T")[0])}</span>
               </div>
               {review.comment && <p className="text-sm text-mocha/80">{review.comment}</p>}
             </div>

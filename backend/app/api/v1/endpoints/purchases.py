@@ -6,6 +6,8 @@ POST /api/v1/purchases
     Thanh toán offline (đến quán trả tiền).
 """
 
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
@@ -151,22 +153,32 @@ def create_purchase(
                 ),
             )
 
-    # 3. Check stock availability for all items (branch-aware)
-    # Aggregate quantities per product_id first — duplicate entries must be
-    # summed so the check reflects the true combined requested quantity.
+    # 3. Check stock at the selected branch in a SINGLE query
+    # Previously called get_stock_by_branch(product_id) N times (2N DB roundtrips).
+    # Now: one product_batches query for all product_ids at the specific branch → O(1) queries.
     aggregated: dict[str, int] = {}
     for item in body.items:
         aggregated[item.product_id] = aggregated.get(item.product_id, 0) + item.quantity
 
-    for product_id, total_qty in aggregated.items():
-        # branch_id là bắt buộc → luôn kiểm tra stock theo chi nhánh cụ thể
-        branch_stock = inv_svc.get_stock_by_branch(product_id)
-        branch = next(
-            (b for b in branch_stock["branches"] if b["branch_id"] == body.branch_id),
-            None,
-        )
-        available = branch["quantity_available"] if branch else 0
+    today = date.today().isoformat()
+    batch_result = (
+        db.table("product_batches")
+        .select("product_id, quantity, quantity_sold")
+        .in_("product_id", list(aggregated.keys()))
+        .eq("branch_id", body.branch_id)
+        .eq("is_active", True)
+        .gte("expires_at", today)
+        .execute()
+    )
+    # Aggregate available stock per product_id in memory
+    stock_at_branch: dict[str, int] = {}
+    for row in (batch_result.data or []):
+        pid = row["product_id"]
+        avail = max(0, row["quantity"] - row["quantity_sold"])
+        stock_at_branch[pid] = stock_at_branch.get(pid, 0) + avail
 
+    for product_id, total_qty in aggregated.items():
+        available = stock_at_branch.get(product_id, 0)
         if available < total_qty:
             pname = products_map[product_id]["name"]
             raise HTTPException(
