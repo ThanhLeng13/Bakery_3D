@@ -497,3 +497,8 @@ class InventoryService:
                     dec["batch_id"],
                     dec["quantity_decremented"],
                 )
+                raise InventoryServiceError(
+                    f"Không thể hoàn tác stock cho lô {dec['batch_id']} "
+                    f"sau {max_retries} lần thử. Cần kiểm tra thủ công.",
+                    status_code=503,
+                )
