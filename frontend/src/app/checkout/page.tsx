@@ -182,6 +182,11 @@ function CheckoutContent() {
       }
     }
 
+    // branch_id required for sweet purchases (must pick up from a specific branch)
+    if (isCartMode && !selectedBranchId) {
+      newErrors.branch = "Vui lòng chọn chi nhánh nhận bánh";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -207,7 +212,7 @@ function CheckoutContent() {
           customer_name: fullName.trim(),
           customer_phone: phone.trim(),
           notes: null,
-          branch_id: selectedBranchId ?? null,
+          branch_id: selectedBranchId!, // guaranteed non-null by validateForm
         };
 
         const response = await apiClient.post<OrderConfirmation>(
@@ -451,7 +456,7 @@ function CheckoutContent() {
               <h2 className="font-heading text-lg font-bold text-mocha mb-1">
                 Sản phẩm đã chọn
               </h2>
-              {selectedBranchName && (
+              {selectedBranchName ? (
                 <p className="text-sm text-mocha/60 mb-4 flex items-center gap-1.5">
                   <svg className="w-3.5 h-3.5 text-pink-pastel flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -459,6 +464,13 @@ function CheckoutContent() {
                   </svg>
                   Nhận tại: <span className="font-medium text-mocha">{selectedBranchName}</span>
                 </p>
+              ) : (
+                <p className="text-sm text-red-500 mb-4 flex items-center gap-1.5">
+                  ⚠️ Vui lòng quay lại trang sản phẩm và chọn chi nhánh nhận bánh trước khi thanh toán.
+                </p>
+              )}
+              {errors.branch && (
+                <p className="text-sm text-red-500 mb-3">{errors.branch}</p>
               )}
               <div className="space-y-3">
                 {cartItems.map((item) => (

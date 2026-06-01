@@ -45,7 +45,7 @@ class CreatePurchaseRequest(BaseModel):
     customer_name: str = Field(..., min_length=1, max_length=100)
     customer_phone: str = Field(..., pattern=r"^\d{10}$", description="10 chữ số")
     notes: str | None = Field(default=None, max_length=300)
-    branch_id: str | None = Field(default=None, description="UUID chi nhánh mua hàng")
+    branch_id: str = Field(..., description="UUID chi nhánh mua hàng (bắt buộc)")
 
 
 # ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -159,25 +159,20 @@ def create_purchase(
         aggregated[item.product_id] = aggregated.get(item.product_id, 0) + item.quantity
 
     for product_id, total_qty in aggregated.items():
-        if body.branch_id:
-            # Check stock for the SPECIFIC branch
-            branch_stock = inv_svc.get_stock_by_branch(product_id)
-            branch = next(
-                (b for b in branch_stock["branches"] if b["branch_id"] == body.branch_id),
-                None,
-            )
-            available = branch["quantity_available"] if branch else 0
-        else:
-            # No branch specified — check global stock
-            stock = inv_svc.get_product_stock(product_id)
-            available = stock["total_available"]
+        # branch_id là bắt buộc → luôn kiểm tra stock theo chi nhánh cụ thể
+        branch_stock = inv_svc.get_stock_by_branch(product_id)
+        branch = next(
+            (b for b in branch_stock["branches"] if b["branch_id"] == body.branch_id),
+            None,
+        )
+        available = branch["quantity_available"] if branch else 0
 
         if available < total_qty:
             pname = products_map[product_id]["name"]
             raise HTTPException(
                 status_code=409,
                 detail=(
-                    f"'{pname}': Còn {available} cái, "
+                    f"'{pname}': Chi nhánh chọn còn {available} cái, "
                     f"yêu cầu {total_qty} cái."
                 ),
             )
