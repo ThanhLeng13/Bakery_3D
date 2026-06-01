@@ -101,7 +101,7 @@ class CatalogService:
         # Build data query — embed product_review_stats view for pre-aggregated ratings
         data_query = (
             self._supabase.table("products")
-            .select("id, name, description, category, base_price, created_at, product_images(url, sort_order), product_review_stats(review_count, average_rating)")
+            .select("id, name, description, category, product_type, base_price, created_at, product_images(url, sort_order), product_review_stats(review_count, average_rating)")
             .eq("is_active", True)
             .order("created_at", desc=True)
             .range(offset, offset + page_size - 1)
@@ -147,6 +147,7 @@ class CatalogService:
                 "name": product["name"],
                 "description": description,
                 "category": product["category"],
+                "product_type": product.get("product_type") or "sweet",
                 "base_price": product["base_price"],
                 "image_url": image_url,
                 "average_rating": average_rating,
@@ -280,6 +281,7 @@ class CatalogService:
             "name": product["name"],
             "description": product.get("description"),
             "category": product["category"],
+            "product_type": product.get("product_type") or "sweet",
             "base_price": product["base_price"],
             "sizes": sizes,
             "flavors": normalized_flavors,

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 /**
  * Cake Builder page.
@@ -85,13 +85,12 @@ export default function CakeBuilderPage() {
           <div className="flex items-center gap-3">
             <a
               href="/"
-              className="text-mocha hover:text-pink-pastel transition-colors min-w-[44px] min-h-[44px] flex items-center"
+              className="font-heading text-lg text-mocha font-bold flex items-center gap-1.5 hover:text-pink-pastel transition-colors min-h-[44px]"
               aria-label="Về trang chủ"
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
+              🎂 <span className="hidden sm:inline">Bơ Nơ</span>
             </a>
+            <span className="text-mocha/20">|</span>
             <h1 className="font-heading text-xl md:text-2xl text-mocha font-bold">
               Thiết kế bánh kem
             </h1>

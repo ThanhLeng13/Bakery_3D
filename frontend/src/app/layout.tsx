@@ -1,7 +1,8 @@
-import type { Metadata, Viewport } from "next";
+﻿import type { Metadata, Viewport } from "next";
 import { Playfair_Display, DM_Sans } from "next/font/google";
 import dynamic from "next/dynamic";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { CartProvider } from "@/contexts/CartContext";
 import "./globals.css";
 
 // ---- Fonts ----
@@ -27,18 +28,18 @@ const ChatWidget = dynamic(() => import("@/components/ChatWidget"), {
 // ---- SEO Metadata ----
 export const metadata: Metadata = {
   title: {
-    template: "%s | La Douceur – Tiệm Bánh Kem",
-    default: "La Douceur – Tiệm Bánh Kem Thủ Công TP.HCM",
+    template: "%s | Bơ Nơ – Tiệm Bánh Kem",
+    default: "Bơ Nơ – Tiệm Bánh Kem Thủ Công TP.HCM",
   },
   description:
     "Tiệm bánh kem tùy chỉnh tại TP.HCM – Thiết kế bánh kem theo ý muốn với công cụ trực quan và AI tư vấn thông minh bằng tiếng Việt.",
   keywords: ["bánh kem", "cake shop", "tiệm bánh", "thiết kế bánh", "TP.HCM"],
-  authors: [{ name: "La Douceur Bakery" }],
+  authors: [{ name: "Bơ Nơ Bakery" }],
   openGraph: {
     type: "website",
     locale: "vi_VN",
-    siteName: "La Douceur",
-    title: "La Douceur – Tiệm Bánh Kem Thủ Công TP.HCM",
+    siteName: "Bơ Nơ",
+    title: "Bơ Nơ – Tiệm Bánh Kem Thủ Công TP.HCM",
     description:
       "Thiết kế bánh kem theo ý muốn với công cụ trực quan và AI tư vấn thông minh.",
   },
@@ -70,9 +71,11 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
-          {children}
-          {/* ChatWidget loaded dynamically to not block initial paint */}
-          <ChatWidget />
+          <CartProvider>
+            {children}
+            {/* ChatWidget loaded dynamically to not block initial paint */}
+            <ChatWidget />
+          </CartProvider>
         </AuthProvider>
       </body>
     </html>

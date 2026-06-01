@@ -11,6 +11,32 @@ export type OrderStatus =
   | "ready"
   | "delivered";
 
+export type ProductType = "sweet" | "cake";
+// sweet = bánh ngọt (có tồn kho, mua trực tiếp)
+// cake  = bánh kem  (đặt hàng theo yêu cầu)
+
+// Branch types
+export interface Branch {
+  id: string;
+  name: string;
+  address: string | null;
+  phone: string | null;
+}
+
+export interface BranchStock {
+  branch_id: string | null;
+  branch_name: string;
+  branch_address: string | null;
+  quantity_available: number;
+  expires_soonest: string | null;
+}
+
+export interface StockByBranchResponse {
+  product_id: string;
+  total_available: number;
+  branches: BranchStock[];
+}
+
 export type CakeSize = "16cm" | "20cm" | "24cm" | "2-tier";
 
 export type ProductCategory = "bánh âu" | "bánh ngọt";
@@ -55,6 +81,7 @@ export interface ProductListItem {
   name: string;
   description: string | null;
   category: string;
+  product_type: "sweet" | "cake";
   base_price: number;
   image_url: string | null;
   average_rating: number | null;
@@ -77,6 +104,7 @@ export interface ProductDetailResponse {
   name: string;
   description: string | null;
   category: string;
+  product_type: "sweet" | "cake";
   base_price: number;
   sizes: ProductSize[];
   flavors: ProductFlavor[];
@@ -100,4 +128,44 @@ export interface PaginationMeta {
 export interface ProductListResponse {
   products: ProductListItem[];
   pagination: PaginationMeta;
+}
+
+// Cart types (chỉ dùng cho bánh ngọt)
+
+export interface CartItem {
+  /** Unique key: productId */
+  cartKey: string;
+  productId: string;
+  productName: string;
+  imageUrl: string | null;
+  unitPrice: number;
+  quantity: number;
+  /** Ngày hết hạn gần nhất của lô hàng (bánh ngọt) */
+  expiresAt: string | null;
+  /** Chi nhánh mua hàng */
+  branchId: string | null;
+  /** Tên chi nhánh để hiển thị */
+  branchName: string | null;
+}
+
+export interface CartState {
+  items: CartItem[];
+  totalItems: number;
+  totalPrice: number;
+}
+
+// Inventory types
+
+export interface ProductBatch {
+  id: string;
+  quantity_available: number;
+  produced_at: string;
+  expires_at: string;
+}
+
+export interface StockInfo {
+  product_id: string;
+  total_available: number;
+  expires_soonest: string | null;
+  batches: ProductBatch[];
 }

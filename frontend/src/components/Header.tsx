@@ -1,12 +1,15 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
+import CartDrawer from "@/components/CartDrawer";
 
 export default function Header() {
   const { user, isAuthenticated, logout } = useAuthContext();
+  const { totalItems, openCart } = useCart();
   const router = useRouter();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -33,6 +36,7 @@ export default function Header() {
   ];
 
   return (
+    <>
     <header className="bg-white/90 backdrop-blur-md border-b border-mocha/10 sticky top-0 z-50 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
@@ -41,7 +45,7 @@ export default function Header() {
             href="/"
             className="font-heading text-xl text-mocha font-bold flex items-center gap-2 hover:text-pink-pastel transition-colors min-h-[44px]"
           >
-            🎂 <span>La Douceur</span>
+            🎂 <span>Bơ Nơ</span>
           </Link>
 
           {/* Desktop Nav */}
@@ -61,8 +65,26 @@ export default function Header() {
             ))}
           </nav>
 
-          {/* Auth Area */}
+          {/* Cart icon + Auth Area */}
           <div className="flex items-center gap-2">
+            {/* Cart button */}
+            <button
+              id="header-cart-btn"
+              onClick={openCart}
+              className="relative p-2 rounded-full text-mocha/70 hover:text-mocha hover:bg-mocha/5 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+              aria-label={`Giỏ hàng${totalItems > 0 ? ` (${totalItems} sản phẩm)` : ""}`}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <path d="M16 10a4 4 0 01-8 0" />
+              </svg>
+              {totalItems > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-pink-pastel text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 leading-none">
+                  {totalItems > 99 ? "99+" : totalItems}
+                </span>
+              )}
+            </button>
             {isAuthenticated && user ? (
               /* User Menu */
               <div className="relative">
@@ -131,13 +153,22 @@ export default function Header() {
                           </Link>
                         )}
                         {user.role === "baker" && (
-                          <Link
-                            href="/baker"
-                            className="flex items-center gap-2 px-4 py-2 text-sm text-mocha hover:bg-cream transition-colors"
-                            onClick={() => setUserMenuOpen(false)}
-                          >
-                            👨‍🍳 Xưởng bánh
-                          </Link>
+                          <>
+                            <Link
+                              href="/baker"
+                              className="flex items-center gap-2 px-4 py-2 text-sm text-mocha hover:bg-cream transition-colors"
+                              onClick={() => setUserMenuOpen(false)}
+                            >
+                              👨‍🍳 Xưởng bánh (Đơn hàng)
+                            </Link>
+                            <Link
+                              href="/baker/inventory"
+                              className="flex items-center gap-2 px-4 py-2 text-sm text-mocha hover:bg-cream transition-colors"
+                              onClick={() => setUserMenuOpen(false)}
+                            >
+                              📦 Quản lý kho bánh
+                            </Link>
+                          </>
                         )}
                         <button
                           onClick={handleLogout}
@@ -220,5 +251,9 @@ export default function Header() {
         )}
       </div>
     </header>
+
+    {/* Cart Drawer — rendered outside header so it overlays whole page */}
+    <CartDrawer />
+    </>
   );
 }

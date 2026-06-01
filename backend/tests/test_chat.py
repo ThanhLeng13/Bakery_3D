@@ -118,7 +118,7 @@ class TestRAGServiceBuildSystemPrompt:
 
         assert "Test Cake" in result
         assert "200000" in result
-        assert "La Douceur" in result
+        assert "Bơ Nơ" in result
         assert "tiếng Việt" in result
 
     def test_build_system_prompt_contains_rules(self):

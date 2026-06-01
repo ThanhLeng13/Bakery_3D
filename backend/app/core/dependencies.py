@@ -29,6 +29,13 @@ def _get_supabase_client():
     return create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
 
 
+def _get_supabase_service_client():
+    """Get Supabase client instance with service role key for admin database queries."""
+    from supabase import create_client
+
+    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ) -> dict:
@@ -68,9 +75,10 @@ async def get_current_user(
 
         supabase_user = user_response.user
 
-        # Fetch user role from users table
+        # Fetch user role from users table using service role client to bypass RLS restrictions
+        service_supabase = _get_supabase_service_client()
         user_result = (
-            supabase.table("users")
+            service_supabase.table("users")
             .select("id, email, full_name, phone, role")
             .eq("id", str(supabase_user.id))
             .maybe_single()

@@ -74,7 +74,14 @@ function AdminShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="p-4 border-t border-mocha/10">
+        <div className="p-4 border-t border-mocha/10 space-y-1">
+          <Link
+            href="/"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg font-body text-sm text-mocha/70 hover:bg-cream hover:text-mocha transition-colors"
+          >
+            <span className="text-lg">🏠</span>
+            Về trang chủ
+          </Link>
           <button
             onClick={logout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg font-body text-sm text-mocha/70 hover:bg-red-50 hover:text-red-600 transition-colors"
@@ -88,9 +95,14 @@ function AdminShell({ children }: { children: React.ReactNode }) {
       {/* Mobile header */}
       <div className="flex-1 flex flex-col">
         <header className="md:hidden flex items-center justify-between p-4 bg-white border-b border-mocha/10 shadow-sm">
-          <h1 className="font-heading text-lg text-mocha font-bold">
-            Admin Panel
-          </h1>
+          <div className="flex items-center gap-2">
+            <Link href="/" className="font-heading text-base text-mocha font-bold flex items-center gap-1 hover:text-pink-pastel transition-colors" title="Về trang chủ">
+              🎂
+            </Link>
+            <h1 className="font-heading text-lg text-mocha font-bold">
+              Admin Panel
+            </h1>
+          </div>
           <MobileNav pathname={pathname} onLogout={logout} />
         </header>
 

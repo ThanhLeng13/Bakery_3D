@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 /**
  * Order History page.
@@ -101,13 +101,13 @@ function OrderHistoryContent() {
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => router.push("/")}
-            className="text-mocha hover:text-pink-pastel transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+            className="font-heading text-lg text-mocha font-bold flex items-center gap-1.5 hover:text-pink-pastel transition-colors min-h-[44px]"
             aria-label="Về trang chủ"
+            title="Về trang chủ"
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
+            🎂 <span className="hidden sm:inline">Bơ Nơ</span>
           </button>
+          <span className="text-mocha/20">|</span>
           <h1 className="font-heading text-xl md:text-2xl text-mocha font-bold">
             Đơn hàng của tôi
           </h1>

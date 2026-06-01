@@ -30,16 +30,21 @@ router = APIRouter()
 
 
 def _get_supabase_client():
-    """Get Supabase client instance."""
+    """Get Supabase admin client instance (service role) to bypass RLS.
+
+    Auth is still enforced via get_current_user dependency at the route level.
+    The service role key is only used for trusted server-side DB operations.
+    """
     from supabase import create_client
 
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
 
 def _get_order_service() -> OrderService:
-    """Create OrderService with Supabase client."""
+    """Create OrderService with Supabase admin client."""
     client = _get_supabase_client()
     return OrderService(client)
+
 
 
 @router.post("", status_code=201)
