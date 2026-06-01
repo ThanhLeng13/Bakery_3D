@@ -1,4 +1,4 @@
-import { Metadata } from "next";
+﻿import { Metadata } from "next";
 import ProductCatalogClient from "@/components/ProductCatalogClient";
 import { ProductListResponse } from "@/types";
 import Header from "@/components/Header";
@@ -6,7 +6,7 @@ import Header from "@/components/Header";
 export const revalidate = 60; // ISR cache TTL 60 seconds
 
 export const metadata: Metadata = {
-  title: "Danh Mục Bánh Kem | La Douceur",
+  title: "Danh Mục Bánh Kem | Bơ Nơ",
   description: "Khám phá bộ sưu tập bánh kem thủ công của chúng tôi. Nhiều hương vị đặc sắc, chất lượng thượng hạng.",
 };
 

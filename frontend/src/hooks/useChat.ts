@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 /**
  * Custom hook for AI chat state management.
@@ -47,7 +47,7 @@ const GREETING_MESSAGE: ChatMessage = {
   id: "greeting",
   role: "assistant",
   content:
-    "Xin chào! Tôi là trợ lý AI của tiệm bánh La Douceur. Bạn cần tư vấn bánh cho dịp gì? (sinh nhật, đám cưới, kỷ niệm...)",
+    "Xin chào! Tôi là trợ lý AI của tiệm bánh Bơ Nơ. Bạn cần tư vấn bánh cho dịp gì? (sinh nhật, đám cưới, kỷ niệm...)",
   createdAt: new Date(),
 };
 

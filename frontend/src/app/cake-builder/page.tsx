@@ -9,6 +9,7 @@
  */
 
 import { useState, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { type CakeZone } from "@/components/cake-builder/CakeSVG";
@@ -83,15 +84,14 @@ export default function CakeBuilderPage() {
       <header className="bg-white/80 backdrop-blur-sm border-b border-gray-100 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <a
+            <Link
               href="/"
-              className="text-mocha hover:text-pink-pastel transition-colors min-w-[44px] min-h-[44px] flex items-center"
+              className="font-heading text-lg text-mocha font-bold flex items-center gap-1.5 hover:text-pink-pastel transition-colors min-h-[44px]"
               aria-label="Về trang chủ"
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
-            </a>
+              🎂 <span className="hidden sm:inline">Bơ Nơ</span>
+            </Link>
+            <span className="text-mocha/20">|</span>
             <h1 className="font-heading text-xl md:text-2xl text-mocha font-bold">
               Thiết kế bánh kem
             </h1>

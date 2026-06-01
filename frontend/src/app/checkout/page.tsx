@@ -3,29 +3,32 @@
 /**
  * Checkout / Order Form page.
  * Protected route - requires authentication.
- * Loads cake design from localStorage, displays product summary,
- * customer info form, pickup date picker with validation, and order confirmation.
+ *
+ * Supports two modes:
+ * 1. Cart mode    — items come from CartContext (products added via "Thêm vào giỏ")
+ * 2. Builder mode — single cake design from localStorage (Cake Builder flow)
  *
  * Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.7
  */
 
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
 import { apiClient } from "@/lib/api";
 import type { CakeDesign, CakeSize } from "@/types";
 
 interface OrderConfirmation {
-  id: string;
+  /** Cake order mode returns "id", sweet purchase mode returns "purchase_id" */
+  id?: string;
+  purchase_id?: string;
   total_price: number;
-  pickup_date: string;
+  pickup_date?: string;      // only for cake orders
+  created_at?: string;       // only for sweet purchases
   status: string;
-  items: Array<{
-    size: string;
-    flavor: string;
-    unit_price: number;
-  }>;
+  message?: string;          // only for sweet purchases
 }
 
 interface FormErrors {
@@ -36,7 +39,7 @@ interface FormErrors {
   general?: string;
 }
 
-// Price map by size
+// Price map by size (for Cake Builder mode only)
 const SIZE_PRICES: Record<CakeSize, number> = {
   "16cm": 250000,
   "20cm": 350000,
@@ -51,9 +54,9 @@ const SIZE_LABELS: Record<CakeSize, string> = {
   "2-tier": "2 tầng (20+ người)",
 };
 
-function getMinPickupDate(size: CakeSize): Date {
+function getMinPickupDate(hasTwoTier: boolean): Date {
   const now = new Date();
-  const hoursAhead = size === "2-tier" ? 48 : 24;
+  const hoursAhead = hasTwoTier ? 48 : 24;
   return new Date(now.getTime() + hoursAhead * 60 * 60 * 1000);
 }
 
@@ -85,8 +88,11 @@ function formatDisplayDate(dateStr: string): string {
 function CheckoutContent() {
   const router = useRouter();
   const { user } = useAuthContext();
+  const { items: cartItems, clearCart, selectedBranchId, selectedBranchName } = useCart();
 
+  // Builder mode: load from localStorage
   const [cakeDesign, setCakeDesign] = useState<CakeDesign | null>(null);
+
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -94,9 +100,17 @@ function CheckoutContent() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState<OrderConfirmation | null>(null);
+  // Persisted at submit time so confirmation screen shows correct info even after clearCart()
+  const [submittedIsCartMode, setSubmittedIsCartMode] = useState(false);
+  const [submittedBranchName, setSubmittedBranchName] = useState<string | null>(null);
 
-  // Load cake design from localStorage
+  // Determine mode
+  const isCartMode = cartItems.length > 0;   // sweet products
+  const isCakeMode = !isCartMode;            // cake builder
+
+  // Load Cake Builder design only when cart is empty
   useEffect(() => {
+    if (isCartMode) return; // Cart mode takes priority
     try {
       const stored = localStorage.getItem("cake_customization_json");
       if (stored) {
@@ -106,7 +120,7 @@ function CheckoutContent() {
     } catch {
       // Invalid data in localStorage
     }
-  }, []);
+  }, [isCartMode]);
 
   // Pre-fill user info
   useEffect(() => {
@@ -117,16 +131,23 @@ function CheckoutContent() {
     }
   }, [user]);
 
-  const totalPrice = useMemo(() => {
+  // Calculate totals
+  const builderTotal = useMemo(() => {
     if (!cakeDesign) return 0;
     return SIZE_PRICES[cakeDesign.size] || 350000;
   }, [cakeDesign]);
 
-  const minDate = useMemo(() => {
-    if (!cakeDesign) return getMinPickupDate("20cm");
-    return getMinPickupDate(cakeDesign.size);
-  }, [cakeDesign]);
+  const cartTotal = useMemo(
+    () => cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
+    [cartItems]
+  );
 
+  const totalPrice = isCartMode ? cartTotal : builderTotal;
+
+  // hasTwoTier only applies to cake builder mode
+  const hasTwoTier = isCakeMode && cakeDesign?.size === "2-tier";
+
+  const minDate = useMemo(() => getMinPickupDate(!!hasTwoTier), [hasTwoTier]);
   const maxDate = useMemo(() => getMaxPickupDate(), []);
 
   function validateForm(): boolean {
@@ -146,16 +167,24 @@ function CheckoutContent() {
       newErrors.email = "Email không hợp lệ";
     }
 
-    if (!pickupDate) {
-      newErrors.pickup_date = "Vui lòng chọn ngày nhận bánh";
-    } else {
-      const selectedDate = new Date(pickupDate);
-      if (selectedDate < minDate) {
-        const hours = cakeDesign?.size === "2-tier" ? 48 : 24;
-        newErrors.pickup_date = `Ngày nhận phải cách ít nhất ${hours} giờ từ bây giờ`;
-      } else if (selectedDate > maxDate) {
-        newErrors.pickup_date = "Ngày nhận không được quá 30 ngày kể từ hôm nay";
+    // Pickup date is only required for cake orders (not sweet purchase)
+    if (isCakeMode) {
+      if (!pickupDate) {
+        newErrors.pickup_date = "Vui lòng chọn ngày nhận bánh";
+      } else {
+        const selectedDate = new Date(pickupDate);
+        if (selectedDate < minDate) {
+          const hours = hasTwoTier ? 48 : 24;
+          newErrors.pickup_date = `Ngày nhận phải cách ít nhất ${hours} giờ từ bây giờ`;
+        } else if (selectedDate > maxDate) {
+          newErrors.pickup_date = "Ngày nhận không được quá 30 ngày kể từ hôm nay";
+        }
       }
+    }
+
+    // branch_id required for sweet purchases (must pick up from a specific branch)
+    if (isCartMode && !selectedBranchId) {
+      newErrors.branch = "Vui lòng chọn chi nhánh nhận bánh";
     }
 
     setErrors(newErrors);
@@ -166,39 +195,67 @@ function CheckoutContent() {
     e.preventDefault();
 
     if (!validateForm()) return;
-    if (!cakeDesign) return;
+    if (isCakeMode && !cakeDesign) return;
 
     setSubmitting(true);
     setErrors({});
 
     try {
-      const orderData = {
-        full_name: fullName.trim(),
-        phone: phone.trim(),
-        email: email.trim() || null,
-        pickup_date: new Date(pickupDate).toISOString(),
-        items: [
+      if (isCartMode) {
+        // ====== SWEET PURCHASE MODE ======
+        // POST /api/v1/purchases — trừ stock ngay, thanh toán offline
+        const purchaseData = {
+          items: cartItems.map((item) => ({
+            product_id: item.productId,
+            quantity: item.quantity,
+          })),
+          customer_name: fullName.trim(),
+          customer_phone: phone.trim(),
+          notes: null,
+          branch_id: selectedBranchId!, // guaranteed non-null by validateForm
+        };
+
+        const response = await apiClient.post<OrderConfirmation>(
+          "/api/v1/purchases",
+          purchaseData
+        );
+        // Persist mode/branch BEFORE clearCart() so confirmation screen is correct
+        setSubmittedIsCartMode(true);
+        setSubmittedBranchName(selectedBranchName ?? null);
+        setConfirmation(response);
+        clearCart();
+
+      } else {
+        // ====== CAKE ORDER MODE ======
+        // POST /api/v1/orders — đặt bánh kem theo yêu cầu
+        const orderItems = [
           {
             product_id: "00000000-0000-0000-0000-000000000000",
-            size: cakeDesign.size,
-            flavor: cakeDesign.flavor || "Vani",
+            size: cakeDesign!.size,
+            flavor: cakeDesign!.flavor || "Vani",
             quantity: 1,
-            unit_price: totalPrice,
+            unit_price: builderTotal,
             customization_json: cakeDesign,
           },
-        ],
-        ai_summary: null,
-      };
+        ];
 
-      const response = await apiClient.post<OrderConfirmation>(
-        "/api/v1/orders",
-        orderData
-      );
+        const orderData = {
+          full_name: fullName.trim(),
+          phone: phone.trim(),
+          email: email.trim() || null,
+          pickup_date: new Date(pickupDate).toISOString(),
+          items: orderItems,
+          ai_summary: null,
+        };
 
-      setConfirmation(response);
+        const response = await apiClient.post<OrderConfirmation>(
+          "/api/v1/orders",
+          orderData
+        );
+        setConfirmation(response);
+        localStorage.removeItem("cake_customization_json");
+      }
 
-      // Clear localStorage after successful order
-      localStorage.removeItem("cake_customization_json");
     } catch (err: unknown) {
       const apiErr = err as { detail?: string | Array<{ field: string; message: string; loc?: string[] }> };
       if (apiErr?.detail) {
@@ -224,37 +281,36 @@ function CheckoutContent() {
     }
   }
 
-  // No cake design loaded
-  if (!cakeDesign) {
+  // No items at all (cart empty + no builder design)
+  if (!isCartMode && !cakeDesign) {
     return (
       <main className="min-h-screen bg-cream flex items-center justify-center px-4">
         <div className="text-center max-w-md">
-          <svg
-            className="w-16 h-16 mx-auto text-mocha/20 mb-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"
-            />
-          </svg>
+          <div className="w-20 h-20 mx-auto mb-5 bg-pink-pastel/10 rounded-full flex items-center justify-center">
+            <svg className="w-10 h-10 text-pink-pastel/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
+            </svg>
+          </div>
           <h2 className="font-heading text-xl text-mocha font-bold mb-2">
-            Chưa có sản phẩm
+            Giỏ hàng trống
           </h2>
           <p className="text-mocha/70 mb-6">
-            Bạn chưa thiết kế bánh kem. Hãy sử dụng Cake Builder để tạo chiếc bánh của bạn.
+            Hãy thêm sản phẩm vào giỏ hoặc thiết kế bánh của bạn trước.
           </p>
-          <button
-            onClick={() => router.push("/cake-builder")}
-            className="px-6 py-3 bg-pink-pastel text-white rounded-full font-medium hover:bg-pink-pastel/90 transition-colors min-h-[44px]"
-          >
-            Thiết kế bánh kem
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => router.push("/products")}
+              className="px-6 py-3 bg-pink-pastel text-white rounded-full font-medium hover:bg-pink-pastel/90 transition-colors min-h-[44px]"
+            >
+              Xem sản phẩm
+            </button>
+            <button
+              onClick={() => router.push("/cake-builder")}
+              className="px-6 py-3 bg-white text-mocha border border-mocha/20 rounded-full font-medium hover:bg-cream transition-colors min-h-[44px]"
+            >
+              Thiết kế bánh
+            </button>
+          </div>
         </div>
       </main>
     );
@@ -274,10 +330,12 @@ function CheckoutContent() {
             </div>
 
             <h1 className="font-heading text-2xl md:text-3xl font-bold text-mocha mb-2">
-              Đặt hàng thành công!
+              {submittedIsCartMode ? "Mua hàng thành công!" : "Đặt hàng thành công!"}
             </h1>
             <p className="text-mocha/70 mb-6">
-              Cảm ơn bạn đã đặt hàng. Chúng tôi sẽ xác nhận đơn hàng sớm nhất.
+              {submittedIsCartMode
+                ? "Cảm ơn bạn đã mua hàng. Vui lòng đến quán thanh toán và nhận bánh."
+                : "Cảm ơn bạn đã đặt hàng. Chúng tôi sẽ xác nhận đơn hàng sớm nhất."}
             </p>
 
             {/* Order details */}
@@ -285,7 +343,7 @@ function CheckoutContent() {
               <div className="flex justify-between items-center">
                 <span className="text-mocha/70 text-sm">Mã đơn hàng</span>
                 <span className="font-medium text-mocha text-sm font-mono">
-                  {confirmation.id.slice(0, 8).toUpperCase()}
+                  #{(confirmation.id || confirmation.purchase_id || "").slice(0, 8).toUpperCase()}
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -294,28 +352,39 @@ function CheckoutContent() {
                   {formatPrice(confirmation.total_price)}
                 </span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-mocha/70 text-sm">Ngày nhận bánh</span>
-                <span className="font-medium text-mocha text-sm">
-                  {formatDisplayDate(confirmation.pickup_date)}
-                </span>
-              </div>
-              {confirmation.items && confirmation.items.length > 0 && (
-                <div className="pt-3 border-t border-mocha/10">
-                  <span className="text-mocha/70 text-sm block mb-2">Sản phẩm</span>
-                  {confirmation.items.map((item, idx) => (
-                    <div key={idx} className="flex justify-between text-sm">
-                      <span className="text-mocha">
-                        Bánh kem {item.size} - {item.flavor}
-                      </span>
-                      <span className="text-mocha font-medium">
-                        {formatPrice(item.unit_price)}
-                      </span>
-                    </div>
-                  ))}
+              {confirmation.pickup_date ? (
+                <div className="flex justify-between items-center">
+                  <span className="text-mocha/70 text-sm">Ngày nhận bánh</span>
+                  <span className="font-medium text-mocha text-sm">
+                    {formatDisplayDate(confirmation.pickup_date)}
+                  </span>
+                </div>
+              ) : (confirmation as any).created_at ? (
+                <div className="flex justify-between items-center">
+                  <span className="text-mocha/70 text-sm">Ngày mua hàng</span>
+                  <span className="font-medium text-mocha text-sm">
+                    {formatDisplayDate((confirmation as any).created_at)}
+                  </span>
+                </div>
+              ) : null}
+              {submittedIsCartMode && submittedBranchName && (
+                <div className="flex justify-between items-center">
+                  <span className="text-mocha/70 text-sm">Chi nhánh nhận</span>
+                  <span className="font-medium text-mocha text-sm">{submittedBranchName}</span>
                 </div>
               )}
+              <div className="flex justify-between items-center">
+                <span className="text-mocha/70 text-sm">Trạng thái</span>
+                <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                  confirmation.status === "completed" 
+                    ? "bg-green-100 text-green-800" 
+                    : "bg-yellow-100 text-yellow-800"
+                }`}>
+                  {confirmation.status === "completed" ? "Đã hoàn thành" : "Chờ xác nhận"}
+                </span>
+              </div>
             </div>
+
 
             {/* Actions */}
             <div className="flex flex-col sm:flex-row gap-3 mt-6">
@@ -338,7 +407,7 @@ function CheckoutContent() {
     );
   }
 
-  // Order form
+  // ——— Order Form ———
   return (
     <main className="min-h-screen bg-cream">
       {/* Header */}
@@ -353,9 +422,22 @@ function CheckoutContent() {
               <path d="M15 18l-6-6 6-6" />
             </svg>
           </button>
+          <button
+            onClick={() => router.push("/")}
+            className="font-heading text-lg text-mocha font-bold flex items-center gap-1.5 hover:text-pink-pastel transition-colors"
+            title="Về trang chủ"
+          >
+            🎂 <span className="hidden sm:inline">Bơ Nơ</span>
+          </button>
+          <span className="text-mocha/20">|</span>
           <h1 className="font-heading text-xl md:text-2xl text-mocha font-bold">
-            Đặt hàng
+            Thanh toán
           </h1>
+          {isCartMode && (
+            <span className="ml-auto text-sm text-mocha/60">
+              {cartItems.reduce((s, i) => s + i.quantity, 0)} sản phẩm
+            </span>
+          )}
         </div>
       </header>
 
@@ -368,60 +450,132 @@ function CheckoutContent() {
             </div>
           )}
 
-          {/* Product Summary */}
-          <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
-            <h2 className="font-heading text-lg font-bold text-mocha mb-4">
-              Tóm tắt sản phẩm
-            </h2>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-mocha/70 text-sm">Kích thước</span>
-                <span className="font-medium text-mocha">
-                  {SIZE_LABELS[cakeDesign.size]}
-                </span>
+          {/* ─── CART MODE: Product list ─── */}
+          {isCartMode && (
+            <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
+              <h2 className="font-heading text-lg font-bold text-mocha mb-1">
+                Sản phẩm đã chọn
+              </h2>
+              {selectedBranchName ? (
+                <p className="text-sm text-mocha/60 mb-4 flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5 text-pink-pastel flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  Nhận tại: <span className="font-medium text-mocha">{selectedBranchName}</span>
+                </p>
+              ) : (
+                <p className="text-sm text-red-500 mb-4 flex items-center gap-1.5">
+                  ⚠️ Vui lòng quay lại trang sản phẩm và chọn chi nhánh nhận bánh trước khi thanh toán.
+                </p>
+              )}
+              {errors.branch && (
+                <p className="text-sm text-red-500 mb-3">{errors.branch}</p>
+              )}
+              <div className="space-y-3">
+                {cartItems.map((item) => (
+                  <div key={item.cartKey} className="flex gap-3 p-3 bg-cream/60 rounded-xl">
+                    {/* Thumbnail */}
+                    <div className="w-14 h-14 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100 relative">
+                      {item.imageUrl ? (
+                        <Image
+                          src={item.imageUrl}
+                          alt={item.productName}
+                          fill
+                          sizes="56px"
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <svg className="w-6 h-6 text-mocha/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-2.21 0-4 1.79-4 4h8c0-2.21-1.79-4-4-4z" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-mocha text-sm truncate">{item.productName}</p>
+                      <div className="flex flex-wrap gap-x-2 text-xs text-mocha/55 mt-0.5">
+                        {item.expiresAt && <span className="text-amber-600">HSD: {item.expiresAt.split("T")[0].split("-").reverse().join("/")}</span>}
+                        <span>• SL: {item.quantity}</span>
+                      </div>
+                    </div>
+                    {/* Price */}
+                    <div className="text-right">
+                      <p className="font-semibold text-pink-pastel text-sm">{formatPrice(item.unitPrice * item.quantity)}</p>
+                      {item.quantity > 1 && (
+                        <p className="text-xs text-mocha/40">{formatPrice(item.unitPrice)} × {item.quantity}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Cart total */}
+                <div className="pt-3 border-t border-mocha/10 flex justify-between items-center">
+                  <span className="font-medium text-mocha">Tổng cộng</span>
+                  <span className="font-bold text-pink-pastel text-xl">{formatPrice(totalPrice)}</span>
+                </div>
               </div>
-              {cakeDesign.flavor && (
+            </section>
+          )}
+
+          {/* ─── BUILDER MODE: Cake summary ─── */}
+          {!isCartMode && cakeDesign && (
+            <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
+              <h2 className="font-heading text-lg font-bold text-mocha mb-4">
+                Tóm tắt sản phẩm
+              </h2>
+              <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-mocha/70 text-sm">Hương vị</span>
-                  <span className="font-medium text-mocha">{cakeDesign.flavor}</span>
+                  <span className="text-mocha/70 text-sm">Kích thước</span>
+                  <span className="font-medium text-mocha">
+                    {SIZE_LABELS[cakeDesign.size]}
+                  </span>
                 </div>
-              )}
-              <div className="flex justify-between items-center">
-                <span className="text-mocha/70 text-sm">Loại kem</span>
-                <span className="font-medium text-mocha">
-                  {cakeDesign.cream_type || "Kem bơ"}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-mocha/70 text-sm">Màu kem</span>
-                <div className="flex items-center gap-2">
-                  <span
-                    className="w-5 h-5 rounded-full border border-mocha/20"
-                    style={{ backgroundColor: cakeDesign.cream_color }}
-                  />
-                  <span className="font-medium text-mocha">{cakeDesign.cream_color}</span>
-                </div>
-              </div>
-              {cakeDesign.topping_type && (
+                {cakeDesign.flavor && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-mocha/70 text-sm">Hương vị</span>
+                    <span className="font-medium text-mocha">{cakeDesign.flavor}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center">
-                  <span className="text-mocha/70 text-sm">Topping</span>
-                  <span className="font-medium text-mocha">{cakeDesign.topping_type}</span>
+                  <span className="text-mocha/70 text-sm">Loại kem</span>
+                  <span className="font-medium text-mocha">
+                    {cakeDesign.cream_type || "Kem bơ"}
+                  </span>
                 </div>
-              )}
-              {cakeDesign.special_notes && (
-                <div className="pt-3 border-t border-mocha/10">
-                  <span className="text-mocha/70 text-sm block mb-1">Ghi chú</span>
-                  <p className="text-mocha text-sm">{cakeDesign.special_notes}</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-mocha/70 text-sm">Màu kem</span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="w-5 h-5 rounded-full border border-mocha/20"
+                      style={{ backgroundColor: cakeDesign.cream_color }}
+                    />
+                    <span className="font-medium text-mocha">{cakeDesign.cream_color}</span>
+                  </div>
                 </div>
-              )}
-              <div className="pt-3 border-t border-mocha/10 flex justify-between items-center">
-                <span className="font-medium text-mocha">Tổng tiền</span>
-                <span className="font-bold text-pink-pastel text-xl">
-                  {formatPrice(totalPrice)}
-                </span>
+                {cakeDesign.topping_type && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-mocha/70 text-sm">Topping</span>
+                    <span className="font-medium text-mocha">{cakeDesign.topping_type}</span>
+                  </div>
+                )}
+                {cakeDesign.special_notes && (
+                  <div className="pt-3 border-t border-mocha/10">
+                    <span className="text-mocha/70 text-sm block mb-1">Ghi chú</span>
+                    <p className="text-mocha text-sm">{cakeDesign.special_notes}</p>
+                  </div>
+                )}
+                <div className="pt-3 border-t border-mocha/10 flex justify-between items-center">
+                  <span className="font-medium text-mocha">Tổng tiền</span>
+                  <span className="font-bold text-pink-pastel text-xl">
+                    {formatPrice(totalPrice)}
+                  </span>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          )}
 
           {/* Customer Info */}
           <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
@@ -492,36 +646,39 @@ function CheckoutContent() {
             </div>
           </section>
 
-          {/* Pickup Date */}
-          <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
-            <h2 className="font-heading text-lg font-bold text-mocha mb-4">
-              Ngày nhận bánh
-            </h2>
-            <p className="text-sm text-mocha/60 mb-3">
-              {cakeDesign.size === "2-tier"
-                ? "Bánh 2 tầng cần ít nhất 48 giờ để chuẩn bị"
-                : "Cần ít nhất 24 giờ để chuẩn bị bánh"}
-              . Đặt trước tối đa 30 ngày.
-            </p>
-            <input
-              id="pickupDate"
-              type="datetime-local"
-              value={pickupDate}
-              onChange={(e) => setPickupDate(e.target.value)}
-              min={formatDateForInput(minDate)}
-              max={formatDateForInput(maxDate)}
-              className={`w-full px-4 py-3 rounded-xl border text-mocha bg-cream/50 focus:outline-none focus:ring-2 focus:ring-pink-pastel/50 min-h-[44px] ${
-                errors.pickup_date ? "border-red-400" : "border-mocha/20"
-              }`}
-            />
-            {errors.pickup_date && (
-              <p className="mt-1 text-sm text-red-600">{errors.pickup_date}</p>
-            )}
-          </section>
+          {/* Pickup Date - Only show for custom cake builder orders */}
+          {isCakeMode && (
+            <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
+              <h2 className="font-heading text-lg font-bold text-mocha mb-4">
+                Ngày nhận bánh
+              </h2>
+              <p className="text-sm text-mocha/60 mb-3">
+                {hasTwoTier
+                  ? "Bánh 2 tầng cần ít nhất 48 giờ để chuẩn bị"
+                  : "Cần ít nhất 24 giờ để chuẩn bị bánh"}
+                . Đặt trước tối đa 30 ngày.
+              </p>
+              <input
+                id="pickupDate"
+                type="datetime-local"
+                value={pickupDate}
+                onChange={(e) => setPickupDate(e.target.value)}
+                min={formatDateForInput(minDate)}
+                max={formatDateForInput(maxDate)}
+                className={`w-full px-4 py-3 rounded-xl border text-mocha bg-cream/50 focus:outline-none focus:ring-2 focus:ring-pink-pastel/50 min-h-[44px] ${
+                  errors.pickup_date ? "border-red-400" : "border-mocha/20"
+                }`}
+              />
+              {errors.pickup_date && (
+                <p className="mt-1 text-sm text-red-600">{errors.pickup_date}</p>
+              )}
+            </section>
+          )}
 
           {/* Submit */}
           <button
             type="submit"
+            id="checkout-submit-btn"
             disabled={submitting}
             className="w-full py-4 bg-pink-pastel text-white rounded-full font-bold text-lg hover:bg-pink-pastel/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] shadow-sm"
           >
@@ -534,7 +691,7 @@ function CheckoutContent() {
                 Đang xử lý...
               </span>
             ) : (
-              "Xác nhận đặt hàng"
+              `Xác nhận đặt hàng • ${formatPrice(totalPrice)}`
             )}
           </button>
         </form>
