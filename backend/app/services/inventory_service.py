@@ -316,9 +316,12 @@ class InventoryService:
         batch = current.data
 
         allowed_fields = {"quantity", "notes", "is_active", "expires_at"}
-        patch = {k: v for k, v in updates.items() if k in allowed_fields}
+        # Strip None values: if a field is explicitly passed as None it must be removed
+        # so .get() falls back to the current DB value and we never write NULL to the DB.
+        patch = {k: v for k, v in updates.items() if k in allowed_fields and v is not None}
 
         # Validate new quantity >= quantity_sold
+        # patch.get("quantity", ...) now safely falls back when key is absent
         new_qty = patch.get("quantity", batch["quantity"])
         if new_qty < batch["quantity_sold"]:
             raise InventoryServiceError(
