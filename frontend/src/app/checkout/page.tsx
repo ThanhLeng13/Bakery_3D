@@ -100,6 +100,9 @@ function CheckoutContent() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState<OrderConfirmation | null>(null);
+  // Persisted at submit time so confirmation screen shows correct info even after clearCart()
+  const [submittedIsCartMode, setSubmittedIsCartMode] = useState(false);
+  const [submittedBranchName, setSubmittedBranchName] = useState<string | null>(null);
 
   // Determine mode
   const isCartMode = cartItems.length > 0;   // sweet products
@@ -211,6 +214,9 @@ function CheckoutContent() {
           "/api/v1/purchases",
           purchaseData
         );
+        // Persist mode/branch BEFORE clearCart() so confirmation screen is correct
+        setSubmittedIsCartMode(true);
+        setSubmittedBranchName(selectedBranchName ?? null);
         setConfirmation(response);
         clearCart();
 
@@ -319,10 +325,10 @@ function CheckoutContent() {
             </div>
 
             <h1 className="font-heading text-2xl md:text-3xl font-bold text-mocha mb-2">
-              {isCartMode ? "Mua hàng thành công!" : "Đặt hàng thành công!"}
+              {submittedIsCartMode ? "Mua hàng thành công!" : "Đặt hàng thành công!"}
             </h1>
             <p className="text-mocha/70 mb-6">
-              {isCartMode 
+              {submittedIsCartMode
                 ? "Cảm ơn bạn đã mua hàng. Vui lòng đến quán thanh toán và nhận bánh."
                 : "Cảm ơn bạn đã đặt hàng. Chúng tôi sẽ xác nhận đơn hàng sớm nhất."}
             </p>
@@ -356,10 +362,10 @@ function CheckoutContent() {
                   </span>
                 </div>
               ) : null}
-              {isCartMode && selectedBranchName && (
+              {submittedIsCartMode && submittedBranchName && (
                 <div className="flex justify-between items-center">
                   <span className="text-mocha/70 text-sm">Chi nhánh nhận</span>
-                  <span className="font-medium text-mocha text-sm">{selectedBranchName}</span>
+                  <span className="font-medium text-mocha text-sm">{submittedBranchName}</span>
                 </div>
               )}
               <div className="flex justify-between items-center">

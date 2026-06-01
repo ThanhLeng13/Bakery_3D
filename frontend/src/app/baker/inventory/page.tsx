@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 /**
  * Baker Inventory Management — /baker/inventory
@@ -150,7 +150,7 @@ function InventoryContent() {
     try {
       await apiClient.post("/api/v1/baker/batches", {
         product_id: selectedProductId,
-        quantity: parseInt(addQty),
+        quantity: parseInt(addQty, 10),
         produced_at: addProduced,
         expires_at: addExpires,
         notes: addNotes.trim() || null,
@@ -204,7 +204,7 @@ function InventoryContent() {
               <Link
                 href="/"
                 className="font-heading text-lg text-mocha font-bold flex items-center gap-1.5 hover:text-pink-pastel transition-colors"
-                title="Về trang chủ"
+                aria-label="Về trang chủ"
               >
                 🎂 <span className="hidden sm:inline">Bơ Nơ</span>
               </Link>
@@ -564,7 +564,6 @@ function InventoryContent() {
           )}
         </div>
       </main>
-    </ProtectedRoute>
   );
 }
 

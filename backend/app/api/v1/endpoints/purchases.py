@@ -22,9 +22,15 @@ router = APIRouter()
 
 # ─── Dependency ────────────────────────────────────────────────────────────────
 
+# Singleton client — created once at import time to avoid repeated construction
+_supabase_client = None
+
 def _get_db():
-    from supabase import create_client
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+    global _supabase_client
+    if _supabase_client is None:
+        from supabase import create_client
+        _supabase_client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+    return _supabase_client
 
 
 # ─── Schemas ───────────────────────────────────────────────────────────────────
@@ -45,7 +51,7 @@ class CreatePurchaseRequest(BaseModel):
 # ─── Route ─────────────────────────────────────────────────────────────────────
 
 @router.post("", status_code=201)
-async def create_purchase(
+def create_purchase(
     body: CreatePurchaseRequest,
     customer: dict = Depends(get_current_user),
 ):
@@ -99,11 +105,10 @@ async def create_purchase(
             )
 
     # 3. Check stock availability for all items (branch-aware)
-    stock_checks = []
     for item in body.items:
         if body.branch_id:
             # Check stock for the SPECIFIC branch
-            branch_stock = await inv_svc.get_stock_by_branch(item.product_id)
+            branch_stock = inv_svc.get_stock_by_branch(item.product_id)
             branch = next(
                 (b for b in branch_stock["branches"] if b["branch_id"] == body.branch_id),
                 None,
@@ -111,7 +116,7 @@ async def create_purchase(
             available = branch["quantity_available"] if branch else 0
         else:
             # No branch specified — check global stock
-            stock = await inv_svc.get_product_stock(item.product_id)
+            stock = inv_svc.get_product_stock(item.product_id)
             available = stock["total_available"]
 
         if available < item.quantity:
@@ -123,7 +128,6 @@ async def create_purchase(
                     f"yêu cầu {item.quantity} cái."
                 ),
             )
-        stock_checks.append(available)
 
 
     # 4. Calculate total price
@@ -155,7 +159,7 @@ async def create_purchase(
     try:
         for item in body.items:
             product = products_map[item.product_id]
-            decrements = await inv_svc.decrement_stock(
+            decrements = inv_svc.decrement_stock(
                 item.product_id,
                 item.quantity,
                 branch_id=body.branch_id,
@@ -178,19 +182,21 @@ async def create_purchase(
                     purchase_items.append(pi)
 
     except (InsufficientStockError, InventoryServiceError) as e:
-        # Rollback: restore ALL previously decremented stock, then cancel purchase
+        # Rollback: restore stock, delete orphaned purchase_items, cancel purchase
         inv_svc._rollback_decrements(all_decrements)
+        db.table("purchase_items").delete().eq("purchase_id", purchase_id).execute()
         db.table("purchases").update({"status": "cancelled"}).eq(
             "id", purchase_id
         ).execute()
-        raise HTTPException(status_code=409, detail=e.message)
-    except Exception:
-        # Rollback: restore ALL previously decremented stock, then cancel purchase
+        raise HTTPException(status_code=409, detail=e.message) from e
+    except Exception as e:
+        # Rollback: restore stock, delete orphaned purchase_items, cancel purchase
         inv_svc._rollback_decrements(all_decrements)
+        db.table("purchase_items").delete().eq("purchase_id", purchase_id).execute()
         db.table("purchases").update({"status": "cancelled"}).eq(
             "id", purchase_id
         ).execute()
-        raise HTTPException(status_code=500, detail="Lỗi xử lý mua hàng.")
+        raise HTTPException(status_code=500, detail="Lỗi xử lý mua hàng.") from e
 
 
     # 7. Build receipt
@@ -220,7 +226,7 @@ async def create_purchase(
 
 
 @router.get("/history")
-async def get_purchase_history(
+def get_purchase_history(
     customer: dict = Depends(get_current_user),
 ):
     """Lịch sử mua bánh ngọt của khách hàng hiện tại."""

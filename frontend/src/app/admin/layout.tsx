@@ -96,7 +96,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col">
         <header className="md:hidden flex items-center justify-between p-4 bg-white border-b border-mocha/10 shadow-sm">
           <div className="flex items-center gap-2">
-            <Link href="/" className="font-heading text-base text-mocha font-bold flex items-center gap-1 hover:text-pink-pastel transition-colors" title="Về trang chủ">
+            <Link href="/" className="font-heading text-base text-mocha font-bold flex items-center gap-1 hover:text-pink-pastel transition-colors" aria-label="Về trang chủ" title="Về trang chủ">
               🎂
             </Link>
             <h1 className="font-heading text-lg text-mocha font-bold">

@@ -38,6 +38,7 @@ class ProductDetailResponse(BaseModel):
     description: Optional[str] = None
     category: str
     base_price: int
+    product_type: str = "sweet"
     sizes: List[dict] = Field(default_factory=list)
     flavors: List[dict] = Field(default_factory=list)
     is_active: bool = True

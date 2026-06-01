@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 /**
  * Cake Builder page.
@@ -9,6 +9,7 @@
  */
 
 import { useState, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { type CakeZone } from "@/components/cake-builder/CakeSVG";
@@ -83,13 +84,13 @@ export default function CakeBuilderPage() {
       <header className="bg-white/80 backdrop-blur-sm border-b border-gray-100 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <a
+            <Link
               href="/"
               className="font-heading text-lg text-mocha font-bold flex items-center gap-1.5 hover:text-pink-pastel transition-colors min-h-[44px]"
               aria-label="Về trang chủ"
             >
               🎂 <span className="hidden sm:inline">Bơ Nơ</span>
-            </a>
+            </Link>
             <span className="text-mocha/20">|</span>
             <h1 className="font-heading text-xl md:text-2xl text-mocha font-bold">
               Thiết kế bánh kem

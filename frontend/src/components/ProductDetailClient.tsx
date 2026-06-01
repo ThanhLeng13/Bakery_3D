@@ -267,8 +267,10 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
 
   const handleBuyNow = () => {
     if (isOutOfStock) return;
-    // flushSync ensures cart state is committed to localStorage
-    // BEFORE navigation, avoiding empty-cart race condition
+    // flushSync forces React to immediately commit the addItem state update
+    // so the in-memory cart (read by useCart()/checkout page) is populated
+    // BEFORE router.push navigates. localStorage persistence of bakery_cart
+    // still happens asynchronously via CartProvider's useEffect.
     flushSync(() => {
       addItem({
         productId: product.id,

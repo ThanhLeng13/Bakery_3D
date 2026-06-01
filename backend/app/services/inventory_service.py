@@ -40,7 +40,7 @@ class InventoryService:
 
     # ─── Public ────────────────────────────────────────────────────────────────
 
-    async def get_product_stock(self, product_id: str) -> dict:
+    def get_product_stock(self, product_id: str) -> dict:
         """
         Tổng hợp stock khả dụng của một sản phẩm.
 
@@ -94,7 +94,7 @@ class InventoryService:
             "batches": available_batches,
         }
 
-    async def get_stock_by_branch(self, product_id: str) -> dict:
+    def get_stock_by_branch(self, product_id: str) -> dict:
         """
         Tồn kho theo từng chi nhánh của một sản phẩm.
         Luôn trả về TẤT CẢ chi nhánh (kể cả hết hàng),
@@ -214,7 +214,7 @@ class InventoryService:
 
     # ─── Baker ─────────────────────────────────────────────────────────────────
 
-    async def add_batch(
+    def add_batch(
         self,
         product_id: str,
         quantity: int,
@@ -265,7 +265,7 @@ class InventoryService:
 
         return result.data[0]
 
-    async def get_batches(self, product_id: str | None = None, branch_id: str | None = None) -> list[dict]:
+    def get_batches(self, product_id: str | None = None, branch_id: str | None = None) -> list[dict]:
         """Liệt kê tất cả lô (baker dashboard). Có thể lọc theo product_id và branch_id."""
         query = (
             self._db.table("product_batches")
@@ -293,7 +293,7 @@ class InventoryService:
 
         return rows
 
-    async def update_batch(self, batch_id: str, updates: dict, baker: dict) -> dict:
+    def update_batch(self, batch_id: str, updates: dict, baker: dict) -> dict:
         """
         Baker cập nhật lô: có thể đổi quantity, notes, is_active.
         Không cho phép giảm quantity xuống dưới quantity_sold.
@@ -340,7 +340,7 @@ class InventoryService:
 
     # ─── Purchase ──────────────────────────────────────────────────────────────
 
-    async def decrement_stock(
+    def decrement_stock(
         self,
         product_id: str,
         quantity_needed: int,
@@ -440,22 +440,34 @@ class InventoryService:
             status_code=503,
         )
 
-    def _rollback_decrements(self, decrements: list[dict]) -> None:
+    def _rollback_decrements(self, decrements: list[dict], max_retries: int = 5) -> None:
         """
-        Hoàn tác các decrement đã thực hiện (dùng khi phát hiện conflict).
-        Tăng lại quantity_sold về giá trị cũ bằng cách trừ quantity_decremented.
+        Hoàn tác các decrement đã thực hiện bằng CAS retry loop.
+
+        Dùng compare-and-swap (giống decrement_stock) để tránh clobber concurrent
+        updates: đọc stale value → UPDATE với điều kiện eq(quantity_sold, stale)
+        → nếu conflict (0 rows updated) thì retry.
         """
         for dec in decrements:
-            # Re-read current value để rollback chính xác
-            row = (
-                self._db.table("product_batches")
-                .select("quantity_sold")
-                .eq("id", dec["batch_id"])
-                .maybe_single()
-                .execute()
-            )
-            if row and row.data:
-                restored = row.data["quantity_sold"] - dec["quantity_decremented"]
-                self._db.table("product_batches").update(
-                    {"quantity_sold": max(0, restored), "updated_at": datetime.now().isoformat()}
-                ).eq("id", dec["batch_id"]).execute()
+            for _ in range(max_retries):
+                row = (
+                    self._db.table("product_batches")
+                    .select("quantity_sold")
+                    .eq("id", dec["batch_id"])
+                    .maybe_single()
+                    .execute()
+                )
+                if not row or not row.data:
+                    break  # batch không còn tồn tại, bỏ qua
+                stale = row.data["quantity_sold"]
+                restored = max(0, stale - dec["quantity_decremented"])
+                result = (
+                    self._db.table("product_batches")
+                    .update({"quantity_sold": restored, "updated_at": datetime.now().isoformat()})
+                    .eq("id", dec["batch_id"])
+                    .eq("quantity_sold", stale)  # ← CAS condition
+                    .execute()
+                )
+                if result.data:
+                    break  # thành công
+                # Conflict → retry (stale đã thay đổi, đọc lại ở vòng lặp kế)

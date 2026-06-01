@@ -30,4 +30,4 @@ async def list_branches():
         )
         return {"branches": result.data or []}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Không thể tải danh sách chi nhánh.")
+        raise HTTPException(status_code=500, detail="Không thể tải danh sách chi nhánh.") from e

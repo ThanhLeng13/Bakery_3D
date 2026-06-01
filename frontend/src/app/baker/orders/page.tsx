@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 /**
  * Baker Dashboard page.
@@ -190,7 +190,7 @@ function BakerDashboardContent() {
             <Link
               href="/"
               className="font-heading text-lg text-mocha font-bold flex items-center gap-1.5 hover:text-pink-pastel transition-colors min-h-[44px]"
-              title="Về trang chủ"
+              aria-label="Về trang chủ"
             >
               🎂 <span className="hidden sm:inline">Bơ Nơ</span>
             </Link>

@@ -117,7 +117,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const addItem = useCallback(
     (newItem: Omit<CartItem, "cartKey" | "quantity"> & { quantity?: number }) => {
       const cartKey = makeCartKey(newItem.productId, newItem.branchId ?? null);
-      const qty = newItem.quantity ?? 1;
+      const qty = Math.max(1, newItem.quantity ?? 1); // guard: clamp to minimum 1
 
       // Read current state via ref (safe, no staleness issues for this purpose)
       const currentItems = itemsRef.current;
