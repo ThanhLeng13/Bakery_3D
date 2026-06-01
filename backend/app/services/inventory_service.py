@@ -388,6 +388,8 @@ class InventoryService:
             )
             if branch_id is not None:
                 query = query.eq("branch_id", branch_id)
+            else:
+                query = query.is_("branch_id", "null")
 
             batches = query.execute().data or []
             total_available = sum(b["quantity"] - b["quantity_sold"] for b in batches)
@@ -465,43 +467,59 @@ class InventoryService:
         → nếu conflict (0 rows updated) thì retry.
         Nếu hết lượt retry mà vẫn chưa rollback được → ghi log lỗi để không bị bỏ qua.
         """
+        failures = []
         for dec in decrements:
             success = False
-            for _ in range(max_retries):
-                row = (
-                    self._db.table("product_batches")
-                    .select("quantity_sold")
-                    .eq("id", dec["batch_id"])
-                    .maybe_single()
-                    .execute()
-                )
-                if not row or not row.data:
-                    success = True  # batch không tồn tại, không cần rollback
-                    break
-                stale = row.data["quantity_sold"]
-                restored = max(0, stale - dec["quantity_decremented"])
-                result = (
-                    self._db.table("product_batches")
-                    .update({"quantity_sold": restored, "updated_at": datetime.now().isoformat()})
-                    .eq("id", dec["batch_id"])
-                    .eq("quantity_sold", stale)  # ← CAS condition
-                    .execute()
-                )
-                if result.data:
-                    success = True
-                    break  # thành công
-                # Conflict → retry (stale đã thay đổi, đọc lại ở vòng lặp kế)
+            try:
+                for _ in range(max_retries):
+                    row = (
+                        self._db.table("product_batches")
+                        .select("quantity_sold")
+                        .eq("id", dec["batch_id"])
+                        .maybe_single()
+                        .execute()
+                    )
+                    if not row or not row.data:
+                        success = True  # batch không tồn tại, không cần rollback
+                        break
+                    stale = row.data["quantity_sold"]
+                    restored = max(0, stale - dec["quantity_decremented"])
+                    result = (
+                        self._db.table("product_batches")
+                        .update({"quantity_sold": restored, "updated_at": datetime.now().isoformat()})
+                        .eq("id", dec["batch_id"])
+                        .eq("quantity_sold", stale)  # ← CAS condition
+                        .execute()
+                    )
+                    if result.data:
+                        success = True
+                        break  # thành công
+                    # Conflict → retry (stale đã thay đổi, đọc lại ở vòng lặp kế)
 
-            if not success:
+                if not success:
+                    logger.error(
+                        "STOCK ROLLBACK FAILED after %d retries: batch_id=%s qty=%d — "
+                        "manual correction required!",
+                        max_retries,
+                        dec["batch_id"],
+                        dec["quantity_decremented"],
+                    )
+                    failures.append(
+                        f"Không thể hoàn tác stock cho lô {dec['batch_id']} sau {max_retries} lần thử."
+                    )
+            except Exception as e:
                 logger.error(
-                    "STOCK ROLLBACK FAILED after %d retries: batch_id=%s qty=%d — "
-                    "manual correction required!",
-                    max_retries,
+                    "STOCK ROLLBACK EXCEPTION: batch_id=%s qty=%d — error=%s",
                     dec["batch_id"],
                     dec["quantity_decremented"],
+                    str(e),
                 )
-                raise InventoryServiceError(
-                    f"Không thể hoàn tác stock cho lô {dec['batch_id']} "
-                    f"sau {max_retries} lần thử. Cần kiểm tra thủ công.",
-                    status_code=503,
+                failures.append(
+                    f"Không thể hoàn tác stock cho lô {dec['batch_id']} do lỗi hệ thống: {str(e)}."
                 )
+
+        if failures:
+            raise InventoryServiceError(
+                "Lỗi hoàn tác stock: " + "; ".join(failures),
+                status_code=503,
+            )

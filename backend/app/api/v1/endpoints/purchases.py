@@ -202,7 +202,7 @@ def create_purchase(
         "customer_name": body.customer_name,
         "customer_phone": body.customer_phone,
         "total_price": int(total_price),
-        "status": "completed",
+        "status": "pending",
         "notes": body.notes,
         "branch_id": body.branch_id,
     }
@@ -239,6 +239,9 @@ def create_purchase(
         # Bulk insert all purchase_items in a single roundtrip
         if pending_items:
             db.table("purchase_items").insert(pending_items).execute()
+
+        # Update purchase status to "completed" only after successfully decrementing stock and inserting all items
+        db.table("purchases").update({"status": "completed"}).eq("id", purchase_id).execute()
 
     except (InsufficientStockError, InventoryServiceError) as e:
         _rollback_purchase(inv_svc, db, all_decrements, purchase_id)
