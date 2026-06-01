@@ -247,6 +247,7 @@ def create_purchase(
         _rollback_purchase(inv_svc, db, all_decrements, purchase_id)
         raise HTTPException(status_code=409, detail=e.message) from e
     except Exception as e:
+        _logger.exception("Lỗi không mong muốn trong luồng xử lý mua hàng (purchase_id=%s): %s", purchase_id, e)
         _rollback_purchase(inv_svc, db, all_decrements, purchase_id)
         raise HTTPException(status_code=500, detail="Lỗi xử lý mua hàng.") from e
 
