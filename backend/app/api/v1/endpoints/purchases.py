@@ -48,6 +48,53 @@ class CreatePurchaseRequest(BaseModel):
     branch_id: str | None = Field(default=None, description="UUID chi nhánh mua hàng")
 
 
+# ─── Helpers ───────────────────────────────────────────────────────────────────
+
+import logging as _logging
+_logger = _logging.getLogger(__name__)
+
+def _rollback_purchase(
+    inv_svc: InventoryService,
+    db,
+    decrements: list[dict],
+    purchase_id: str,
+) -> None:
+    """
+    Thực hiện rollback từng bước độc lập. Mỗi bước được bọc trong try/except
+    riêng để đảm bảo:
+    - Tất cả các bước đều được thực hiện dù bước trước có lỗi
+    - Exception gốc (409/500) không bị che khuất bởi lỗi rollback
+    """
+    # Step 1: Restore stock
+    try:
+        inv_svc._rollback_decrements(decrements)
+    except Exception as rollback_err:
+        _logger.error(
+            "Rollback step 1 (restore stock) failed for purchase %s: %s",
+            purchase_id, rollback_err,
+        )
+
+    # Step 2: Delete orphaned purchase_items
+    try:
+        db.table("purchase_items").delete().eq("purchase_id", purchase_id).execute()
+    except Exception as rollback_err:
+        _logger.error(
+            "Rollback step 2 (delete purchase_items) failed for purchase %s: %s",
+            purchase_id, rollback_err,
+        )
+
+    # Step 3: Mark purchase as cancelled
+    try:
+        db.table("purchases").update({"status": "cancelled"}).eq(
+            "id", purchase_id
+        ).execute()
+    except Exception as rollback_err:
+        _logger.error(
+            "Rollback step 3 (cancel purchase) failed for purchase %s: %s",
+            purchase_id, rollback_err,
+        )
+
+
 # ─── Route ─────────────────────────────────────────────────────────────────────
 
 @router.post("", status_code=201)
@@ -188,20 +235,10 @@ def create_purchase(
                     purchase_items.append(pi)
 
     except (InsufficientStockError, InventoryServiceError) as e:
-        # Rollback: restore stock, delete orphaned purchase_items, cancel purchase
-        inv_svc._rollback_decrements(all_decrements)
-        db.table("purchase_items").delete().eq("purchase_id", purchase_id).execute()
-        db.table("purchases").update({"status": "cancelled"}).eq(
-            "id", purchase_id
-        ).execute()
+        _rollback_purchase(inv_svc, db, all_decrements, purchase_id)
         raise HTTPException(status_code=409, detail=e.message) from e
     except Exception as e:
-        # Rollback: restore stock, delete orphaned purchase_items, cancel purchase
-        inv_svc._rollback_decrements(all_decrements)
-        db.table("purchase_items").delete().eq("purchase_id", purchase_id).execute()
-        db.table("purchases").update({"status": "cancelled"}).eq(
-            "id", purchase_id
-        ).execute()
+        _rollback_purchase(inv_svc, db, all_decrements, purchase_id)
         raise HTTPException(status_code=500, detail="Lỗi xử lý mua hàng.") from e
 
 
