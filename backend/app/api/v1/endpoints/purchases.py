@@ -202,7 +202,7 @@ def create_purchase(
     purchase_id = purchase["id"]
 
     # 6. Decrement stock FIFO + create purchase_items
-    purchase_items = []
+    pending_items: list[dict] = []   # collected for bulk insert after all decrements
     all_decrements: list[dict] = []  # track ALL decrements for rollback on partial failure
     try:
         for item in body.items:
@@ -214,20 +214,19 @@ def create_purchase(
             )
             all_decrements.extend(decrements)
 
-            # Create one purchase_item per batch decremented
+            # Collect purchase_item rows — one row per batch decremented
             for dec in decrements:
-                pi_data = {
+                pending_items.append({
                     "purchase_id": purchase_id,
                     "product_id": item.product_id,
                     "batch_id": dec["batch_id"],
                     "quantity": dec["quantity_decremented"],
                     "unit_price": int(product["base_price"]),
-                }
-                pi_result = db.table("purchase_items").insert(pi_data).execute()
-                if pi_result.data:
-                    pi = pi_result.data[0]
-                    pi["product_name"] = product["name"]
-                    purchase_items.append(pi)
+                })
+
+        # Bulk insert all purchase_items in a single roundtrip
+        if pending_items:
+            db.table("purchase_items").insert(pending_items).execute()
 
     except (InsufficientStockError, InventoryServiceError) as e:
         _rollback_purchase(inv_svc, db, all_decrements, purchase_id)

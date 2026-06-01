@@ -17,7 +17,7 @@ def _get_service_client():
 
 
 @router.get("")
-async def list_branches():
+def list_branches():
     """Lấy danh sách chi nhánh đang hoạt động (Public)."""
     client = _get_service_client()
     try:
