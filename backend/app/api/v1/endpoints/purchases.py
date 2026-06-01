@@ -151,6 +151,7 @@ async def create_purchase(
 
     # 6. Decrement stock FIFO + create purchase_items
     purchase_items = []
+    all_decrements: list[dict] = []  # track ALL decrements for rollback on partial failure
     try:
         for item in body.items:
             product = products_map[item.product_id]
@@ -159,6 +160,7 @@ async def create_purchase(
                 item.quantity,
                 branch_id=body.branch_id,
             )
+            all_decrements.extend(decrements)
 
             # Create one purchase_item per batch decremented
             for dec in decrements:
@@ -176,16 +178,20 @@ async def create_purchase(
                     purchase_items.append(pi)
 
     except (InsufficientStockError, InventoryServiceError) as e:
-        # Rollback: cancel the purchase record
+        # Rollback: restore ALL previously decremented stock, then cancel purchase
+        inv_svc._rollback_decrements(all_decrements)
         db.table("purchases").update({"status": "cancelled"}).eq(
             "id", purchase_id
         ).execute()
         raise HTTPException(status_code=409, detail=e.message)
     except Exception:
+        # Rollback: restore ALL previously decremented stock, then cancel purchase
+        inv_svc._rollback_decrements(all_decrements)
         db.table("purchases").update({"status": "cancelled"}).eq(
             "id", purchase_id
         ).execute()
         raise HTTPException(status_code=500, detail="Lỗi xử lý mua hàng.")
+
 
     # 7. Build receipt
     receipt_items = []

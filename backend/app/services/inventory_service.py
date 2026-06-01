@@ -323,7 +323,7 @@ class InventoryService:
                 status_code=400,
             )
 
-        patch["updated_at"] = "now()"
+        patch["updated_at"] = datetime.now().isoformat()
 
         result = (
             self._db.table("product_batches")
@@ -345,54 +345,117 @@ class InventoryService:
         product_id: str,
         quantity_needed: int,
         branch_id: str | None = None,
+        max_retries: int = 5,
     ) -> list[dict]:
         """
-        Trừ stock theo FIFO (lô gần hết hạn nhất trước).
-        Nếu branch_id được cung cấp, chỉ trừ từ lô của chi nhánh đó.
+        Trừ stock theo FIFO (lô gần hết hạn nhất trước) với optimistic locking.
+
+        Mỗi lần UPDATE được điều kiện hóa trên giá trị quantity_sold đã đọc trước
+        (compare-and-swap). Nếu một request đồng thời đã thay đổi giá trị đó,
+        UPDATE sẽ không match bất kỳ row nào → retry từ đầu (đọc lại toàn bộ batches).
+
+        Args:
+            product_id: UUID sản phẩm
+            quantity_needed: Số lượng cần trừ
+            branch_id: Nếu có, chỉ trừ từ lô của chi nhánh này
+            max_retries: Số lần thử lại tối đa khi có xung đột concurrency
 
         Returns:
             List of { batch_id, quantity_decremented }
+
+        Raises:
+            InsufficientStockError: Không đủ stock
+            InventoryServiceError: Vượt quá số lần retry (quá tải)
         """
         today = date.today().isoformat()
 
-        query = (
-            self._db.table("product_batches")
-            .select("id, quantity, quantity_sold")
-            .eq("product_id", product_id)
-            .eq("is_active", True)
-            .gte("expires_at", today)
-            .order("expires_at", desc=False)
+        for attempt in range(max_retries):
+            # ── READ phase: luôn đọc lại mới nhất ở mỗi lần thử ────────────
+            query = (
+                self._db.table("product_batches")
+                .select("id, quantity, quantity_sold")
+                .eq("product_id", product_id)
+                .eq("is_active", True)
+                .gte("expires_at", today)
+                .order("expires_at", desc=False)
+            )
+            if branch_id is not None:
+                query = query.eq("branch_id", branch_id)
+
+            batches = query.execute().data or []
+            total_available = sum(b["quantity"] - b["quantity_sold"] for b in batches)
+
+            if total_available < quantity_needed:
+                raise InsufficientStockError(total_available, quantity_needed)
+
+            # ── WRITE phase: optimistic locking ──────────────────────────────
+            decrements: list[dict] = []
+            remaining = quantity_needed
+            conflict_detected = False
+
+            for batch in batches:
+                if remaining <= 0:
+                    break
+                stale_sold = batch["quantity_sold"]
+                avail = batch["quantity"] - stale_sold
+                if avail <= 0:
+                    continue
+
+                take = min(avail, remaining)
+                new_sold = stale_sold + take
+
+                # Compare-and-swap: UPDATE chỉ thành công nếu quantity_sold
+                # vẫn bằng giá trị ta đọc (chưa bị request khác thay đổi)
+                update_result = (
+                    self._db.table("product_batches")
+                    .update(
+                        {
+                            "quantity_sold": new_sold,
+                            "updated_at": datetime.now().isoformat(),
+                        }
+                    )
+                    .eq("id", batch["id"])
+                    .eq("quantity_sold", stale_sold)  # ← optimistic lock condition
+                    .execute()
+                )
+
+                if not update_result.data:
+                    # Conflict: row đã bị thay đổi bởi request đồng thời
+                    # Rollback các decrement đã làm trong vòng lặp này rồi retry
+                    self._rollback_decrements(decrements)
+                    conflict_detected = True
+                    break
+
+                decrements.append({"batch_id": batch["id"], "quantity_decremented": take})
+                remaining -= take
+
+            if not conflict_detected:
+                # Tất cả UPDATE thành công, không có xung đột
+                return decrements
+
+            # Conflict detected → retry (đọc lại ở đầu vòng lặp)
+
+        raise InventoryServiceError(
+            "Hệ thống đang bận, vui lòng thử lại sau.",
+            status_code=503,
         )
 
-        if branch_id is not None:
-            query = query.eq("branch_id", branch_id)
-
-        result = query.execute()
-
-        batches = result.data or []
-        total_available = sum(b["quantity"] - b["quantity_sold"] for b in batches)
-
-        if total_available < quantity_needed:
-            raise InsufficientStockError(total_available, quantity_needed)
-
-        decrements = []
-        remaining = quantity_needed
-
-        for batch in batches:
-            if remaining <= 0:
-                break
-            avail = batch["quantity"] - batch["quantity_sold"]
-            if avail <= 0:
-                continue
-
-            take = min(avail, remaining)
-            new_sold = batch["quantity_sold"] + take
-
-            self._db.table("product_batches").update(
-                {"quantity_sold": new_sold, "updated_at": datetime.now().isoformat()}
-            ).eq("id", batch["id"]).execute()
-
-            decrements.append({"batch_id": batch["id"], "quantity_decremented": take})
-            remaining -= take
-
-        return decrements
+    def _rollback_decrements(self, decrements: list[dict]) -> None:
+        """
+        Hoàn tác các decrement đã thực hiện (dùng khi phát hiện conflict).
+        Tăng lại quantity_sold về giá trị cũ bằng cách trừ quantity_decremented.
+        """
+        for dec in decrements:
+            # Re-read current value để rollback chính xác
+            row = (
+                self._db.table("product_batches")
+                .select("quantity_sold")
+                .eq("id", dec["batch_id"])
+                .maybe_single()
+                .execute()
+            )
+            if row and row.data:
+                restored = row.data["quantity_sold"] - dec["quantity_decremented"]
+                self._db.table("product_batches").update(
+                    {"quantity_sold": max(0, restored), "updated_at": datetime.now().isoformat()}
+                ).eq("id", dec["batch_id"]).execute()
