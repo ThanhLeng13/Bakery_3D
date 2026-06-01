@@ -178,23 +178,9 @@ class InventoryService:
             else:
                 key = branch_id
                 if key not in branch_map:
-                    # Branch exists in batch but not in branches table (shouldn't happen)
-                    if branch_data and isinstance(branch_data, dict):
-                        bname = branch_data.get("name", "Chi nhánh")
-                        baddress = branch_data.get("address")
-                    elif branch_data and isinstance(branch_data, list) and branch_data:
-                        bname = branch_data[0].get("name", "Chi nhánh")
-                        baddress = branch_data[0].get("address")
-                    else:
-                        bname = "Chi nhánh"
-                        baddress = None
-                    branch_map[key] = {
-                        "branch_id": branch_id,
-                        "branch_name": bname,
-                        "branch_address": baddress,
-                        "quantity_available": 0,
-                        "expires_soonest": None,
-                    }
+                    # Branch không thuộc danh sách active branches → bỏ qua để tránh hiển thị
+                    # kho của chi nhánh không còn hoạt động ra public.
+                    continue
 
             if avail > 0:
                 entry = branch_map[key]
@@ -327,6 +313,15 @@ class InventoryService:
             raise InventoryServiceError(
                 f"Không thể giảm số lượng xuống {new_qty}: "
                 f"đã bán {batch['quantity_sold']} cái.",
+                status_code=400,
+            )
+
+        # Validate expires_at > produced_at để tránh dữ liệu logic sai (hết hạn trước khi sản xuất)
+        new_expires_at = patch.get("expires_at", batch["expires_at"])
+        produced_at = batch["produced_at"]
+        if new_expires_at <= produced_at:
+            raise InventoryServiceError(
+                "Ngày hết hạn phải sau ngày sản xuất.",
                 status_code=400,
             )
 

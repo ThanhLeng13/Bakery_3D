@@ -153,6 +153,26 @@ def create_purchase(
                 ),
             )
 
+    # 2b. Validate branch_id tồn tại và đang hoạt động
+    # Kiểm tra trước khi insert để tránh lỗi foreign key violation 500 không rõ ràng.
+    branch_check = (
+        db.table("branches")
+        .select("id, name, is_active")
+        .eq("id", body.branch_id)
+        .maybe_single()
+        .execute()
+    )
+    if not branch_check or not branch_check.data:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Không tìm thấy chi nhánh: {body.branch_id}",
+        )
+    if not branch_check.data.get("is_active"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Chi nhánh '{branch_check.data['name']}' hiện không hoạt động.",
+        )
+
     # 3. Check stock at the selected branch in a SINGLE query
     # Previously called get_stock_by_branch(product_id) N times (2N DB roundtrips).
     # Now: one product_batches query for all product_ids at the specific branch → O(1) queries.
@@ -214,14 +234,16 @@ def create_purchase(
     purchase_id = purchase["id"]
 
     # 6. Decrement stock FIFO + create purchase_items
+    # Dùng aggregated.items() thay vì body.items để tránh gọi decrement_stock nhiều lần
+    # cho cùng một product_id (trường hợp duplicate trong request).
     pending_items: list[dict] = []   # collected for bulk insert after all decrements
     all_decrements: list[dict] = []  # track ALL decrements for rollback on partial failure
     try:
-        for item in body.items:
-            product = products_map[item.product_id]
+        for product_id, total_qty in aggregated.items():
+            product = products_map[product_id]
             decrements = inv_svc.decrement_stock(
-                item.product_id,
-                item.quantity,
+                product_id,
+                total_qty,
                 branch_id=body.branch_id,
             )
             all_decrements.extend(decrements)
@@ -230,7 +252,7 @@ def create_purchase(
             for dec in decrements:
                 pending_items.append({
                     "purchase_id": purchase_id,
-                    "product_id": item.product_id,
+                    "product_id": product_id,
                     "batch_id": dec["batch_id"],
                     "quantity": dec["quantity_decremented"],
                     "unit_price": int(product["base_price"]),
