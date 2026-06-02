@@ -417,6 +417,17 @@ class ChatService:
             yield "data: [DONE]\n\n"
             return
 
+        # Guard against empty stream response (content filtered or API issue)
+        if not full_response:
+            logger.warning("Groq API stream returned empty response")
+            error_data = json.dumps(
+                {"type": "error", "message": FALLBACK_ERROR_MESSAGE},
+                ensure_ascii=False,
+            )
+            yield f"data: {error_data}\n\n"
+            yield "data: [DONE]\n\n"
+            return
+
         # Store the complete assistant message
         assistant_msg = await self._store_message(
             session_id, "assistant", full_response
@@ -440,13 +451,13 @@ class ChatService:
 def _parse_price(value: Any) -> int:
     """
     Robustly parse a price value that may be an int, float, or formatted
-    string (e.g. "250.000đ", "250,000", "250000", "250k", "250K").
+    string (e.g. "250.000đ", "250,000", "250000", "250k", "250.5k", "250K").
 
     In Vietnamese contexts, 'k' or 'K' is commonly used as a shorthand for
-    thousands (e.g. "250k" = 250,000 VND). This function detects the pattern
-    <digits>k (optionally followed by non-digit characters like 'đ') and
-    multiplies the result by 1000. A plain 'k' at the start of a word (e.g.
-    "khuyến mãi") does NOT match because it requires digits immediately before.
+    thousands (e.g. "250k" = 250,000 VND, "250.5k" = 250,500 VND). The number
+    before 'k' is parsed as a float to handle decimal values correctly, then
+    multiplied by 1000. A plain 'k' not preceded by digits (e.g. "khuyến mãi")
+    does NOT match.
 
     Args:
         value: Raw price value from parsed JSON
@@ -462,16 +473,17 @@ def _parse_price(value: Any) -> int:
 
     text = str(value).strip()
 
-    # Detect Vietnamese "k" thousand shorthand: digits followed immediately by
-    # 'k' or 'K', then only non-digit chars (e.g. "đ", " ", end of string).
-    # This avoids false positives like "khuyến mãi" where 'k' is not preceded
-    # by digits.
-    k_match = re.search(r'(\d[\d.,]*)[\s]*[kK](?!\d)', text)
+    # Detect Vietnamese "k" thousand shorthand: a number (int or float with
+    # '.' or ',' as decimal separator) followed by k/K, then non-digit chars.
+    # Parse the number part as float to correctly handle e.g. "250.5k" -> 250500
+    # rather than stripping all non-digits which would give 2505 * 1000 = 2505000.
+    k_match = re.search(r'(\d+[.,]?\d*)\s*[kK](?!\w)', text)
     if k_match:
-        # Extract only the digits/separators before 'k', strip separators
-        digits = re.sub(r'[^\d]', '', k_match.group(1))
-        if digits:
-            return int(digits) * 1000
+        num_str = k_match.group(1).replace(',', '.')  # normalize decimal separator
+        try:
+            return int(float(num_str) * 1000)
+        except ValueError:
+            pass  # fall through to digit-strip fallback
 
     # Fallback: strip everything except digits
     digits = re.sub(r'[^\d]', '', text)
