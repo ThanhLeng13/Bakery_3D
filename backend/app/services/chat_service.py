@@ -504,11 +504,14 @@ def extract_recommendations(content: str) -> Optional[List[dict]]:
             if isinstance(parsed, list):
                 for item in parsed:
                     if all(k in item for k in ("product_name", "price", "reasoning")):
-                        recommendations.append({
-                            "product_name": str(item["product_name"]),
-                            "price": int(item["price"]),
-                            "reasoning": str(item["reasoning"]),
-                        })
+                        try:
+                            recommendations.append({
+                                "product_name": str(item["product_name"]),
+                                "price": _parse_price(item["price"]),
+                                "reasoning": str(item["reasoning"]),
+                            })
+                        except (ValueError, TypeError):
+                            continue
                 if 2 <= len(recommendations) <= 5:
                     return recommendations
         except (json.JSONDecodeError, ValueError, TypeError):
@@ -521,14 +524,19 @@ def extract_recommendations(content: str) -> Optional[List[dict]]:
         if not line:
             continue
 
-        price_pattern = r'(\d[\d.,]*)\s*(?:VND|đ|vnđ|dong)'
-        price_match = re.search(price_pattern, line, re.IGNORECASE)
+        # Match: digits (with separators) optionally followed by k/K shorthand,
+        # then a currency marker (VND, đ, vnđ, dong). Group 1 is passed to
+        # _parse_price which handles plain numbers, separators, and k/K suffix.
+        price_match = re.search(
+            r'(\d[\d.,]*(?:\s*[kK](?!\w))?)\s*(?:VND|đ|vnđ|dong)',
+            line,
+            re.IGNORECASE,
+        )
 
         if price_match:
-            price_str = price_match.group(1).replace(".", "").replace(",", "")
             try:
-                price = int(price_str)
-            except ValueError:
+                price = _parse_price(price_match.group(1))
+            except (ValueError, TypeError):
                 continue
 
             name_part = line[:price_match.start()].strip()
