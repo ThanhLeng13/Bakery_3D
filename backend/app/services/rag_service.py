@@ -120,6 +120,11 @@ def get_upcoming_events_context() -> str:
     Returns a formatted string to include in the system prompt.
     """
     now = datetime.now(timezone(timedelta(hours=7)))  # Vietnam timezone UTC+7
+    # Normalize to midnight so delta is in whole calendar days.
+    # Without this, subtracting now (with current time) from event_date
+    # (which has time 00:00:00) gives a negative timedelta as soon as
+    # any time has passed on the event day, causing it to be skipped.
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Build dynamic events: Mother's Day + Father's Day for this year (and next)
     dynamic_events = []
@@ -138,11 +143,11 @@ def get_upcoming_events_context() -> str:
     # Check static events
     for month, day, name, suggestion in VIETNAMESE_EVENTS:
         try:
-            event_date = now.replace(month=month, day=day, hour=0, minute=0, second=0, microsecond=0)
-            delta = (event_date - now).days
+            event_date = today.replace(month=month, day=day)
+            delta = (event_date - today).days
             if delta < -1:
-                event_date = event_date.replace(year=now.year + 1)
-                delta = (event_date - now).days
+                event_date = event_date.replace(year=today.year + 1)
+                delta = (event_date - today).days
         except ValueError:
             continue
 
@@ -158,7 +163,7 @@ def get_upcoming_events_context() -> str:
 
     # Check dynamic events (Mother's Day, Father's Day)
     for event_date, name, suggestion in dynamic_events:
-        delta = (event_date - now).days
+        delta = (event_date - today).days
         if 0 <= delta <= 14:
             d, m = event_date.day, event_date.month
             if delta == 0:
