@@ -151,7 +151,7 @@ def build_customer_habits_context(past_messages: List[dict]) -> str:
     # Combine all past customer messages for analysis
     customer_texts = [
         msg["content"] for msg in past_messages
-        if msg.get("role") == "user"
+        if msg.get("role") == "user" and isinstance(msg.get("content"), str) and msg["content"].strip()
     ]
 
     if not customer_texts:
@@ -164,7 +164,7 @@ def build_customer_habits_context(past_messages: List[dict]) -> str:
     # Build a summary of past conversations for AI to reference
     # Limit to last 10 customer messages to avoid huge prompts
     recent_texts = customer_texts[-10:]
-    history_summary = " | ".join(recent_texts)
+    history_summary = " | ".join(text.strip() for text in recent_texts)
 
     context = f"""
 ## 🧠 Thông tin khách hàng cũ (đã chat {num_sessions} lần trước):
