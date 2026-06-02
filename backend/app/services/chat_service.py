@@ -437,6 +437,29 @@ class ChatService:
         yield "data: [DONE]\n\n"
 
 
+def _parse_price(value: Any) -> int:
+    """
+    Robustly parse a price value that may be an int, float, or formatted
+    string (e.g. "250.000đ", "250,000", "250000").
+
+    Args:
+        value: Raw price value from parsed JSON
+
+    Returns:
+        Integer price in VND
+
+    Raises:
+        ValueError: If the value cannot be converted to an integer
+    """
+    if isinstance(value, (int, float)):
+        return int(value)
+    # Strip everything except digits
+    digits = re.sub(r'[^\d]', '', str(value))
+    if not digits:
+        raise ValueError(f"Cannot parse price from: {value!r}")
+    return int(digits)
+
+
 def extract_recommendations(content: str) -> Optional[List[dict]]:
     """
     Extract cake recommendations from AI response content.
@@ -541,7 +564,7 @@ def extract_ai_summary(content: str) -> Optional[dict]:
                         "flavor": str(parsed["flavor"]),
                         "decorations": str(parsed["decorations"]),
                         "pickup_date": str(parsed["pickup_date"]),
-                        "total_price": int(parsed["total_price"]),
+                        "total_price": _parse_price(parsed["total_price"]),
                     }
         except (json.JSONDecodeError, ValueError, TypeError):
             continue
@@ -559,7 +582,7 @@ def extract_ai_summary(content: str) -> Optional[dict]:
                         "flavor": str(parsed["flavor"]),
                         "decorations": str(parsed["decorations"]),
                         "pickup_date": str(parsed["pickup_date"]),
-                        "total_price": int(parsed["total_price"]),
+                        "total_price": _parse_price(parsed["total_price"]),
                     }
         except (json.JSONDecodeError, ValueError, TypeError):
             pass

@@ -16,6 +16,8 @@ from typing import Any, List, Optional
 logger = logging.getLogger(__name__)
 
 # Vietnamese holidays and events with suggested cake themes
+# Mother's Day (2nd Sunday of May) and Father's Day (3rd Sunday of June)
+# are calculated dynamically in get_upcoming_events_context()
 VIETNAMESE_EVENTS = [
     # (month, day, name, suggestion)
     (1, 1, "Tết Dương lịch", "bánh kem chào năm mới, bánh trang trí pháo hoa"),
@@ -24,7 +26,6 @@ VIETNAMESE_EVENTS = [
     (4, 30, "Giải phóng miền Nam", "bánh kem đỏ vàng, bánh kỷ niệm"),
     (5, 1, "Quốc tế Lao động", "bánh kem tặng đồng nghiệp"),
     (6, 1, "Quốc tế Thiếu nhi", "bánh kem hoạt hình cho bé, bánh hình thú, bánh nhiều màu sắc"),
-    (6, 21, "Ngày của Bố", "bánh kem tặng ba, bánh trang nhã cho nam"),
     (9, 2, "Quốc khánh", "bánh kem đỏ vàng, bánh kỷ niệm"),
     (10, 20, "Phụ nữ Việt Nam", "bánh kem tặng phụ nữ, bánh hoa, bánh thanh lịch"),
     (11, 20, "Ngày Nhà giáo Việt Nam", "bánh kem tặng thầy cô, bánh tri ân"),
@@ -32,9 +33,6 @@ VIETNAMESE_EVENTS = [
     (12, 25, "Giáng sinh", "bánh kem Noel, bánh cây thông, bánh ông già Noel"),
     (12, 31, "Giao thừa", "bánh kem đón năm mới, bánh countdown"),
 ]
-
-# Mothers Day is 2nd Sunday of May - handled dynamically
-# Mid-Autumn Festival is 15/8 Lunar - approximated
 
 SYSTEM_PROMPT_TEMPLATE = """Bạn là "Bơ Nơ AI" — trợ lý tư vấn bánh kem thân thiện và chuyên nghiệp của tiệm bánh Bơ Nơ (La Douceur), TP. Đà Nẵng.
 
@@ -91,24 +89,57 @@ SYSTEM_PROMPT_TEMPLATE = """Bạn là "Bơ Nơ AI" — trợ lý tư vấn bánh
 {product_catalog_json}"""
 
 
+def _nth_weekday_of_month(year: int, month: int, weekday: int, n: int) -> datetime:
+    """
+    Return the nth occurrence of a weekday in a given month/year.
+
+    Args:
+        year: The year
+        month: The month (1-12)
+        weekday: Day of week (0=Monday ... 6=Sunday)
+        n: Which occurrence (1=first, 2=second, 3=third, etc.)
+
+    Returns:
+        datetime of the nth weekday
+    """
+    # Find the first occurrence of the weekday in the month
+    first_day = datetime(year, month, 1, tzinfo=timezone(timedelta(hours=7)))
+    # days_ahead can be 0 if first_day is already the target weekday
+    days_ahead = (weekday - first_day.weekday()) % 7
+    first_occurrence = first_day + timedelta(days=days_ahead)
+    return first_occurrence + timedelta(weeks=n - 1)
+
+
 def get_upcoming_events_context() -> str:
     """
     Build context about upcoming Vietnamese holidays and events.
 
     Checks the current date and finds events happening within the next 14 days.
+    Includes dynamically calculated Mother's Day (2nd Sunday of May) and
+    Father's Day (3rd Sunday of June).
     Returns a formatted string to include in the system prompt.
     """
     now = datetime.now(timezone(timedelta(hours=7)))  # Vietnam timezone UTC+7
-    current_month = now.month
-    current_day = now.day
+
+    # Build dynamic events: Mother's Day + Father's Day for this year (and next)
+    dynamic_events = []
+    for year in (now.year, now.year + 1):
+        mothers_day = _nth_weekday_of_month(year, 5, 6, 2)   # 2nd Sunday of May
+        fathers_day = _nth_weekday_of_month(year, 6, 6, 3)   # 3rd Sunday of June
+        dynamic_events.append(
+            (mothers_day, "Ngày của Mẹ", "bánh kem tặng mẹ, bánh hoa hồng, bánh thanh lịch")
+        )
+        dynamic_events.append(
+            (fathers_day, "Ngày của Bố", "bánh kem tặng ba, bánh trang nhã cho nam")
+        )
 
     upcoming = []
+
+    # Check static events
     for month, day, name, suggestion in VIETNAMESE_EVENTS:
-        # Calculate days until event (simple approximation within same year)
         try:
-            event_date = now.replace(month=month, day=day)
+            event_date = now.replace(month=month, day=day, hour=0, minute=0, second=0, microsecond=0)
             delta = (event_date - now).days
-            # If event already passed this year, check next year
             if delta < -1:
                 event_date = event_date.replace(year=now.year + 1)
                 delta = (event_date - now).days
@@ -124,6 +155,20 @@ def get_upcoming_events_context() -> str:
                 upcoming.append(f"- {name} chỉ còn {delta} ngày nữa! Gợi ý: {suggestion}")
             else:
                 upcoming.append(f"- {name} sắp tới ({day}/{month}): Gợi ý: {suggestion}")
+
+    # Check dynamic events (Mother's Day, Father's Day)
+    for event_date, name, suggestion in dynamic_events:
+        delta = (event_date - now).days
+        if 0 <= delta <= 14:
+            d, m = event_date.day, event_date.month
+            if delta == 0:
+                upcoming.append(f"- HÔM NAY là {name}! Gợi ý: {suggestion}")
+            elif delta == 1:
+                upcoming.append(f"- NGÀY MAI là {name}! Gợi ý: {suggestion}")
+            elif delta <= 3:
+                upcoming.append(f"- {name} chỉ còn {delta} ngày nữa! Gợi ý: {suggestion}")
+            else:
+                upcoming.append(f"- {name} sắp tới ({d}/{m}): Gợi ý: {suggestion}")
 
     if upcoming:
         return "\n### 🎉 Sự kiện sắp tới:\n" + "\n".join(upcoming)

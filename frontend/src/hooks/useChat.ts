@@ -48,7 +48,9 @@ const GREETING_MESSAGE: ChatMessage = {
   role: "assistant",
   content:
     "Xin chào! Em là Bơ Nơ AI — trợ lý tư vấn bánh kem của tiệm La Douceur 🎂 Anh/chị cần tư vấn bánh cho dịp gì ạ? (sinh nhật, đám cưới, kỷ niệm...)",
-  createdAt: new Date(),
+  get createdAt() {
+    return new Date();
+  },
 };
 
 const ERROR_MESSAGE =
