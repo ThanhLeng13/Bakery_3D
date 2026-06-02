@@ -296,7 +296,13 @@ class ChatService:
                 messages=messages,
             )
 
-            assistant_content = response.choices[0].message.content
+            assistant_content = None
+            if response.choices and response.choices[0].message:
+                assistant_content = response.choices[0].message.content
+
+            if not assistant_content:
+                logger.warning("Groq API returned empty or filtered response")
+                raise AIServiceUnavailableError()
 
         except (APIError, APIConnectionError, RateLimitError) as e:
             logger.error(f"Groq API error: {e}")

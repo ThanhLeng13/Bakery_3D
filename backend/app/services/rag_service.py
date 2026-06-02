@@ -78,13 +78,13 @@ SYSTEM_PROMPT_TEMPLATE = """Bạn là "Bơ Nơ AI" — trợ lý tư vấn bánh
 
 ## Khi khách hàng xác nhận đặt hàng, tạo AI_Summary JSON:
 ```json
-{{{{
+{{
   "size": "kích thước bánh",
   "flavor": "hương vị",
   "decorations": "trang trí",
   "pickup_date": "ngày nhận",
   "total_price": giá_số
-}}}}
+}}
 ```
 
 ## Danh mục sản phẩm hiện có:
