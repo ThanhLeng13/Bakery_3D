@@ -440,7 +440,13 @@ class ChatService:
 def _parse_price(value: Any) -> int:
     """
     Robustly parse a price value that may be an int, float, or formatted
-    string (e.g. "250.000đ", "250,000", "250000").
+    string (e.g. "250.000đ", "250,000", "250000", "250k", "250K").
+
+    In Vietnamese contexts, 'k' or 'K' is commonly used as a shorthand for
+    thousands (e.g. "250k" = 250,000 VND). This function detects the pattern
+    <digits>k (optionally followed by non-digit characters like 'đ') and
+    multiplies the result by 1000. A plain 'k' at the start of a word (e.g.
+    "khuyến mãi") does NOT match because it requires digits immediately before.
 
     Args:
         value: Raw price value from parsed JSON
@@ -453,8 +459,22 @@ def _parse_price(value: Any) -> int:
     """
     if isinstance(value, (int, float)):
         return int(value)
-    # Strip everything except digits
-    digits = re.sub(r'[^\d]', '', str(value))
+
+    text = str(value).strip()
+
+    # Detect Vietnamese "k" thousand shorthand: digits followed immediately by
+    # 'k' or 'K', then only non-digit chars (e.g. "đ", " ", end of string).
+    # This avoids false positives like "khuyến mãi" where 'k' is not preceded
+    # by digits.
+    k_match = re.search(r'(\d[\d.,]*)[\s]*[kK](?!\d)', text)
+    if k_match:
+        # Extract only the digits/separators before 'k', strip separators
+        digits = re.sub(r'[^\d]', '', k_match.group(1))
+        if digits:
+            return int(digits) * 1000
+
+    # Fallback: strip everything except digits
+    digits = re.sub(r'[^\d]', '', text)
     if not digits:
         raise ValueError(f"Cannot parse price from: {value!r}")
     return int(digits)
