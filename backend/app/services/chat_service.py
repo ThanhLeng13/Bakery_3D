@@ -15,7 +15,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any, AsyncGenerator, List, Optional
 
-from groq import Groq, APIError, APIConnectionError, RateLimitError
+from groq import AsyncGroq, APIError, APIConnectionError, RateLimitError
 
 from app.core.config import settings
 from app.services.rag_service import RAGService
@@ -77,14 +77,14 @@ class ChatService:
         """Initialize with a Supabase client instance."""
         self._supabase = supabase_client
         self._rag_service = RAGService(supabase_client)
-        self._groq_client: Optional[Groq] = None
+        self._groq_client: Optional[AsyncGroq] = None
 
-    def _get_groq_client(self) -> Groq:
-        """Get or create Groq client instance."""
+    def _get_groq_client(self) -> AsyncGroq:
+        """Get or create async Groq client instance."""
         if self._groq_client is None:
             if not settings.GROQ_API_KEY:
                 raise AIServiceUnavailableError()
-            self._groq_client = Groq(
+            self._groq_client = AsyncGroq(
                 api_key=settings.GROQ_API_KEY
             )
         return self._groq_client
@@ -290,7 +290,7 @@ class ChatService:
                 *conversation,
             ]
 
-            response = client.chat.completions.create(
+            response = await client.chat.completions.create(
                 model=settings.GROQ_MODEL,
                 max_tokens=1024,
                 messages=messages,
@@ -368,14 +368,14 @@ class ChatService:
                 *conversation,
             ]
 
-            stream = client.chat.completions.create(
+            stream = await client.chat.completions.create(
                 model=settings.GROQ_MODEL,
                 max_tokens=1024,
                 messages=messages,
                 stream=True,
             )
 
-            for chunk in stream:
+            async for chunk in stream:
                 if chunk.choices and chunk.choices[0].delta.content:
                     text = chunk.choices[0].delta.content
                     full_response += text
