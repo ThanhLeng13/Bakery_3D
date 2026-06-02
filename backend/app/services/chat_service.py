@@ -380,23 +380,22 @@ class ChatService:
                 *conversation,
             ]
 
-            stream = await client.chat.completions.create(
+            async with await client.chat.completions.create(
                 model=settings.GROQ_MODEL,
                 max_tokens=1024,
                 messages=messages,
                 stream=True,
-            )
-
-            async for chunk in stream:
-                if (
-                    chunk.choices
-                    and chunk.choices[0].delta is not None
-                    and chunk.choices[0].delta.content
-                ):
-                    text = chunk.choices[0].delta.content
-                    full_response += text
-                    # Yield SSE formatted chunk
-                    yield f"data: {json.dumps({'type': 'content', 'text': text}, ensure_ascii=False)}\n\n"
+            ) as stream:
+                async for chunk in stream:
+                    if (
+                        chunk.choices
+                        and chunk.choices[0].delta is not None
+                        and chunk.choices[0].delta.content
+                    ):
+                        text = chunk.choices[0].delta.content
+                        full_response += text
+                        # Yield SSE formatted chunk
+                        yield f"data: {json.dumps({'type': 'content', 'text': text}, ensure_ascii=False)}\n\n"
 
         except (APIError, APIConnectionError, RateLimitError) as e:
             logger.error(f"Groq API streaming error: {e}")
@@ -485,8 +484,16 @@ def _parse_price(value: Any) -> int:
         except ValueError:
             pass  # fall through to digit-strip fallback
 
-    # Fallback: strip everything except digits
-    digits = re.sub(r'[^\d]', '', text)
+    # Fallback: find the first contiguous sequence of digits with optional
+    # separators (e.g. "250.000đ" -> "250.000" -> 250000).
+    # Using re.search instead of stripping all non-digits avoids concatenating
+    # unrelated numbers in strings like "250.000 - 300.000đ" (which would
+    # otherwise produce 250000300000) or "250.000đ cho bánh 2 tấc" -> 2500002.
+    num_match = re.search(r'\d[\d.,]*', text)
+    if not num_match:
+        raise ValueError(f"Cannot parse price from: {value!r}")
+    # Strip separators from the matched token only
+    digits = re.sub(r'[^\d]', '', num_match.group(0))
     if not digits:
         raise ValueError(f"Cannot parse price from: {value!r}")
     return int(digits)
