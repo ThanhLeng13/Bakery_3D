@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 /**
  * Custom hook for AI chat state management.
@@ -43,19 +43,24 @@ export interface UseChatReturn {
   clearError: () => void;
 }
 
-const GREETING_MESSAGE: ChatMessage = {
+const GREETING_MESSAGE_CONTENT = {
   id: "greeting",
-  role: "assistant",
+  role: "assistant" as const,
   content:
-    "Xin chào! Tôi là trợ lý AI của tiệm bánh Bơ Nơ. Bạn cần tư vấn bánh cho dịp gì? (sinh nhật, đám cưới, kỷ niệm...)",
-  createdAt: new Date(),
+    "Xin chào! Em là Bơ Nơ AI — trợ lý tư vấn bánh kem của tiệm La Douceur 🎂 Anh/chị cần tư vấn bánh cho dịp gì ạ? (sinh nhật, đám cưới, kỷ niệm...)",
 };
+
+/** Returns a fresh greeting message with the current timestamp. */
+const makeGreetingMessage = (): ChatMessage => ({
+  ...GREETING_MESSAGE_CONTENT,
+  createdAt: new Date(),
+});
 
 const ERROR_MESSAGE =
   "Dịch vụ AI tạm thời không khả dụng. Vui lòng thử lại hoặc liên hệ: 0901234567";
 
 export function useChat(): UseChatReturn {
-  const [messages, setMessages] = useState<ChatMessage[]>([GREETING_MESSAGE]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [makeGreetingMessage()]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);

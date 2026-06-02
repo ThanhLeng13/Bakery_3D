@@ -76,7 +76,7 @@ async def send_message(
     - type: "done" - Stream complete with metadata (message_id, recommendations, ai_summary)
     - [DONE] - End of stream marker
 
-    On Claude API error, returns 503 with fallback message.
+    On Groq API error, returns 503 with fallback message.
     """
     token = credentials.credentials if credentials else None
     chat_service = _get_chat_service(token)
