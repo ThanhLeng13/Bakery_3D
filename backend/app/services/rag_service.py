@@ -202,12 +202,19 @@ class RAGService:
             logger.error(f"Failed to fetch product catalog for RAG: {e}")
             return []
 
-    async def get_customer_past_messages(self, customer_id: str) -> List[dict]:
+    async def get_customer_past_messages(
+        self,
+        customer_id: str,
+        exclude_session_id: Optional[str] = None,
+    ) -> List[dict]:
         """
         Fetch messages from previous chat sessions of a customer (last 7 days).
 
         Args:
             customer_id: UUID string of the customer
+            exclude_session_id: Session ID to exclude (the current active session)
+                so a brand-new customer is not mistaken for a returning one, and
+                current-session messages are not duplicated in the system prompt.
 
         Returns:
             List of message dicts from past sessions
@@ -218,16 +225,19 @@ class RAGService:
                 datetime.now(timezone.utc) - timedelta(days=7)
             ).isoformat()
 
-            # First get the customer's past sessions
-            sessions_result = (
+            # First get the customer's past sessions (excluding the current one)
+            query = (
                 self._supabase.table("chat_sessions")
                 .select("id")
                 .eq("customer_id", customer_id)
                 .gte("created_at", seven_days_ago)
                 .order("created_at", desc=True)
                 .limit(5)  # Last 5 sessions max
-                .execute()
             )
+            if exclude_session_id:
+                query = query.neq("id", exclude_session_id)
+
+            sessions_result = query.execute()
 
             if not sessions_result.data:
                 return []
@@ -342,6 +352,7 @@ class RAGService:
     async def build_context(
         self,
         customer_id: Optional[str] = None,
+        exclude_session_id: Optional[str] = None,
         occasion: Optional[str] = None,
         budget: Optional[int] = None,
         size: Optional[str] = None,
@@ -351,6 +362,7 @@ class RAGService:
 
         Args:
             customer_id: Optional customer ID for habit recognition
+            exclude_session_id: Current session ID to exclude from past history
             occasion: Optional occasion filter
             budget: Optional budget filter
             size: Optional size filter
@@ -376,7 +388,9 @@ class RAGService:
         # Get customer habits context (if customer_id provided)
         customer_habits_context = ""
         if customer_id:
-            past_messages = await self.get_customer_past_messages(customer_id)
+            past_messages = await self.get_customer_past_messages(
+                customer_id, exclude_session_id=exclude_session_id
+            )
             customer_habits_context = build_customer_habits_context(past_messages)
 
         # Build and return system prompt

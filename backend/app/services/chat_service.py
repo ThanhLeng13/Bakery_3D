@@ -279,7 +279,10 @@ class ChatService:
         conversation = await self._get_conversation_context(session_id)
 
         # Build RAG context (with events + customer habits)
-        system_prompt = await self._rag_service.build_context(customer_id=customer_id)
+        system_prompt = await self._rag_service.build_context(
+            customer_id=customer_id,
+            exclude_session_id=session_id,
+        )
 
         # Call Groq API
         try:
@@ -362,7 +365,10 @@ class ChatService:
         conversation = await self._get_conversation_context(session_id)
 
         # Build RAG context (with events + customer habits)
-        system_prompt = await self._rag_service.build_context(customer_id=customer_id)
+        system_prompt = await self._rag_service.build_context(
+            customer_id=customer_id,
+            exclude_session_id=session_id,
+        )
 
         # Stream from Groq API
         full_response = ""
@@ -382,7 +388,11 @@ class ChatService:
             )
 
             async for chunk in stream:
-                if chunk.choices and chunk.choices[0].delta.content:
+                if (
+                    chunk.choices
+                    and chunk.choices[0].delta is not None
+                    and chunk.choices[0].delta.content
+                ):
                     text = chunk.choices[0].delta.content
                     full_response += text
                     # Yield SSE formatted chunk
