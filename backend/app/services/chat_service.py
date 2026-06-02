@@ -2,7 +2,7 @@
 
 Handles:
 - Chat session creation and management
-- Message sending with Claude API integration
+- Message sending with Groq API integration (Llama 3.3 70B)
 - SSE streaming responses
 - Conversation context management (max 20 messages)
 - Recommendation extraction and AI_Summary generation
@@ -15,14 +15,14 @@ import re
 from datetime import datetime, timezone
 from typing import Any, AsyncGenerator, List, Optional
 
-import anthropic
+from groq import Groq, APIError, APIConnectionError, RateLimitError
 
 from app.core.config import settings
 from app.services.rag_service import RAGService
 
 logger = logging.getLogger(__name__)
 
-# Fallback message when Claude API is unavailable
+# Fallback message when AI API is unavailable
 FALLBACK_ERROR_MESSAGE = (
     "Dịch vụ AI tạm thời không khả dụng. "
     "Vui lòng thử lại hoặc liên hệ cửa hàng qua số điện thoại."
@@ -61,7 +61,7 @@ class SessionLimitReachedError(ChatServiceError):
 
 
 class AIServiceUnavailableError(ChatServiceError):
-    """Claude API is unavailable."""
+    """AI API is unavailable."""
 
     def __init__(self):
         super().__init__(
@@ -77,17 +77,17 @@ class ChatService:
         """Initialize with a Supabase client instance."""
         self._supabase = supabase_client
         self._rag_service = RAGService(supabase_client)
-        self._anthropic_client: Optional[anthropic.Anthropic] = None
+        self._groq_client: Optional[Groq] = None
 
-    def _get_anthropic_client(self) -> anthropic.Anthropic:
-        """Get or create Anthropic client instance."""
-        if self._anthropic_client is None:
-            if not settings.ANTHROPIC_API_KEY:
+    def _get_groq_client(self) -> Groq:
+        """Get or create Groq client instance."""
+        if self._groq_client is None:
+            if not settings.GROQ_API_KEY:
                 raise AIServiceUnavailableError()
-            self._anthropic_client = anthropic.Anthropic(
-                api_key=settings.ANTHROPIC_API_KEY
+            self._groq_client = Groq(
+                api_key=settings.GROQ_API_KEY
             )
-        return self._anthropic_client
+        return self._groq_client
 
     async def create_session(self, customer_id: str) -> dict:
         """
@@ -264,7 +264,7 @@ class ChatService:
         Raises:
             SessionNotFoundError: If session not found
             SessionLimitReachedError: If session has reached message limit
-            AIServiceUnavailableError: If Claude API fails
+            AIServiceUnavailableError: If Groq API fails
         """
         # Verify session ownership and check limits
         session = await self.get_session(session_id, customer_id)
@@ -278,26 +278,31 @@ class ChatService:
         # Get conversation context (including the just-stored user message)
         conversation = await self._get_conversation_context(session_id)
 
-        # Build RAG context
-        system_prompt = await self._rag_service.build_context()
+        # Build RAG context (with events + customer habits)
+        system_prompt = await self._rag_service.build_context(customer_id=customer_id)
 
-        # Call Claude API
+        # Call Groq API
         try:
-            client = self._get_anthropic_client()
-            response = client.messages.create(
-                model=settings.ANTHROPIC_MODEL,
+            client = self._get_groq_client()
+
+            messages = [
+                {"role": "system", "content": system_prompt},
+                *conversation,
+            ]
+
+            response = client.chat.completions.create(
+                model=settings.GROQ_MODEL,
                 max_tokens=1024,
-                system=system_prompt,
-                messages=conversation,
+                messages=messages,
             )
 
-            assistant_content = response.content[0].text
+            assistant_content = response.choices[0].message.content
 
-        except (anthropic.APIError, anthropic.APIConnectionError, anthropic.RateLimitError) as e:
-            logger.error(f"Claude API error: {e}")
+        except (APIError, APIConnectionError, RateLimitError) as e:
+            logger.error(f"Groq API error: {e}")
             raise AIServiceUnavailableError()
         except Exception as e:
-            logger.error(f"Unexpected error calling Claude API: {e}")
+            logger.error(f"Unexpected error calling Groq API: {e}")
             raise AIServiceUnavailableError()
 
         # Store assistant message
@@ -336,7 +341,7 @@ class ChatService:
         Raises:
             SessionNotFoundError: If session not found
             SessionLimitReachedError: If session has reached message limit
-            AIServiceUnavailableError: If Claude API fails
+            AIServiceUnavailableError: If Groq API fails
         """
         # Verify session ownership and check limits
         session = await self.get_session(session_id, customer_id)
@@ -350,27 +355,35 @@ class ChatService:
         # Get conversation context
         conversation = await self._get_conversation_context(session_id)
 
-        # Build RAG context
-        system_prompt = await self._rag_service.build_context()
+        # Build RAG context (with events + customer habits)
+        system_prompt = await self._rag_service.build_context(customer_id=customer_id)
 
-        # Stream from Claude API
+        # Stream from Groq API
         full_response = ""
         try:
-            client = self._get_anthropic_client()
+            client = self._get_groq_client()
 
-            with client.messages.stream(
-                model=settings.ANTHROPIC_MODEL,
+            messages = [
+                {"role": "system", "content": system_prompt},
+                *conversation,
+            ]
+
+            stream = client.chat.completions.create(
+                model=settings.GROQ_MODEL,
                 max_tokens=1024,
-                system=system_prompt,
-                messages=conversation,
-            ) as stream:
-                for text in stream.text_stream:
+                messages=messages,
+                stream=True,
+            )
+
+            for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    text = chunk.choices[0].delta.content
                     full_response += text
                     # Yield SSE formatted chunk
                     yield f"data: {json.dumps({'type': 'content', 'text': text}, ensure_ascii=False)}\n\n"
 
-        except (anthropic.APIError, anthropic.APIConnectionError, anthropic.RateLimitError) as e:
-            logger.error(f"Claude API streaming error: {e}")
+        except (APIError, APIConnectionError, RateLimitError) as e:
+            logger.error(f"Groq API streaming error: {e}")
             error_data = json.dumps(
                 {"type": "error", "message": FALLBACK_ERROR_MESSAGE},
                 ensure_ascii=False,
@@ -442,39 +455,31 @@ def extract_recommendations(content: str) -> Optional[List[dict]]:
         except (json.JSONDecodeError, ValueError, TypeError):
             pass
 
-    # Try to extract from numbered list format:
-    # 1. Product Name - 200,000 VND - Reasoning
-    # or: - Product Name, giá 200.000đ, lý do
+    # Try to extract from numbered list format
     lines = content.split("\n")
     for line in lines:
         line = line.strip()
         if not line:
             continue
 
-        # Pattern: numbered or bulleted item with price
         price_pattern = r'(\d[\d.,]*)\s*(?:VND|đ|vnđ|dong)'
         price_match = re.search(price_pattern, line, re.IGNORECASE)
 
         if price_match:
-            # Extract price
             price_str = price_match.group(1).replace(".", "").replace(",", "")
             try:
                 price = int(price_str)
             except ValueError:
                 continue
 
-            # Extract product name (text before price)
             name_part = line[:price_match.start()].strip()
-            # Remove leading bullets/numbers
             name_part = re.sub(r'^[\d]+[.)]\s*', '', name_part)
             name_part = re.sub(r'^[-*•]\s*', '', name_part)
-            # Remove trailing separators
             name_part = name_part.rstrip(" -–:,")
 
             if not name_part:
                 continue
 
-            # Extract reasoning (text after price)
             reasoning_part = line[price_match.end():].strip()
             reasoning_part = reasoning_part.lstrip(" -–:,")
 
@@ -487,7 +492,6 @@ def extract_recommendations(content: str) -> Optional[List[dict]]:
                 "reasoning": reasoning_part,
             })
 
-    # Return only if we have 2-5 recommendations
     if 2 <= len(recommendations) <= 5:
         return recommendations
 
@@ -507,17 +511,14 @@ def extract_ai_summary(content: str) -> Optional[dict]:
     Returns:
         AI_Summary dict or None if not found/incomplete
     """
-    # Look for JSON code block
     json_block_pattern = r'```(?:json)?\s*(\{[\s\S]*?\})\s*```'
     matches = re.findall(json_block_pattern, content)
 
     for match in matches:
         try:
             parsed = json.loads(match)
-            # Check for required AI_Summary fields
             required_fields = ["size", "flavor", "decorations", "pickup_date", "total_price"]
             if all(field in parsed for field in required_fields):
-                # Validate all fields are non-empty
                 if all(parsed.get(field) not in (None, "", 0) for field in required_fields):
                     return {
                         "size": str(parsed["size"]),
@@ -529,7 +530,6 @@ def extract_ai_summary(content: str) -> Optional[dict]:
         except (json.JSONDecodeError, ValueError, TypeError):
             continue
 
-    # Try to find inline JSON (not in code block)
     inline_pattern = r'\{[^{}]*"size"[^{}]*"flavor"[^{}]*"total_price"[^{}]*\}'
     inline_match = re.search(inline_pattern, content)
     if inline_match:
