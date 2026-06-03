@@ -47,7 +47,7 @@ const GREETING_MESSAGE_CONTENT = {
   id: "greeting",
   role: "assistant" as const,
   content:
-    "Xin chào! Em là Bơ Nơ AI — trợ lý tư vấn bánh kem của tiệm La Douceur 🎂 Anh/chị cần tư vấn bánh cho dịp gì ạ? (sinh nhật, đám cưới, kỷ niệm...)",
+    "Xin chào! Em là Bơ Nơ AI — trợ lý tư vấn bánh kem của Bơ Nơ Bakery 🎂 Anh/chị cần tư vấn bánh cho dịp gì ạ? (sinh nhật, đám cưới, kỷ niệm...)",
 };
 
 /** Returns a fresh greeting message with the current timestamp. */

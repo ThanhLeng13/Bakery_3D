@@ -5,7 +5,7 @@ import Header from "@/components/Header";
 export const metadata: Metadata = {
   title: "Trang chủ",
   description:
-    "La Douceur – Thiết kế bánh kem theo ý muốn với công cụ trực quan 3D và AI tư vấn thông minh bằng tiếng Việt tại TP.HCM.",
+    "Bơ Nơ Bakery – Thiết kế bánh kem theo ý muốn với công cụ trực quan 3D và AI tư vấn thông minh bằng tiếng Việt tại TP.HCM.",
 };
 
 export default function Home() {
@@ -26,7 +26,7 @@ export default function Home() {
           Tiệm Bánh Kem
         </h1>
         <p className="font-heading text-xl sm:text-2xl md:text-3xl text-pink-pastel mb-4 sm:mb-6 animate-fade-in animate-delay-100">
-          La Douceur
+          Bơ Nơ Bakery
         </p>
         <p className="text-base sm:text-lg md:text-xl text-mocha/70 font-body max-w-2xl mx-auto mb-8 sm:mb-10 animate-fade-in animate-delay-200">
           Thiết kế bánh kem theo ý muốn với công cụ trực quan và AI tư vấn thông minh.
@@ -57,7 +57,7 @@ export default function Home() {
           id="features-heading"
           className="font-heading text-2xl sm:text-3xl text-mocha font-bold text-center mb-8 sm:mb-12"
         >
-          Tại sao chọn La Douceur?
+          Tại sao chọn Bơ Nơ Bakery?
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 sm:gap-8">
           {/* Feature 1 */}
@@ -119,7 +119,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="bg-mocha text-white/80 py-6 sm:py-8">
         <div className="max-w-7xl mx-auto px-4 text-center font-body text-xs sm:text-sm">
-          <p className="mb-1 sm:mb-2">🎂 La Douceur — Tiệm Bánh Kem Thủ Công</p>
+          <p className="mb-1 sm:mb-2">🎂 Bơ Nơ Bakery — Tiệm Bánh Kem Thủ Công</p>
           <p className="text-white/50">TP. Đà Nẵng | ☎ 0901 234 567</p>
         </div>
       </footer>

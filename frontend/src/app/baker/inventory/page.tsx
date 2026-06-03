@@ -5,7 +5,7 @@
  * Bếp quản lý lô bánh ngọt: xem, thêm, ẩn/hiện lô hàng theo chi nhánh.
  */
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -97,6 +97,10 @@ function InventoryContent() {
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 
+  // Bàn phím điều hướng suggestions
+  const [highlightIndex, setHighlightIndex] = useState<number>(-1);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
   // Load branches
   useEffect(() => {
     apiClient
@@ -109,17 +113,14 @@ function InventoryContent() {
       .catch(() => {/* silently ignore, branches are optional */});
   }, []);
 
-  // Load sweet products
+  // Load sweet products — không tự chọn sản phẩm đầu tiên
   useEffect(() => {
     apiClient
       .get<{ products: Product[] }>("/api/v1/products?category=b%C3%A1nh+ng%E1%BB%8Dt&page_size=100")
       .then((res) => {
         const sweets = (res.products || []).filter((p) => p.product_type === "sweet");
         setSweetProducts(sweets);
-        if (sweets.length > 0) {
-          setSelectedProductId(sweets[0].id);
-          setSearchQuery(sweets[0].name);
-        }
+        // Không tự điền sản phẩm đầu — để user tự tìm
       })
       .catch(() => setError("Không thể tải danh sách sản phẩm."));
   }, []);
@@ -128,14 +129,14 @@ function InventoryContent() {
     if (!selectedProductId) return;
     setLoading(true);
     setError(null);
-    let url = `/api/v1/baker/batches?product_id=${selectedProductId}`;
-    if (selectedBranchId !== "all") url += `&branch_id=${selectedBranchId}`;
+    // Luôn fetch TẤT CẢ lô để summary cards luôn đúng
+    const allUrl = `/api/v1/baker/batches?product_id=${selectedProductId}`;
     apiClient
-      .get<{ batches: Batch[] }>(url)
+      .get<{ batches: Batch[] }>(allUrl)
       .then((res) => setBatches(res.batches || []))
       .catch(() => setError("Không thể tải lô hàng."))
       .finally(() => setLoading(false));
-  }, [selectedProductId, selectedBranchId]);
+  }, [selectedProductId]);
 
   useEffect(() => {
     loadBatches();
@@ -181,11 +182,18 @@ function InventoryContent() {
   }
 
   const selectedProduct = sweetProducts.find((p) => p.id === selectedProductId);
-  const totalAvailable = batches
+
+  // filteredBatches: lọc client-side theo chi nhánh đang chọn
+  const filteredBatches = selectedBranchId === "all"
+    ? batches
+    : batches.filter((b) => b.branch_id === selectedBranchId);
+
+  // totalAvailable: tính từ filteredBatches để badge sản phẩm phản ánh đúng filter
+  const totalAvailable = filteredBatches
     .filter((b) => b.is_active && !b.is_expired)
     .reduce((sum, b) => sum + b.quantity_available, 0);
 
-  // Summary by branch
+  // Summary by branch: dùng batches (luôn chứa toàn bộ lô) để card luôn đúng
   const branchSummary = branches.map((branch, i) => {
     const branchBatches = batches.filter((b) => b.branch_id === branch.id && b.is_active && !b.is_expired);
     const total = branchBatches.reduce((sum, b) => sum + b.quantity_available, 0);
@@ -194,9 +202,8 @@ function InventoryContent() {
   });
 
   return (
-    <ProtectedRoute allowedRoles={["baker", "admin"]}>
-      <main className="min-h-screen bg-cream">
-        <div className="max-w-5xl mx-auto px-4 py-8">
+    <main className="min-h-screen bg-cream">
+      <div className="max-w-5xl mx-auto px-4 py-8">
 
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
@@ -238,10 +245,65 @@ function InventoryContent() {
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
+                    setHighlightIndex(-1);
                     setShowSuggestions(true);
                   }}
-                  onFocus={() => setShowSuggestions(true)}
+                  onFocus={() => {
+                    setShowSuggestions(true);
+                    setHighlightIndex(-1);
+                  }}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  onKeyDown={(e) => {
+                    if (!showSuggestions) return;
+                    const filtered = sweetProducts.filter((p) =>
+                      p.name.toLowerCase().includes(searchQuery.toLowerCase())
+                    );
+                    if (filtered.length === 0) return;
+
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      const next = Math.min(highlightIndex + 1, filtered.length - 1);
+                      setHighlightIndex(next);
+                      // Scroll item vào view
+                      const el = suggestionsRef.current?.children[next] as HTMLElement;
+                      el?.scrollIntoView({ block: "nearest" });
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      // Cho phép giảm về -1; clamp tại -1 để không xuống -2, -3...
+                      const prev = Math.max(-1, highlightIndex - 1);
+                      setHighlightIndex(prev);
+                      if (prev >= 0) {
+                        const el = suggestionsRef.current?.children[prev] as HTMLElement;
+                        el?.scrollIntoView({ block: "nearest" });
+                      }
+                    } else if (e.key === "Enter") {
+                      // Chỉ chọn khi đang highlight một item cụ thể
+                      if (highlightIndex >= 0) {
+                        const chosen = filtered[highlightIndex];
+                        if (chosen) {
+                          e.preventDefault();
+                          setSelectedProductId(chosen.id);
+                          setSearchQuery(chosen.name);
+                          setShowSuggestions(false);
+                          setHighlightIndex(-1);
+                        }
+                      }
+                    } else if (e.key === "Tab") {
+                      // Tab chọn item highlight (không preventDefault — focus vẫn chuyển tiếp)
+                      if (highlightIndex >= 0) {
+                        const chosen = filtered[highlightIndex];
+                        if (chosen) {
+                          setSelectedProductId(chosen.id);
+                          setSearchQuery(chosen.name);
+                          setShowSuggestions(false);
+                          setHighlightIndex(-1);
+                        }
+                      }
+                    } else if (e.key === "Escape") {
+                      setShowSuggestions(false);
+                      setHighlightIndex(-1);
+                    }
+                  }}
                   placeholder="Tìm tên bánh..."
                   className="w-full border border-mocha/20 rounded-xl pl-9 pr-10 py-2.5 text-mocha focus:outline-none focus:ring-2 focus:ring-pink-pastel/40 focus:border-pink-pastel/40 transition-all"
                 />
@@ -249,7 +311,12 @@ function InventoryContent() {
                 {searchQuery && (
                   <button
                     type="button"
-                    onClick={() => { setSearchQuery(""); setShowSuggestions(true); }}
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSelectedProductId("");
+                      setShowSuggestions(true);
+                      setHighlightIndex(-1);
+                    }}
                     className="absolute right-3 text-mocha/30 hover:text-mocha/60 transition-colors"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -265,26 +332,37 @@ function InventoryContent() {
                   p.name.toLowerCase().includes(searchQuery.toLowerCase())
                 );
                 return filtered.length > 0 ? (
-                  <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-white rounded-2xl border border-mocha/10 shadow-lg overflow-hidden max-h-60 overflow-y-auto">
-                    {filtered.map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onMouseDown={() => {
-                          setSelectedProductId(p.id);
-                          setSearchQuery(p.name);
-                          setShowSuggestions(false);
-                        }}
-                        className={`w-full text-left px-4 py-3 text-sm transition-colors flex items-center justify-between gap-2 ${
-                          selectedProductId === p.id
-                            ? "bg-pink-pastel/10 text-pink-pastel font-medium"
-                            : "text-mocha hover:bg-cream"
-                        }`}
-                      >
-                        <span>{p.name}</span>
-                        <span className="text-xs text-mocha/40 flex-shrink-0">{formatPrice(p.base_price)}</span>
-                      </button>
-                    ))}
+                  <div
+                    ref={suggestionsRef}
+                    className="absolute z-30 top-full left-0 right-0 mt-1 bg-white rounded-2xl border border-mocha/10 shadow-lg overflow-hidden max-h-60 overflow-y-auto"
+                  >
+                    {filtered.map((p, idx) => {
+                      const isKeyboardHighlighted = idx === highlightIndex;
+                      const isSelected = selectedProductId === p.id;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onMouseEnter={() => setHighlightIndex(idx)}
+                          onMouseDown={() => {
+                            setSelectedProductId(p.id);
+                            setSearchQuery(p.name);
+                            setShowSuggestions(false);
+                            setHighlightIndex(-1);
+                          }}
+                          className={`w-full text-left px-4 py-3 text-sm transition-colors flex items-center justify-between gap-2 ${
+                            isKeyboardHighlighted
+                              ? "bg-pink-pastel/20 text-pink-pastel font-medium"
+                              : isSelected
+                                ? "bg-pink-pastel/10 text-pink-pastel font-medium"
+                                : "text-mocha hover:bg-cream"
+                          }`}
+                        >
+                          <span>{p.name}</span>
+                          <span className="text-xs text-mocha/40 flex-shrink-0">{formatPrice(p.base_price)}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 ) : searchQuery ? (
                   <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-white rounded-2xl border border-mocha/10 shadow-lg px-4 py-3 text-sm text-mocha/50">
@@ -304,13 +382,37 @@ function InventoryContent() {
             )}
           </div>
 
-          {/* Branch summary cards */}
+          {/* Branch summary cards — bao gồm card "Tất cả" */}
           {branches.length > 0 && selectedProduct && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              {/* Card Tất cả chi nhánh */}
+              <button
+                onClick={() => setSelectedBranchId("all")}
+                className={`rounded-2xl p-4 border-2 text-left transition-all ${
+                  selectedBranchId === "all"
+                    ? "border-pink-pastel bg-pink-pastel/5"
+                    : "border-mocha/10 bg-white hover:border-mocha/20"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-semibold text-mocha/60">🏬 Tất cả</span>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                    selectedBranchId === "all"
+                      ? "bg-pink-pastel/20 text-pink-pastel"
+                      : "bg-mocha/10 text-mocha/60"
+                  }`}>
+                    {/* Tính từ batches (luôn chứa toàn bộ lô, kể cả Kho chung branch_id=null) */}
+                    {batches.filter(b => b.is_active && !b.is_expired).reduce((s, b) => s + b.quantity_available, 0)} cái
+                  </span>
+                </div>
+                <p className="text-xs text-mocha/40 truncate">Tất cả chi nhánh</p>
+              </button>
+
+              {/* Card từng chi nhánh */}
               {branchSummary.map((b) => (
                 <button
                   key={b.id}
-                  onClick={() => setSelectedBranchId(selectedBranchId === b.id ? "all" : b.id)}
+                  onClick={() => setSelectedBranchId(b.id)}
                   className={`rounded-2xl p-4 border-2 text-left transition-all ${
                     selectedBranchId === b.id
                       ? `border-pink-pastel ${b.color.bg}`
@@ -329,7 +431,7 @@ function InventoryContent() {
             </div>
           )}
 
-          {/* Branch filter + Add batch */}
+          {/* Add batch button */}
           <div className="flex justify-between items-center mb-3 gap-3 flex-wrap">
             <div className="flex items-center gap-2">
               <h2 className="font-semibold text-mocha">Các lô hàng hiện có</h2>
@@ -342,21 +444,21 @@ function InventoryContent() {
             </div>
 
             <div className="flex items-center gap-2">
-              {branches.length > 0 && (
-                <select
-                  value={selectedBranchId}
-                  onChange={(e) => setSelectedBranchId(e.target.value)}
-                  className="border border-mocha/20 rounded-xl px-3 py-2 text-sm text-mocha focus:outline-none focus:ring-2 focus:ring-pink-pastel/30"
-                >
-                  <option value="all">Tất cả chi nhánh</option>
-                  {branches.map((b) => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
-              )}
               <button
-                onClick={() => setShowAddForm(!showAddForm)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-pink-pastel text-white rounded-full text-sm font-medium hover:bg-pink-pastel/90 transition-colors"
+                onClick={() => {
+                  if (!showAddForm) {
+                    // Đồng bộ chi nhánh form với chi nhánh đang được lọc
+                    if (selectedBranchId !== "all") {
+                      setAddBranchId(selectedBranchId);
+                    } else {
+                      setAddBranchId(""); // "" = kho chung / chưa gắn chi nhánh
+                    }
+                  }
+                  setShowAddForm(!showAddForm);
+                }}
+                disabled={!selectedProductId}
+                title={!selectedProductId ? "Hãy chọn sản phẩm trước" : undefined}
+                className="flex items-center gap-1.5 px-4 py-2 bg-pink-pastel text-white rounded-full text-sm font-medium hover:bg-pink-pastel/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -381,14 +483,36 @@ function InventoryContent() {
               {branches.length > 0 && (
                 <div>
                   <label className="block text-xs font-medium text-mocha/70 mb-2">Chọn chi nhánh</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+
+                    {/* Card Tất cả / Kho chung */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddBranchId("");
+                        setSelectedBranchId("all");
+                      }}
+                      className={`rounded-xl px-3 py-2.5 text-sm font-medium border-2 transition-all text-left ${
+                        addBranchId === ""
+                          ? "border-pink-pastel bg-pink-pastel/5 text-pink-pastel"
+                          : "border-mocha/15 text-mocha/70 hover:border-mocha/30"
+                      }`}
+                    >
+                      🏬 Tất cả
+                      <p className="text-xs font-normal text-mocha/40 mt-0.5 truncate">Kho chung</p>
+                    </button>
+
+                    {/* Card từng chi nhánh */}
                     {branches.map((branch, i) => {
                       const color = BRANCH_COLORS[i % 3];
                       return (
                         <button
                           key={branch.id}
                           type="button"
-                          onClick={() => setAddBranchId(branch.id)}
+                          onClick={() => {
+                            setAddBranchId(branch.id);
+                            setSelectedBranchId(branch.id); // đồng bộ filter bên trên
+                          }}
                           className={`rounded-xl px-3 py-2.5 text-sm font-medium border-2 transition-all text-left ${
                             addBranchId === branch.id
                               ? `border-pink-pastel ${color.bg} ${color.text}`
@@ -478,15 +602,24 @@ function InventoryContent() {
           )}
 
           {/* Batches list */}
-          {loading ? (
+          {!selectedProductId ? (
+            <div className="bg-white rounded-2xl p-10 text-center border border-mocha/5 shadow-sm">
+              <p className="text-3xl mb-3">🔍</p>
+              <p className="text-mocha/60 font-medium">Hãy tìm và chọn một sản phẩm ở ô phía trên để xem các lô hàng.</p>
+            </div>
+          ) : loading ? (
             <div className="text-center py-12 text-mocha/40">Đang tải...</div>
-          ) : batches.length === 0 ? (
+          ) : filteredBatches.length === 0 ? (
             <div className="bg-white rounded-2xl p-8 text-center border border-mocha/5 shadow-sm">
-              <p className="text-mocha/50">Chưa có lô hàng nào. Hãy thêm lô đầu tiên!</p>
+              <p className="text-mocha/50">
+                {selectedBranchId === "all"
+                  ? "Chưa có lô hàng nào. Hãy thêm lô đầu tiên!"
+                  : `Không có lô nào tại ${branches.find(b => b.id === selectedBranchId)?.name || "chi nhánh này"}.`}
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
-              {batches.map((batch) => {
+              {filteredBatches.map((batch) => {
                 const isExpired = batch.is_expired;
                 const isEmpty = batch.quantity_available <= 0;
                 const statusColor = !batch.is_active
@@ -562,8 +695,8 @@ function InventoryContent() {
               })}
             </div>
           )}
-        </div>
-      </main>
+      </div>
+    </main>
   );
 }
 

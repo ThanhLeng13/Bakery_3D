@@ -34,7 +34,7 @@ VIETNAMESE_EVENTS = [
     (12, 31, "Giao thừa", "bánh kem đón năm mới, bánh countdown"),
 ]
 
-SYSTEM_PROMPT_TEMPLATE = """Bạn là "Bơ Nơ AI" — trợ lý tư vấn bánh kem thân thiện và chuyên nghiệp của tiệm bánh Bơ Nơ (La Douceur), TP. Đà Nẵng.
+SYSTEM_PROMPT_TEMPLATE = """Bạn là "Bơ Nơ AI" — trợ lý tư vấn bánh kem thân thiện và chuyên nghiệp của Bơ Nơ Bakery, TP. Đà Nẵng.
 
 ## Tính cách & phong cách:
 - Thân thiện, nhiệt tình, dùng emoji phù hợp (🎂🍰🎉) nhưng không quá nhiều
@@ -56,7 +56,7 @@ SYSTEM_PROMPT_TEMPLATE = """Bạn là "Bơ Nơ AI" — trợ lý tư vấn bánh
 {events_context}
 
 ## Thông tin cửa hàng:
-- Tên: Tiệm bánh Bơ Nơ (La Douceur)
+- Tên: Bơ Nơ Bakery
 - Địa chỉ: TP. Đà Nẵng
 - Hotline: 0901 234 567
 - Giờ mở cửa: 8:00 - 21:00 hàng ngày

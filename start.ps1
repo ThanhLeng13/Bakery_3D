@@ -43,7 +43,20 @@ if (-not (Test-Path $frontendEnv)) {
 }
 
 # ---- FRONTEND PORT RESOLUTION ----
+$lastPortFile = Join-Path $rootDir ".last_port"
 $frontendPort = 3000
+
+# Thu dung lai port lan truoc neu con trong
+if (Test-Path $lastPortFile) {
+    $savedPort = Get-Content $lastPortFile -Raw
+    $savedPortInt = $null
+    # Guard: $savedPort co the la $null neu file trong (tranh loi .Trim() tren null)
+    if ($savedPort -and [int]::TryParse($savedPort.Trim(), [ref]$savedPortInt)) {
+        $frontendPort = $savedPortInt
+        Write-Host "[*] Su dung lai cong da luu: $frontendPort" -ForegroundColor Cyan
+    }
+}
+
 $portFound = $false
 while (-not $portFound) {
     $portInUse = netstat -ano | findstr ":$frontendPort " | Select-String "LISTENING"
@@ -57,20 +70,20 @@ while (-not $portFound) {
                 $procObj = Get-CimInstance Win32_Process -Filter "ProcessId = $listenerPidInt" -ErrorAction SilentlyContinue
                 $cmdLine = if ($procObj) { $procObj.CommandLine } else { "" }
                 $execPath = if ($procObj) { $procObj.ExecutablePath } else { "" }
-                
+
                 $isOurProcess = $false
-                if (($cmdLine -and ($cmdLine -like "*Bakery_3D*frontend*" -or $cmdLine -like "*Bakery_3D/frontend*")) -or 
+                if (($cmdLine -and ($cmdLine -like "*Bakery_3D*frontend*" -or $cmdLine -like "*Bakery_3D/frontend*")) -or
                     ($execPath -and ($execPath -like "*Bakery_3D*frontend*" -or $execPath -like "*Bakery_3D/frontend*"))) {
                     $isOurProcess = $true
                 }
-                
+
                 if ($isOurProcess) {
                     Write-Host "[*] Phat hien frontend dang chay o cong $frontendPort. Dang dung tien trinh cu (PID $listenerPidInt)..." -ForegroundColor Yellow
                     Stop-Process -Id $listenerPidInt -Force -ErrorAction SilentlyContinue
                     Start-Sleep -Seconds 1
                     $portFound = $true
                 } else {
-                    Write-Host "[!] Cong $frontendPort dang duoc dung boi tien trinh Node/Next khac khong thuoc du an nay (PID: $listenerPidInt, Command: $cmdLine)." -ForegroundColor Yellow
+                    Write-Host "[!] Cong $frontendPort dang duoc dung boi tien trinh Node/Next khac (PID: $listenerPidInt)." -ForegroundColor Yellow
                     Write-Host "    Chuyen sang cong tiep theo..." -ForegroundColor Yellow
                     $frontendPort++
                 }
@@ -85,6 +98,9 @@ while (-not $portFound) {
         $portFound = $true
     }
 }
+
+# Luu port vua chon de lan sau su dung lai
+Set-Content -Path $lastPortFile -Value "$frontendPort" -Encoding UTF8
 
 # ---- BACKEND ----
 Write-Host "[1/2] Khoi dong BACKEND (FastAPI - cong 8000)..." -ForegroundColor Yellow
@@ -126,4 +142,3 @@ Start-Sleep -Seconds 12
 Start-Process "http://localhost:$frontendPort"
 
 Read-Host "Nhan Enter de dong cua so nay (cac server van chay)"
-

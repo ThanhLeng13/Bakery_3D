@@ -71,3 +71,6 @@ HUONG_DAN_CHAY_CODE.txt
 # ---- Local Images / Assets ----
 image/
 
+# ---- Start script - local state ----
+.browser_profile/
+.last_port

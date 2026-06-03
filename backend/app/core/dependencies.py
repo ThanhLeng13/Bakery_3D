@@ -9,6 +9,7 @@ Provides:
 """
 
 import logging
+from threading import Lock
 
 from typing import Callable
 
@@ -21,22 +22,42 @@ from app.core.config import settings
 # auto_error=False so we can return a custom 401 message
 security_scheme = HTTPBearer(auto_error=False)
 
+# ── Supabase Singleton ──────────────────────────────────────────────────────
+# Service-role client không thay đổi giữa các request → dùng Singleton
+# để tránh tạo connection pool mới (TCP/SSL handshake) cho mỗi request.
+_supabase_admin_client = None
+_supabase_admin_lock = Lock()
+
+
+def _get_admin_singleton():
+    """Trả về Singleton Supabase admin client (service_role). Thread-safe."""
+    global _supabase_admin_client
+    if _supabase_admin_client is None:
+        with _supabase_admin_lock:
+            if _supabase_admin_client is None:  # double-checked locking
+                from supabase import create_client
+                if not getattr(settings, "SUPABASE_SERVICE_ROLE_KEY", None):
+                    raise RuntimeError(
+                        "SUPABASE_SERVICE_ROLE_KEY is not configured."
+                    )
+                _supabase_admin_client = create_client(
+                    settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY
+                )
+    return _supabase_admin_client
+
 
 def get_supabase_client(token: str | None = None, use_service_role: bool = False):
-    """Centralized Supabase client factory."""
-    from supabase import create_client
+    """Centralized Supabase client factory.
 
+    - use_service_role=True  → trả về Singleton admin client (không tạo mới)
+    - use_service_role=False → tạo client mới với anon key + gắn user token
+    """
     if use_service_role:
-        if not getattr(settings, "SUPABASE_SERVICE_ROLE_KEY", None):
-            raise RuntimeError(
-                "SUPABASE_SERVICE_ROLE_KEY is not configured in settings.SUPABASE_SERVICE_ROLE_KEY. "
-                "This will cause create_client to fail when creating a service role client."
-            )
-        client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
-    else:
-        client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+        return _get_admin_singleton()
 
-    if token and not use_service_role:
+    from supabase import create_client
+    client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+    if token:
         client.postgrest.auth(token)
     return client
 
