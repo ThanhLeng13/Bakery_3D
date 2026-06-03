@@ -10,7 +10,7 @@ Endpoints:
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import HTTPAuthorizationCredentials
 
-from app.core.dependencies import get_current_user, require_customer, security_scheme, get_supabase_client
+from app.core.dependencies import get_current_user, security_scheme, get_supabase_client
 from app.schemas.orders import (
     CreateOrderRequest,
     OrderDetailResponse,
@@ -38,13 +38,14 @@ def _get_order_service(token: str | None = None) -> OrderService:
 @router.post("", status_code=201)
 async def create_order(
     body: CreateOrderRequest,
-    customer: dict = Depends(require_customer),
+    user: dict = Depends(get_current_user),
     credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ):
     """
     Create a new order with status 'pending'.
 
-    Requires authenticated customer. Validates pickup date constraints:
+    Requires authentication. Works for all roles.
+    Validates pickup date constraints:
     - Standard cakes: at least 24h advance
     - 2-tier cakes: at least 48h advance
     - Maximum 30 days in advance
@@ -75,7 +76,7 @@ async def create_order(
     }
 
     try:
-        result = await order_service.create_order(order_data, customer)
+        result = await order_service.create_order(order_data, user)
         return result
     except PickupDateValidationError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
@@ -89,20 +90,21 @@ async def list_orders(
     page_size: int = Query(
         default=10, ge=1, le=50, description="Items per page (default 10)"
     ),
-    customer: dict = Depends(require_customer),
+    user: dict = Depends(get_current_user),
     credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ):
     """
-    List customer's own orders, paginated (10/page default), sorted by date desc.
+    List the current user's own orders, paginated (10/page default), sorted by date desc.
 
-    Requires authenticated customer.
+    Requires authentication. Works for all roles (customer, baker, admin).
+    Each user only sees their own orders filtered by their user ID.
     """
     token = credentials.credentials if credentials else None
     order_service = _get_order_service(token)
 
     try:
         result = await order_service.list_customer_orders(
-            customer_id=customer["id"],
+            customer_id=user["id"],
             page=page,
             page_size=page_size,
         )

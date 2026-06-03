@@ -1,7 +1,10 @@
 """FastAPI application entry point for Cake Shop AI API."""
 
+import traceback
+
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.core.logging import (
@@ -27,14 +30,29 @@ def create_app() -> FastAPI:
         redoc_url="/redoc" if settings.DEBUG else None,
     )
 
-    # CORS middleware
+    # CORS middleware — phai add truoc cac middleware khac de bao phu ca 500 errors
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["*"],
     )
+
+    # Global exception handler — dam bao 500 luon tra CORS header
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+        logger.error(
+            "unhandled_exception",
+            path=str(request.url.path),
+            error=str(exc),
+            traceback=traceback.format_exc(),
+        )
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error"},
+        )
 
     # Request ID middleware
     @app.middleware("http")
@@ -60,6 +78,16 @@ def create_app() -> FastAPI:
                 status_code=response.status_code,
             )
             return response
+        except Exception as exc:
+            logger.error(
+                "middleware_exception",
+                path=str(request.url.path),
+                error=str(exc),
+            )
+            return JSONResponse(
+                status_code=500,
+                content={"detail": "Internal server error"},
+            )
         finally:
             request_id_ctx.reset(token)
 

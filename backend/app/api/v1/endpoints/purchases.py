@@ -24,15 +24,10 @@ router = APIRouter()
 
 # ─── Dependency ────────────────────────────────────────────────────────────────
 
-# Singleton client — created once at import time to avoid repeated construction
-_supabase_client = None
-
 def _get_db():
-    global _supabase_client
-    if _supabase_client is None:
-        from supabase import create_client
-        _supabase_client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
-    return _supabase_client
+    """Tao Supabase client voi service role key moi request."""
+    from supabase import create_client
+    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
 
 # ─── Schemas ───────────────────────────────────────────────────────────────────
