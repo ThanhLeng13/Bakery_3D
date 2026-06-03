@@ -269,8 +269,8 @@ function InventoryContent() {
                       el?.scrollIntoView({ block: "nearest" });
                     } else if (e.key === "ArrowUp") {
                       e.preventDefault();
-                      // Cho phép giảm về -1 (để user bỏ chọn và tiếp tục gõ tìm kiếm)
-                      const prev = highlightIndex - 1; // có thể xuống -1
+                      // Cho phép giảm về -1; clamp tại -1 để không xuống -2, -3...
+                      const prev = Math.max(-1, highlightIndex - 1);
                       setHighlightIndex(prev);
                       if (prev >= 0) {
                         const el = suggestionsRef.current?.children[prev] as HTMLElement;
@@ -282,6 +282,17 @@ function InventoryContent() {
                         const chosen = filtered[highlightIndex];
                         if (chosen) {
                           e.preventDefault();
+                          setSelectedProductId(chosen.id);
+                          setSearchQuery(chosen.name);
+                          setShowSuggestions(false);
+                          setHighlightIndex(-1);
+                        }
+                      }
+                    } else if (e.key === "Tab") {
+                      // Tab chọn item highlight (không preventDefault — focus vẫn chuyển tiếp)
+                      if (highlightIndex >= 0) {
+                        const chosen = filtered[highlightIndex];
+                        if (chosen) {
                           setSelectedProductId(chosen.id);
                           setSearchQuery(chosen.name);
                           setShowSuggestions(false);
@@ -445,7 +456,9 @@ function InventoryContent() {
                   }
                   setShowAddForm(!showAddForm);
                 }}
-                className="flex items-center gap-1.5 px-4 py-2 bg-pink-pastel text-white rounded-full text-sm font-medium hover:bg-pink-pastel/90 transition-colors"
+                disabled={!selectedProductId}
+                title={!selectedProductId ? "Hãy chọn sản phẩm trước" : undefined}
+                className="flex items-center gap-1.5 px-4 py-2 bg-pink-pastel text-white rounded-full text-sm font-medium hover:bg-pink-pastel/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -589,7 +602,12 @@ function InventoryContent() {
           )}
 
           {/* Batches list */}
-          {loading ? (
+          {!selectedProductId ? (
+            <div className="bg-white rounded-2xl p-10 text-center border border-mocha/5 shadow-sm">
+              <p className="text-3xl mb-3">🔍</p>
+              <p className="text-mocha/60 font-medium">Hãy tìm và chọn một sản phẩm ở ô phía trên để xem các lô hàng.</p>
+            </div>
+          ) : loading ? (
             <div className="text-center py-12 text-mocha/40">Đang tải...</div>
           ) : filteredBatches.length === 0 ? (
             <div className="bg-white rounded-2xl p-8 text-center border border-mocha/5 shadow-sm">

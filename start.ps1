@@ -50,7 +50,8 @@ $frontendPort = 3000
 if (Test-Path $lastPortFile) {
     $savedPort = Get-Content $lastPortFile -Raw
     $savedPortInt = $null
-    if ([int]::TryParse($savedPort.Trim(), [ref]$savedPortInt)) {
+    # Guard: $savedPort co the la $null neu file trong (tranh loi .Trim() tren null)
+    if ($savedPort -and [int]::TryParse($savedPort.Trim(), [ref]$savedPortInt)) {
         $frontendPort = $savedPortInt
         Write-Host "[*] Su dung lai cong da luu: $frontendPort" -ForegroundColor Cyan
     }
