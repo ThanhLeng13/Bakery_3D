@@ -97,9 +97,6 @@ function InventoryContent() {
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 
-  // allBatches: luôn load TẤT CẢ lô (không filter branch) để tính summary đúng
-  const [allBatches, setAllBatches] = useState<Batch[]>([]);
-
   // Bàn phím điều hướng suggestions
   const [highlightIndex, setHighlightIndex] = useState<number>(-1);
   const suggestionsRef = useRef<HTMLDivElement>(null);
@@ -136,11 +133,7 @@ function InventoryContent() {
     const allUrl = `/api/v1/baker/batches?product_id=${selectedProductId}`;
     apiClient
       .get<{ batches: Batch[] }>(allUrl)
-      .then((res) => {
-        const all = res.batches || [];
-        setAllBatches(all);
-        setBatches(all);
-      })
+      .then((res) => setBatches(res.batches || []))
       .catch(() => setError("Không thể tải lô hàng."))
       .finally(() => setLoading(false));
   }, [selectedProductId]);
@@ -200,9 +193,9 @@ function InventoryContent() {
     .filter((b) => b.is_active && !b.is_expired)
     .reduce((sum, b) => sum + b.quantity_available, 0);
 
-  // Summary by branch: luôn dùng allBatches để card luôn hiện đúng dù filter nào
+  // Summary by branch: dùng batches (luôn chứa toàn bộ lô) để card luôn đúng
   const branchSummary = branches.map((branch, i) => {
-    const branchBatches = allBatches.filter((b) => b.branch_id === branch.id && b.is_active && !b.is_expired);
+    const branchBatches = batches.filter((b) => b.branch_id === branch.id && b.is_active && !b.is_expired);
     const total = branchBatches.reduce((sum, b) => sum + b.quantity_available, 0);
     const color = BRANCH_COLORS[i % 3];
     return { ...branch, total, color };
@@ -397,8 +390,8 @@ function InventoryContent() {
                       ? "bg-pink-pastel/20 text-pink-pastel"
                       : "bg-mocha/10 text-mocha/60"
                   }`}>
-                    {/* Fix: tính trực tiếp từ allBatches để bao gồm cả lô Kho chung (branch_id=null) */}
-                    {allBatches.filter(b => b.is_active && !b.is_expired).reduce((s, b) => s + b.quantity_available, 0)} cái
+                    {/* Tính từ batches (luôn chứa toàn bộ lô, kể cả Kho chung branch_id=null) */}
+                    {batches.filter(b => b.is_active && !b.is_expired).reduce((s, b) => s + b.quantity_available, 0)} cái
                   </span>
                 </div>
                 <p className="text-xs text-mocha/40 truncate">Tất cả chi nhánh</p>

@@ -12,8 +12,8 @@ router = APIRouter()
 
 
 def _get_service_client():
-    from supabase import create_client
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+    from app.core.dependencies import _get_supabase_admin_client
+    return _get_supabase_admin_client()
 
 
 @router.get("")

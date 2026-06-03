@@ -83,6 +83,7 @@ def create_app() -> FastAPI:
                 "middleware_exception",
                 path=str(request.url.path),
                 error=str(exc),
+                traceback=traceback.format_exc(),
             )
             return JSONResponse(
                 status_code=500,
