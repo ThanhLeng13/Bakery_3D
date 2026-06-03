@@ -29,8 +29,11 @@ public_router = APIRouter()
 # ─── Dependency ────────────────────────────────────────────────────────────────
 
 def _get_inventory_service() -> InventoryService:
-    from app.core.dependencies import _get_supabase_admin_client
-    return InventoryService(_get_supabase_admin_client())
+    # Tao client moi moi request: Supabase Python SDK khong thread-safe
+    # khi co nhieu concurrent requests dung chung 1 client object.
+    from supabase import create_client
+    client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+    return InventoryService(client)
 
 
 # ─── Schemas ───────────────────────────────────────────────────────────────────
