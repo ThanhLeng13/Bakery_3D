@@ -276,19 +276,24 @@ function InventoryContent() {
                       el?.scrollIntoView({ block: "nearest" });
                     } else if (e.key === "ArrowUp") {
                       e.preventDefault();
-                      const prev = Math.max(highlightIndex - 1, 0);
+                      // Cho phép giảm về -1 (để user bỏ chọn và tiếp tục gõ tìm kiếm)
+                      const prev = highlightIndex - 1; // có thể xuống -1
                       setHighlightIndex(prev);
-                      const el = suggestionsRef.current?.children[prev] as HTMLElement;
-                      el?.scrollIntoView({ block: "nearest" });
-                    } else if (e.key === "Enter" || e.key === "Tab") {
-                      const idx = highlightIndex >= 0 ? highlightIndex : 0;
-                      const chosen = filtered[idx];
-                      if (chosen) {
-                        e.preventDefault();
-                        setSelectedProductId(chosen.id);
-                        setSearchQuery(chosen.name);
-                        setShowSuggestions(false);
-                        setHighlightIndex(-1);
+                      if (prev >= 0) {
+                        const el = suggestionsRef.current?.children[prev] as HTMLElement;
+                        el?.scrollIntoView({ block: "nearest" });
+                      }
+                    } else if (e.key === "Enter") {
+                      // Chỉ chọn khi đang highlight một item cụ thể
+                      if (highlightIndex >= 0) {
+                        const chosen = filtered[highlightIndex];
+                        if (chosen) {
+                          e.preventDefault();
+                          setSelectedProductId(chosen.id);
+                          setSearchQuery(chosen.name);
+                          setShowSuggestions(false);
+                          setHighlightIndex(-1);
+                        }
                       }
                     } else if (e.key === "Escape") {
                       setShowSuggestions(false);
@@ -392,7 +397,8 @@ function InventoryContent() {
                       ? "bg-pink-pastel/20 text-pink-pastel"
                       : "bg-mocha/10 text-mocha/60"
                   }`}>
-                    {branchSummary.reduce((s, b) => s + b.total, 0)} cái
+                    {/* Fix: tính trực tiếp từ allBatches để bao gồm cả lô Kho chung (branch_id=null) */}
+                    {allBatches.filter(b => b.is_active && !b.is_expired).reduce((s, b) => s + b.quantity_available, 0)} cái
                   </span>
                 </div>
                 <p className="text-xs text-mocha/40 truncate">Tất cả chi nhánh</p>
