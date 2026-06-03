@@ -148,15 +148,38 @@ function InventoryContent() {
 
     setAddLoading(true);
     setAddError(null);
+
+    const payload = {
+      product_id: selectedProductId,
+      quantity: parseInt(addQty, 10),
+      produced_at: addProduced,
+      expires_at: addExpires,
+      notes: addNotes.trim() || null,
+    };
+
     try {
-      await apiClient.post("/api/v1/baker/batches", {
-        product_id: selectedProductId,
-        quantity: parseInt(addQty, 10),
-        produced_at: addProduced,
-        expires_at: addExpires,
-        notes: addNotes.trim() || null,
-        branch_id: addBranchId || null,
-      });
+      if (addBranchId === "" && branches.length > 0) {
+        // Tất cả chi nhánh: tạo song song 1 lô cho mỗi chi nhánh
+        const results = await Promise.allSettled(
+          branches.map((b) =>
+            apiClient.post("/api/v1/baker/batches", { ...payload, branch_id: b.id })
+          )
+        );
+        const failed = results
+          .map((r, i) => (r.status === "rejected" ? branches[i].name : null))
+          .filter(Boolean);
+        if (failed.length > 0) {
+          setAddError(`Không thể tạo lô cho: ${failed.join(", ")}`);
+          return; // giữ form mở để user thử lại
+        }
+      } else {
+        // Một chi nhánh cụ thể (hoặc null)
+        await apiClient.post("/api/v1/baker/batches", {
+          ...payload,
+          branch_id: addBranchId || null,
+        });
+      }
+
       setShowAddForm(false);
       setAddQty("10");
       setAddNotes("");
@@ -498,8 +521,8 @@ function InventoryContent() {
                           : "border-mocha/15 text-mocha/70 hover:border-mocha/30"
                       }`}
                     >
-                      🏬 Tất cả
-                      <p className="text-xs font-normal text-mocha/40 mt-0.5 truncate">Kho chung</p>
+                      🏬 Tất cả chi nhánh
+                      <p className="text-xs font-normal text-mocha/40 mt-0.5 truncate">Mỗi CN nhận {addQty || "0"} cái</p>
                     </button>
 
                     {/* Card từng chi nhánh */}
