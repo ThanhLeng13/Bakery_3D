@@ -127,13 +127,13 @@ function Flower({ p }: { p: [number, number, number] }) {
   // Đáy của nhụy hoa (bán kính 0.08) nằm khớp trên mặt bánh tại y = surfaceY
   return (
     <group position={p}>
-      <mesh position={[0, 0.08, 0]} geometry={SHARED_GEO.flowerCenter}>
+      <mesh position={[0, 0.08, 0]} geometry={SHARED_GEO.flowerCenter} dispose={null}>
         <meshStandardMaterial color="#FFD700" emissive="#FFB800" emissiveIntensity={0.5} roughness={0.2} />
       </mesh>
       {[0,1,2,3,4,5].map(i => {
         const a = (i / 6) * Math.PI * 2;
         return (
-          <mesh key={i} position={[Math.cos(a) * 0.14, 0.095, Math.sin(a) * 0.14]} geometry={SHARED_GEO.flowerPetal}>
+          <mesh key={i} position={[Math.cos(a) * 0.14, 0.095, Math.sin(a) * 0.14]} geometry={SHARED_GEO.flowerPetal} dispose={null}>
             <meshStandardMaterial color="#FF9EC4" emissive="#FF6B9D" emissiveIntensity={0.35} roughness={0.3} />
           </mesh>
         );
@@ -147,15 +147,15 @@ function Fruit({ p }: { p: [number, number, number] }) {
   return (
     <group position={p}>
       {/* Quả dâu đỏ */}
-      <mesh position={[-0.08, 0.085, 0]} geometry={SHARED_GEO.strawberry}>
+      <mesh position={[-0.08, 0.085, 0]} geometry={SHARED_GEO.strawberry} dispose={null}>
         <meshStandardMaterial color="#FF2020" emissive="#CC0000" emissiveIntensity={0.35} roughness={0.25} />
       </mesh>
       {/* Mảnh cam vàng */}
-      <mesh position={[0.08, 0.07, 0.03]} geometry={SHARED_GEO.orange}>
+      <mesh position={[0.08, 0.07, 0.03]} geometry={SHARED_GEO.orange} dispose={null}>
         <meshStandardMaterial color="#FFD700" emissive="#E6B800" emissiveIntensity={0.3} roughness={0.3} />
       </mesh>
       {/* Quả kiwi xanh */}
-      <mesh position={[0, 0.06, -0.08]} geometry={SHARED_GEO.kiwi}>
+      <mesh position={[0, 0.06, -0.08]} geometry={SHARED_GEO.kiwi} dispose={null}>
         <meshStandardMaterial color="#22CC44" emissive="#009922" emissiveIntensity={0.3} roughness={0.4} />
       </mesh>
     </group>
@@ -171,7 +171,7 @@ function Sprinkle({ p }: { p: [number, number, number] }) {
         const a = (i / 7) * Math.PI * 2;
         const r = 0.055 + (i % 2) * 0.05;
         return (
-          <mesh key={i} position={[Math.cos(a)*r, 0.02, Math.sin(a)*r]} rotation={[Math.PI/2, 0, a+0.5]} geometry={SHARED_GEO.sprinkleStick}>
+          <mesh key={i} position={[Math.cos(a)*r, 0.02, Math.sin(a)*r]} rotation={[Math.PI/2, 0, a+0.5]} geometry={SHARED_GEO.sprinkleStick} dispose={null}>
             <meshStandardMaterial color={colors[i%6]} emissive={colors[i%6]} emissiveIntensity={0.4} roughness={0.3} />
           </mesh>
         );
@@ -185,15 +185,15 @@ function Macaron({ p }: { p: [number, number, number] }) {
   return (
     <group position={p}>
       {/* Phần bánh dưới */}
-      <mesh position={[0, 0.021, 0]} geometry={SHARED_GEO.macaronShell}>
+      <mesh position={[0, 0.021, 0]} geometry={SHARED_GEO.macaronShell} dispose={null}>
         <meshStandardMaterial color="#FFB6C1" emissive="#FF8FA3" emissiveIntensity={0.3} roughness={0.2} />
       </mesh>
       {/* Phần nhân kem giữa */}
-      <mesh position={[0, 0.053, 0]} geometry={SHARED_GEO.macaronFill}>
+      <mesh position={[0, 0.053, 0]} geometry={SHARED_GEO.macaronFill} dispose={null}>
         <meshStandardMaterial color="#FFF0F5" emissive="#FFD0DC" emissiveIntensity={0.2} roughness={0.15} />
       </mesh>
       {/* Phần bánh trên */}
-      <mesh position={[0, 0.085, 0]} geometry={SHARED_GEO.macaronShell}>
+      <mesh position={[0, 0.085, 0]} geometry={SHARED_GEO.macaronShell} dispose={null}>
         <meshStandardMaterial color="#FFB6C1" emissive="#FF8FA3" emissiveIntensity={0.3} roughness={0.2} />
       </mesh>
     </group>
@@ -204,10 +204,10 @@ function ChocoDrip({ p }: { p: [number, number, number] }) {
   // Sốt chocolate chảy nhẹ từ mặt bánh (dollop nổi trên mặt và chảy dài xuống)
   return (
     <group position={p}>
-      <mesh position={[0, 0.085, 0]} geometry={SHARED_GEO.chocoDollop}>
+      <mesh position={[0, 0.085, 0]} geometry={SHARED_GEO.chocoDollop} dispose={null}>
         <meshStandardMaterial color="#3D1F0E" emissive="#1A0A00" emissiveIntensity={0.4} roughness={0.4} metalness={0.15} />
       </mesh>
-      <mesh position={[0, -0.055, 0]} geometry={SHARED_GEO.chocoDrip}>
+      <mesh position={[0, -0.055, 0]} geometry={SHARED_GEO.chocoDrip} dispose={null}>
         <meshStandardMaterial color="#3D1F0E" emissive="#1A0A00" emissiveIntensity={0.3} roughness={0.5} />
       </mesh>
     </group>
@@ -316,7 +316,7 @@ function BorderDecor({ type, color, R, y }: { type: string; color: string; R: nu
       return (
         <group>
           {pts.map((p, i) => (
-            <mesh key={i} position={[p.x, y, p.z]} geometry={SHARED_GEO.pipingBall}>
+            <mesh key={i} position={[p.x, y, p.z]} geometry={SHARED_GEO.pipingBall} dispose={null}>
               <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.25} roughness={0.25} />
             </mesh>
           ))}
@@ -327,10 +327,10 @@ function BorderDecor({ type, color, R, y }: { type: string; color: string; R: nu
         <group>
           {pts.map((p, i) => (
             <group key={i} position={[p.x, y, p.z]}>
-              <mesh geometry={SHARED_GEO.rosetteOuter}>
+              <mesh geometry={SHARED_GEO.rosetteOuter} dispose={null}>
                 <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.15} transparent opacity={0.85} roughness={0.25} />
               </mesh>
-              <mesh geometry={SHARED_GEO.rosetteInner}>
+              <mesh geometry={SHARED_GEO.rosetteInner} dispose={null}>
                 <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.35} roughness={0.15} />
               </mesh>
             </group>
@@ -341,7 +341,7 @@ function BorderDecor({ type, color, R, y }: { type: string; color: string; R: nu
       return (
         <group>
           {pts.map((p, i) => (
-            <mesh key={i} position={[p.x, y, p.z]} geometry={SHARED_GEO.pearl}>
+            <mesh key={i} position={[p.x, y, p.z]} geometry={SHARED_GEO.pearl} dispose={null}>
               <meshStandardMaterial color="#FFFDD0" emissive="#FFFACD" emissiveIntensity={0.45} roughness={0.03} metalness={0.6} />
             </mesh>
           ))}
@@ -352,7 +352,7 @@ function BorderDecor({ type, color, R, y }: { type: string; color: string; R: nu
       return (
         <group>
           {pts.map((p, i) => (
-            <mesh key={i} position={[p.x, y+(i%3-1)*0.022, p.z]} rotation={[Math.PI/2, 0, p.a]} geometry={SHARED_GEO.borderSprinkle}>
+            <mesh key={i} position={[p.x, y+(i%3-1)*0.022, p.z]} rotation={[Math.PI/2, 0, p.a]} geometry={SHARED_GEO.borderSprinkle} dispose={null}>
               <meshStandardMaterial color={sc[i%4]} emissive={sc[i%4]} emissiveIntensity={0.4} roughness={0.3} />
             </mesh>
           ))}
@@ -395,7 +395,7 @@ function BodyPattern({ type, R, H, y }: { type: string; R: number; H: number; y:
             const a = (i / 24) * Math.PI * 2;
             const yOff = (i%4 - 1.5) * (H/4);
             return (
-              <mesh key={i} position={[Math.cos(a)*R*0.97, y+yOff, Math.sin(a)*R*0.97]} geometry={SHARED_GEO.dot}>
+              <mesh key={i} position={[Math.cos(a)*R*0.97, y+yOff, Math.sin(a)*R*0.97]} geometry={SHARED_GEO.dot} dispose={null}>
                 <meshStandardMaterial color="#FFFFFF" transparent opacity={0.45} emissive="#FFFFFF" emissiveIntensity={0.2} />
               </mesh>
             );

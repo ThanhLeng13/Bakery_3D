@@ -11,7 +11,7 @@ Public endpoints:
 
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.core.config import settings
 from app.core.dependencies import require_baker, get_supabase_client
@@ -44,6 +44,12 @@ class AddBatchRequest(BaseModel):
     notes: str | None = Field(default=None, max_length=300, description="Ghi chú bếp")
     branch_id: str | None = Field(default=None, description="UUID chi nhánh (tùy chọn)")
 
+    @model_validator(mode="after")
+    def expires_after_produced(self) -> "AddBatchRequest":
+        if self.expires_at <= self.produced_at:
+            raise ValueError("expires_at phải sau produced_at")
+        return self
+
 
 class UpdateBatchRequest(BaseModel):
     quantity: int | None = Field(default=None, ge=1, le=9999)
@@ -53,13 +59,28 @@ class UpdateBatchRequest(BaseModel):
 
 
 class BulkAddBatchRequest(BaseModel):
-    """Create batches for multiple branches in a single atomic request."""
+    """Create batches for multiple branches in a single request."""
     product_id: str = Field(..., description="UUID sản phẩm (phải là bánh ngọt)")
     quantity: int = Field(..., ge=1, le=9999, description="Số lượng mỗi lô")
     produced_at: date = Field(..., description="Ngày sản xuất (YYYY-MM-DD)")
     expires_at: date = Field(..., description="Ngày hết hạn (YYYY-MM-DD)")
     notes: str | None = Field(default=None, max_length=300, description="Ghi chú bếp")
     branch_ids: list[str] = Field(..., min_length=1, description="Danh sách UUID chi nhánh")
+
+    @model_validator(mode="after")
+    def validate_bulk(self) -> "BulkAddBatchRequest":
+        # Validate date range
+        if self.expires_at <= self.produced_at:
+            raise ValueError("expires_at phải sau produced_at")
+        # Deduplicate branch_ids while preserving order
+        seen: set[str] = set()
+        unique: list[str] = []
+        for bid in self.branch_ids:
+            if bid not in seen:
+                seen.add(bid)
+                unique.append(bid)
+        self.branch_ids = unique
+        return self
 
 
 # ─── Baker Routes ──────────────────────────────────────────────────────────────
