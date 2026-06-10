@@ -470,7 +470,7 @@ function CheckoutContent() {
                   ⚠️ Vui lòng quay lại trang sản phẩm và chọn chi nhánh nhận bánh trước khi thanh toán.
                 </p>
               )}
-              {(errors as FormErrors).branch && (
+              {errors.branch && (
                 <p className="text-sm text-red-500 mb-3">{errors.branch}</p>
               )}
               <div className="space-y-3">

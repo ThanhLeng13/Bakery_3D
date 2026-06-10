@@ -11,8 +11,8 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from app.core.config import settings
-from app.core.dependencies import get_current_user
+
+from app.core.dependencies import get_current_user, get_supabase_client
 from app.services.inventory_service import (
     InsufficientStockError,
     InventoryService,
@@ -25,9 +25,13 @@ router = APIRouter()
 # ─── Dependency ────────────────────────────────────────────────────────────────
 
 def _get_db():
-    """Tao Supabase admin client (service_role) moi request."""
-    from supabase import create_client
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+    """Lay Supabase admin client (service_role) tu centralized factory.
+
+    Delegates to get_supabase_client(use_service_role=True) which caches
+    the client per asyncio task via ContextVar, avoiding repeated TCP/TLS
+    handshakes on every request.
+    """
+    return get_supabase_client(use_service_role=True)
 
 
 # ─── Schemas ───────────────────────────────────────────────────────────────────

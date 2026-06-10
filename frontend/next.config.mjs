@@ -67,6 +67,9 @@ const nextConfig = {
           // - 'unsafe-inline' in script-src: required because Next.js SSR hydration
           //   injects inline <script> tags for __NEXT_DATA__ and chunk preloading.
           //   Removing it breaks client-side hydration entirely.
+          // - 'unsafe-eval' in script-src: added ONLY in development because Next.js
+          //   Fast Refresh and HMR rely on eval(). Without it, the console is flooded
+          //   with CSP errors and hot reloading breaks. Excluded in production.
           // - 'unsafe-inline' in style-src: required because Next.js injects inline
           //   <style> tags for CSS-in-JS and styled-jsx during SSR.
           // - WebGL shader compilation (gl.shaderSource, gl.compileShader) uses GPU
@@ -75,7 +78,7 @@ const nextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline'",
+              `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https://*.supabase.co https://placehold.co",
