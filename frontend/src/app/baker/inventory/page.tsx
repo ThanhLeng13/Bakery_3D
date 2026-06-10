@@ -197,8 +197,21 @@ function InventoryContent() {
       setAddExpires(inThreeDays());
       loadBatches();
     } catch (err: unknown) {
-      const e = err as { detail?: string };
-      setAddError(e?.detail || "Không thể thêm lô hàng.");
+      // apiClient throws the parsed JSON body on non-ok responses.
+      // `detail` can be a string (single batch) or an object { message, errors }
+      // (bulk endpoint). Handle both to avoid displaying "[object Object]".
+      const raw = err as { detail?: string | { message?: string }; message?: string };
+      let errorMsg = "Không thể thêm lô hàng.";
+      if (raw?.detail) {
+        if (typeof raw.detail === "string") {
+          errorMsg = raw.detail;
+        } else if (typeof raw.detail === "object" && raw.detail.message) {
+          errorMsg = raw.detail.message;
+        }
+      } else if (typeof raw?.message === "string") {
+        errorMsg = raw.message;
+      }
+      setAddError(errorMsg);
     } finally {
       setAddLoading(false);
     }

@@ -52,20 +52,21 @@ def get_supabase_client(token: str | None = None, use_service_role: bool = False
             _thread_local.service_client = client
         return client
 
-    # Cache anon client per thread
-    client = getattr(_thread_local, "anon_client", None)
-    if client is None:
-        client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
-        _thread_local.anon_client = client
+    # Unauthenticated path: reuse cached anon client (no mutation)
+    if not token:
+        client = getattr(_thread_local, "anon_client", None)
+        if client is None:
+            client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+            _thread_local.anon_client = client
+        return client
 
-    # CRITICAL: Always set auth state on cached client.
-    # If token is provided → authenticate this request.
-    # If token is None → CLEAR previous request's token to prevent
-    # cross-request privilege escalation on the same thread.
-    if token:
-        client.postgrest.auth(token)
-    else:
-        client.postgrest.auth("")
+    # Authenticated path: create a fresh client per request.
+    # We intentionally do NOT cache or mutate the shared anon client here.
+    # Mutating a cached client with .auth(token) is unsafe because:
+    # (a) forgetting to clear it leaks auth to the next unauthenticated request,
+    # (b) clearing with .auth("") can race with concurrent async tasks.
+    client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+    client.postgrest.auth(token)
     return client
 
 
