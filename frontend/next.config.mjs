@@ -40,20 +40,37 @@ const nextConfig = {
 
   // --- Headers for performance and security ---
   async headers() {
+    const isDev = process.env.NODE_ENV === "development";
+
+    // Base connect-src always includes self + Supabase
+    const connectSrc = [
+      "'self'",
+      "https://*.supabase.co",
+      "wss://*.supabase.co",
+      // Local backend origins: only in development
+      ...(isDev ? ["http://127.0.0.1:8000", "http://localhost:8000"] : []),
+    ].join(" ");
+
     return [
       {
         source: "/(.*)",
         headers: [
           // Prevents MIME-type sniffing
           { key: "X-Content-Type-Options", value: "nosniff" },
-          // Prevents clickjacking
-          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          // Prevents clickjacking — DENY to match vercel.json
+          { key: "X-Frame-Options", value: "DENY" },
           // XSS protection (legacy but harmless)
           { key: "X-XSS-Protection", value: "1; mode=block" },
           // Referrer policy
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          // CSP: WebGL shader compilation (gl.shaderSource, gl.compileShader) uses GPU APIs
-          // and is NOT affected by CSP script-src restrictions. No 'unsafe-eval' needed.
+          // Content Security Policy
+          // - 'unsafe-inline' in script-src: required because Next.js SSR hydration
+          //   injects inline <script> tags for __NEXT_DATA__ and chunk preloading.
+          //   Removing it breaks client-side hydration entirely.
+          // - 'unsafe-inline' in style-src: required because Next.js injects inline
+          //   <style> tags for CSS-in-JS and styled-jsx during SSR.
+          // - WebGL shader compilation (gl.shaderSource, gl.compileShader) uses GPU
+          //   APIs and is NOT affected by CSP script-src; no 'unsafe-eval' needed.
           {
             key: "Content-Security-Policy",
             value: [
@@ -62,8 +79,9 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https://*.supabase.co https://placehold.co",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co http://127.0.0.1:8000 http://localhost:8000",
+              `connect-src ${connectSrc}`,
               "worker-src 'self' blob:",
+              "frame-ancestors 'self'",
             ].join("; "),
           },
         ],

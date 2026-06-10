@@ -192,12 +192,13 @@ export default function CakeSVG({
       { cx: 165, cy: 65 },
     ];
 
-    // Render all selected toppings using the first topping type for visual representation
-    // (SVG is 2D preview, 3D shows all toppings properly)
-    const firstTopping = activeToppings[0];
-    if (!firstTopping || !TOPPING_VISUALS[firstTopping]) return null;
-
-    return positions.map((pos) => TOPPING_VISUALS[firstTopping](pos.cx, pos.cy));
+    // Cycle through selected toppings across positions for visual variety
+    // Each position shows activeToppings[i % len] so multi-select is visible in 2D preview
+    return positions.map((pos, i) => {
+      const topping = activeToppings[i % activeToppings.length];
+      if (!topping || !TOPPING_VISUALS[topping]) return null;
+      return TOPPING_VISUALS[topping](pos.cx, pos.cy);
+    });
   };
 
   // Render border decorations

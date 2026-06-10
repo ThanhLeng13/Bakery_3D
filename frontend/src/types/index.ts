@@ -46,6 +46,9 @@ export interface ZoneCustomization {
   decoration?: string;
   /** Danh sách toppings được chọn (hỗ trợ nhiều topping cùng lúc) */
   toppings?: string[];
+  /** Set true when user explicitly customizes this zone's color via OptionsPanel.
+   *  Prevents setCreamColor from overwriting the user's choice. */
+  customized?: boolean;
 }
 
 export interface CakeDesign {

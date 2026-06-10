@@ -24,7 +24,6 @@ interface Cake3DProps {
   hoveredZone: CakeZone | null;
   onZoneClick: (zone: CakeZone) => void;
   onZoneHover: (zone: CakeZone | null) => void;
-  selectedToppings?: string[];
 }
 
 // ─── Click detection based on time duration + pointer distance ────────────────
@@ -412,7 +411,7 @@ function BodyPattern({ type, R, H, y }: { type: string; R: number; H: number; y:
 }
 
 // ─── Toàn bộ mô hình bánh ─────────────────────────────────────────────────────
-function CakeMesh({ design, activeZone, hoveredZone, onZoneClick, onZoneHover, selectedToppings }: Cake3DProps) {
+function CakeMesh({ design, activeZone, hoveredZone, onZoneClick, onZoneHover }: Cake3DProps) {
   const bodyColor   = design.zones.body.color   || design.cream_color || "#E8837A";
   const borderColor = design.zones.border.color || "#D4A574";
   const topColor    = design.zones.top.color    || bodyColor;
@@ -420,9 +419,7 @@ function CakeMesh({ design, activeZone, hoveredZone, onZoneClick, onZoneHover, s
   const size = design.size;
   const zoneProps = { onZoneClick, onZoneHover, activeZone, hoveredZone };
 
-  const finalToppings = selectedToppings && selectedToppings.length > 0
-    ? selectedToppings
-    : (design.zones.top.toppings ?? []);
+  const activeToppings = design.zones.top.toppings ?? [];
 
   if (size === "2-tier") {
     // Bottom Tier Dimensions
@@ -503,7 +500,7 @@ function CakeMesh({ design, activeZone, hoveredZone, onZoneClick, onZoneHover, s
         </mesh>
 
         {/* ── Toppings mặt trên cùng ── */}
-        <TopToppings toppings={finalToppings} surfaceY={topSurface2} R={R2 * 0.82} />
+        <TopToppings toppings={activeToppings} surfaceY={topSurface2} R={R2 * 0.82} />
 
         {/* ── Đĩa bánh ── */}
         <mesh position={[0, borderY1 - borderH1 / 2 - 0.02, 0]}>
@@ -572,7 +569,7 @@ function CakeMesh({ design, activeZone, hoveredZone, onZoneClick, onZoneHover, s
       </mesh>
 
       {/* ── Toppings mặt trên ── */}
-      <TopToppings toppings={finalToppings} surfaceY={topSurface} R={R*0.82} />
+      <TopToppings toppings={activeToppings} surfaceY={topSurface} R={R*0.82} />
 
       {/* ── Đĩa bánh ── */}
       <mesh position={[0, borderY - borderH/2 - 0.02, 0]}>

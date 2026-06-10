@@ -97,10 +97,6 @@ export default function CakeBuilderPage() {
     setShowPreview(false);
   }, []);
 
-  // Toppings chỉ áp dụng cho mặt trên (zone top)
-  const selectedToppings = design.zones.top.toppings ?? [];
-
-
 
   return (
     <main className="min-h-screen bg-cream">
@@ -142,7 +138,6 @@ export default function CakeBuilderPage() {
                 hoveredZone={hoveredZone}
                 onZoneClick={handleZoneClick}
                 onZoneHover={handleZoneHover}
-                selectedToppings={selectedToppings}
               />
             </div>
 

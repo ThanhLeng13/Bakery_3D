@@ -113,14 +113,13 @@ export function useCakeBuilder(
       cream_color: creamColor,
       zones: {
         ...prev.zones,
-        body: {
-          ...prev.zones.body,
-          color: creamColor,
-        },
-        top: {
-          ...prev.zones.top,
-          color: creamColor,
-        },
+        // Only update zone color if user hasn't explicitly customized it
+        body: prev.zones.body.customized
+          ? prev.zones.body
+          : { ...prev.zones.body, color: creamColor },
+        top: prev.zones.top.customized
+          ? prev.zones.top
+          : { ...prev.zones.top, color: creamColor },
       },
     }));
   }, []);
@@ -176,6 +175,8 @@ export function useCakeBuilder(
             [zone]: {
               ...prev.zones[zone],
               ...customization,
+              // Mark zone as customized when user explicitly sets its color
+              ...("color" in customization ? { customized: true } : {}),
             },
           },
         };
