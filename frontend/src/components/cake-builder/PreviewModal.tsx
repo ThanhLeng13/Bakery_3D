@@ -84,10 +84,9 @@ export function PreviewModal({
   const creamColorLabel = CREAM_COLOR_LABELS[design.cream_color] ?? design.cream_color;
 
   // Gather toppings and decorations from zones
-  const toppings: string[] = [];
-  if (design.zones.top.topping) toppings.push(design.zones.top.topping);
-  if (design.zones.body.topping) toppings.push(design.zones.body.topping);
-  if (design.zones.border.topping) toppings.push(design.zones.border.topping);
+  const toppings: string[] = [
+    ...(design.zones.top.toppings ?? []),
+  ];
 
   const decorations: string[] = [];
   if (design.zones.top.decoration) decorations.push(design.zones.top.decoration);

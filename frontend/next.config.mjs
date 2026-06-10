@@ -52,6 +52,20 @@ const nextConfig = {
           { key: "X-XSS-Protection", value: "1; mode=block" },
           // Referrer policy
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // CSP: allow eval for Three.js WebGL shader compilation
+          // Three.js REQUIRES 'unsafe-eval' to compile GLSL shaders at runtime
+          {
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              "font-src 'self' https://fonts.gstatic.com",
+              "img-src 'self' data: blob: https://*.supabase.co https://placehold.co",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co http://127.0.0.1:8000 http://localhost:8000",
+              "worker-src 'self' blob:",
+            ].join("; "),
+          },
         ],
       },
       {

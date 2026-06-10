@@ -44,7 +44,8 @@ export type ProductCategory = "bánh âu" | "bánh ngọt";
 export interface ZoneCustomization {
   color?: string;
   decoration?: string;
-  topping?: string;
+  /** Danh sách toppings được chọn (hỗ trợ nhiều topping cùng lúc) */
+  toppings?: string[];
 }
 
 export interface CakeDesign {
@@ -52,7 +53,7 @@ export interface CakeDesign {
   flavor: string;
   cream_type: string;
   cream_color: string;
-  topping_type?: string;
+  topping_type?: string[];
   special_notes?: string;
   zones: {
     top: ZoneCustomization;

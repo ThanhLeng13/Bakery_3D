@@ -2,7 +2,7 @@
 
 /**
  * Cake Builder page.
- * Integrates CakeSVG, OptionsPanel, SizeSelector, CompletionPanel,
+ * Integrates Cake3D (Three.js 3D viewer), OptionsPanel, SizeSelector, CompletionPanel,
  * PriceDisplay, and PreviewModal for the full customization flow.
  *
  * Validates: Requirements 2.6, 2.7, 2.8
@@ -14,8 +14,27 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { type CakeZone } from "@/components/cake-builder/CakeSVG";
 
-const CakeSVG = dynamic(() => import("@/components/cake-builder/CakeSVG"), {
+const Cake3D = dynamic(() => import("@/components/cake-builder/Cake3D"), {
   ssr: false,
+  loading: () => (
+    <div
+      style={{
+        width: "100%",
+        maxWidth: 400,
+        aspectRatio: "1 / 1",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(135deg,#FFF5F0,#FDE8E4)",
+        borderRadius: 16,
+        color: "#E8837A",
+        fontSize: 14,
+        margin: "0 auto",
+      }}
+    >
+      🎂 Đang tải mô hình 3D...
+    </div>
+  ),
 });
 
 import OptionsPanel from "@/components/cake-builder/OptionsPanel";
@@ -78,6 +97,11 @@ export default function CakeBuilderPage() {
     setShowPreview(false);
   }, []);
 
+  // Toppings chỉ áp dụng cho mặt trên (zone top)
+  const selectedToppings = design.zones.top.toppings ?? [];
+
+  console.log("CakeBuilderPage render, design:", design, "selectedToppings:", selectedToppings);
+
   return (
     <main className="min-h-screen bg-cream">
       {/* Header */}
@@ -110,15 +134,61 @@ export default function CakeBuilderPage() {
         <div className="flex flex-col md:flex-row items-start justify-center gap-6">
           {/* Left column: Cake SVG + Size Selector */}
           <div className="w-full md:w-1/2 lg:w-2/5 space-y-6">
-            {/* Cake SVG */}
+            {/* Cake 3D Viewer */}
             <div className="flex justify-center">
-              <CakeSVG
+              <Cake3D
                 design={design}
                 activeZone={activeZone}
                 hoveredZone={hoveredZone}
                 onZoneClick={handleZoneClick}
                 onZoneHover={handleZoneHover}
+                selectedToppings={selectedToppings}
               />
+            </div>
+
+            {/* Bộ chọn vùng thiết kế nhanh (Quick zone selector) */}
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
+              <h4 className="text-sm font-semibold text-mocha text-center">
+                Chọn vùng cần trang trí:
+              </h4>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleZoneClick("top")}
+                  className={`px-2 py-2.5 rounded-xl border text-xs sm:text-sm font-bold transition-all duration-150 flex flex-col items-center justify-center gap-1 min-h-[44px] ${
+                    activeZone === "top"
+                      ? "bg-pink-pastel text-white border-pink-pastel shadow-sm scale-105"
+                      : "bg-white text-mocha border-gray-200 hover:border-pink-pastel/50 hover:bg-cream"
+                  }`}
+                >
+                  <span className="text-lg">🎂</span>
+                  <span>Mặt trên</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleZoneClick("body")}
+                  className={`px-2 py-2.5 rounded-xl border text-xs sm:text-sm font-bold transition-all duration-150 flex flex-col items-center justify-center gap-1 min-h-[44px] ${
+                    activeZone === "body"
+                      ? "bg-pink-pastel text-white border-pink-pastel shadow-sm scale-105"
+                      : "bg-white text-mocha border-gray-200 hover:border-pink-pastel/50 hover:bg-cream"
+                  }`}
+                >
+                  <span className="text-lg">✨</span>
+                  <span>Thân bánh</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleZoneClick("border")}
+                  className={`px-2 py-2.5 rounded-xl border text-xs sm:text-sm font-bold transition-all duration-150 flex flex-col items-center justify-center gap-1 min-h-[44px] ${
+                    activeZone === "border"
+                      ? "bg-pink-pastel text-white border-pink-pastel shadow-sm scale-105"
+                      : "bg-white text-mocha border-gray-200 hover:border-pink-pastel/50 hover:bg-cream"
+                  }`}
+                >
+                  <span className="text-lg">🎀</span>
+                  <span>Viền bánh</span>
+                </button>
+              </div>
             </div>
 
             {/* Size Selector */}
@@ -150,6 +220,7 @@ export default function CakeBuilderPage() {
               onCreamColorChange={actions.setCreamColor}
               onSpecialNotesChange={actions.setSpecialNotes}
               onComplete={handleComplete}
+              instanceId="desktop"
             />
           </div>
         </div>
@@ -173,6 +244,7 @@ export default function CakeBuilderPage() {
             onCreamColorChange={actions.setCreamColor}
             onSpecialNotesChange={actions.setSpecialNotes}
             onComplete={handleComplete}
+            instanceId="mobile"
           />
         </div>
 

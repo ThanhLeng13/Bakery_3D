@@ -25,6 +25,7 @@ export interface CakeBuilderActions {
   setCreamType: (creamType: string) => void;
   setCreamColor: (creamColor: string) => void;
   setToppingType: (toppingType: string) => void;
+  toggleTopping: (toppingType: string) => void;
   setSpecialNotes: (notes: string) => void;
   setZoneCustomization: (
     zone: ZoneName,
@@ -49,7 +50,7 @@ const DEFAULT_DESIGN: CakeDesign = {
   topping_type: undefined,
   special_notes: undefined,
   zones: {
-    top: {},
+    top: { toppings: [] },
     body: {},
     border: {},
   },
@@ -75,8 +76,11 @@ export function useCakeBuilder(
     ...DEFAULT_DESIGN,
     ...initialDesign,
     zones: {
-      ...DEFAULT_DESIGN.zones,
-      ...initialDesign?.zones,
+      // Deep-merge mỗi zone riêng lẻ để giữ lại giá trị mặc định (vd: toppings: [])
+      // khi initialDesign chỉ cung cấp một phần zone (vd: top: {})
+      top: { ...DEFAULT_DESIGN.zones.top, ...initialDesign?.zones?.top },
+      body: { ...DEFAULT_DESIGN.zones.body, ...initialDesign?.zones?.body },
+      border: { ...DEFAULT_DESIGN.zones.border, ...initialDesign?.zones?.border },
     },
   });
 
@@ -104,11 +108,56 @@ export function useCakeBuilder(
   }, []);
 
   const setCreamColor = useCallback((creamColor: string) => {
-    setDesign((prev) => ({ ...prev, cream_color: creamColor }));
+    setDesign((prev) => ({
+      ...prev,
+      cream_color: creamColor,
+      zones: {
+        ...prev.zones,
+        body: {
+          ...prev.zones.body,
+          color: creamColor,
+        },
+        top: {
+          ...prev.zones.top,
+          color: creamColor,
+        },
+      },
+    }));
   }, []);
 
   const setToppingType = useCallback((toppingType: string) => {
-    setDesign((prev) => ({ ...prev, topping_type: toppingType }));
+    setDesign((prev) => ({
+      ...prev,
+      topping_type: [toppingType],
+      zones: {
+        ...prev.zones,
+        top: {
+          ...prev.zones.top,
+          toppings: [toppingType],
+        },
+      },
+    }));
+  }, []);
+
+  const toggleTopping = useCallback((toppingType: string) => {
+    setDesign((prev) => {
+      const current = prev.zones.top.toppings ?? [];
+      const exists = current.includes(toppingType);
+      const next = exists
+        ? current.filter((t) => t !== toppingType)
+        : [...current, toppingType];
+      return {
+        ...prev,
+        topping_type: next,
+        zones: {
+          ...prev.zones,
+          top: {
+            ...prev.zones.top,
+            toppings: next,
+          },
+        },
+      };
+    });
   }, []);
 
   const setSpecialNotes = useCallback((notes: string) => {
@@ -119,16 +168,24 @@ export function useCakeBuilder(
 
   const setZoneCustomization = useCallback(
     (zone: ZoneName, customization: Partial<ZoneCustomization>) => {
-      setDesign((prev) => ({
-        ...prev,
-        zones: {
-          ...prev.zones,
-          [zone]: {
-            ...prev.zones[zone],
-            ...customization,
+      setDesign((prev) => {
+        const next = {
+          ...prev,
+          zones: {
+            ...prev.zones,
+            [zone]: {
+              ...prev.zones[zone],
+              ...customization,
+            },
           },
-        },
-      }));
+        };
+
+        if (zone === "top" && "toppings" in customization) {
+          next.topping_type = customization.toppings;
+        }
+
+        return next;
+      });
     },
     []
   );
@@ -144,6 +201,7 @@ export function useCakeBuilder(
       setCreamType,
       setCreamColor,
       setToppingType,
+      toggleTopping,
       setSpecialNotes,
       setZoneCustomization,
       resetDesign,
@@ -154,6 +212,7 @@ export function useCakeBuilder(
       setCreamType,
       setCreamColor,
       setToppingType,
+      toggleTopping,
       setSpecialNotes,
       setZoneCustomization,
       resetDesign,
