@@ -181,8 +181,8 @@ export default function CakeSVG({
 
   // Render toppings on top zone
   const renderToppings = () => {
-    const topping = design.zones.top.topping;
-    if (!topping || !TOPPING_VISUALS[topping]) return null;
+    const activeToppings = design.zones.top.toppings ?? [];
+    if (activeToppings.length === 0) return null;
 
     const positions = [
       { cx: 150, cy: 75 },
@@ -192,7 +192,13 @@ export default function CakeSVG({
       { cx: 165, cy: 65 },
     ];
 
-    return positions.map((pos) => TOPPING_VISUALS[topping](pos.cx, pos.cy));
+    // Cycle through selected toppings across positions for visual variety
+    // Each position shows activeToppings[i % len] so multi-select is visible in 2D preview
+    return positions.map((pos, i) => {
+      const topping = activeToppings[i % activeToppings.length];
+      if (!topping || !TOPPING_VISUALS[topping]) return null;
+      return TOPPING_VISUALS[topping](pos.cx, pos.cy);
+    });
   };
 
   // Render border decorations

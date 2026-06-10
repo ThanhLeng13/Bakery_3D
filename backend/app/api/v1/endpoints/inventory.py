@@ -11,10 +11,10 @@ Public endpoints:
 
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.core.config import settings
-from app.core.dependencies import require_baker
+from app.core.dependencies import require_baker, get_supabase_client
 from app.services.inventory_service import (
     BatchNotFoundError,
     InsufficientStockError,
@@ -29,8 +29,9 @@ public_router = APIRouter()
 # ─── Dependency ────────────────────────────────────────────────────────────────
 
 def _get_inventory_service() -> InventoryService:
-    from app.core.dependencies import _get_supabase_admin_client
-    return InventoryService(_get_supabase_admin_client())
+    # Uses threading.local()-cached client from get_supabase_client()
+    client = get_supabase_client(use_service_role=True)
+    return InventoryService(client)
 
 
 # ─── Schemas ───────────────────────────────────────────────────────────────────
@@ -43,12 +44,43 @@ class AddBatchRequest(BaseModel):
     notes: str | None = Field(default=None, max_length=300, description="Ghi chú bếp")
     branch_id: str | None = Field(default=None, description="UUID chi nhánh (tùy chọn)")
 
+    @model_validator(mode="after")
+    def expires_after_produced(self) -> "AddBatchRequest":
+        if self.expires_at <= self.produced_at:
+            raise ValueError("expires_at phải sau produced_at")
+        return self
+
 
 class UpdateBatchRequest(BaseModel):
     quantity: int | None = Field(default=None, ge=1, le=9999)
     notes: str | None = Field(default=None, max_length=300)
     is_active: bool | None = Field(default=None)
     expires_at: str | None = Field(default=None)
+
+
+class BulkAddBatchRequest(BaseModel):
+    """Create batches for multiple branches in a single request."""
+    product_id: str = Field(..., description="UUID sản phẩm (phải là bánh ngọt)")
+    quantity: int = Field(..., ge=1, le=9999, description="Số lượng mỗi lô")
+    produced_at: date = Field(..., description="Ngày sản xuất (YYYY-MM-DD)")
+    expires_at: date = Field(..., description="Ngày hết hạn (YYYY-MM-DD)")
+    notes: str | None = Field(default=None, max_length=300, description="Ghi chú bếp")
+    branch_ids: list[str] = Field(..., min_length=1, description="Danh sách UUID chi nhánh")
+
+    @model_validator(mode="after")
+    def validate_bulk(self) -> "BulkAddBatchRequest":
+        # Validate date range
+        if self.expires_at <= self.produced_at:
+            raise ValueError("expires_at phải sau produced_at")
+        # Deduplicate branch_ids while preserving order
+        seen: set[str] = set()
+        unique: list[str] = []
+        for bid in self.branch_ids:
+            if bid not in seen:
+                seen.add(bid)
+                unique.append(bid)
+        self.branch_ids = unique
+        return self
 
 
 # ─── Baker Routes ──────────────────────────────────────────────────────────────
@@ -73,6 +105,62 @@ def add_batch(
         return result
     except InventoryServiceError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message) from e
+
+
+@baker_router.post("/batches/bulk", status_code=201)
+def add_batch_bulk(
+    body: BulkAddBatchRequest,
+    baker: dict = Depends(require_baker),
+):
+    """Tạo lô bánh ngọt cho nhiều chi nhánh trong một request.
+
+    NOT truly atomic — each branch insert is a separate DB operation.
+    On partial failure, returns 207 Multi-Status with details of which
+    branches succeeded and which failed, so the frontend can retry
+    only the failed ones (avoiding duplicates).
+
+    Returns:
+        201: All branches succeeded.
+        207: Partial success — some branches failed. Response includes
+             succeeded_branch_ids and failed details for retry.
+    """
+    from fastapi.responses import JSONResponse
+
+    svc = _get_inventory_service()
+    results = []
+    errors = []
+    succeeded_branch_ids = []
+
+    for branch_id in body.branch_ids:
+        try:
+            result = svc.add_batch(
+                product_id=body.product_id,
+                quantity=body.quantity,
+                produced_at=body.produced_at.isoformat(),
+                expires_at=body.expires_at.isoformat(),
+                notes=body.notes,
+                branch_id=branch_id,
+                baker=baker,
+            )
+            results.append(result)
+            succeeded_branch_ids.append(branch_id)
+        except InventoryServiceError as e:
+            errors.append({"branch_id": branch_id, "error": e.message})
+
+    if errors:
+        # 207 Multi-Status: some succeeded, some failed
+        # Frontend should retry only the failed branch_ids
+        return JSONResponse(
+            status_code=207,
+            content={
+                "message": f"Thành công {len(results)}/{len(body.branch_ids)} chi nhánh",
+                "batches": results,
+                "succeeded_branch_ids": succeeded_branch_ids,
+                "errors": errors,
+            },
+        )
+
+    return {"batches": results, "total": len(results)}
 
 
 @baker_router.get("/batches")

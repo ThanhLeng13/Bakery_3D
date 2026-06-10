@@ -9,7 +9,7 @@ Provides:
 """
 
 import logging
-from threading import Lock
+import contextvars
 
 from typing import Callable
 
@@ -22,43 +22,54 @@ from app.core.config import settings
 # auto_error=False so we can return a custom 401 message
 security_scheme = HTTPBearer(auto_error=False)
 
-# ── Supabase Singleton ──────────────────────────────────────────────────────
-# Service-role client không thay đổi giữa các request → dùng Singleton
-# để tránh tạo connection pool mới (TCP/SSL handshake) cho mỗi request.
-_supabase_admin_client = None
-_supabase_admin_lock = Lock()
-
-
-def _get_admin_singleton():
-    """Trả về Singleton Supabase admin client (service_role). Thread-safe."""
-    global _supabase_admin_client
-    if _supabase_admin_client is None:
-        with _supabase_admin_lock:
-            if _supabase_admin_client is None:  # double-checked locking
-                from supabase import create_client
-                if not getattr(settings, "SUPABASE_SERVICE_ROLE_KEY", None):
-                    raise RuntimeError(
-                        "SUPABASE_SERVICE_ROLE_KEY is not configured."
-                    )
-                _supabase_admin_client = create_client(
-                    settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY
-                )
-    return _supabase_admin_client
+# ─── ContextVar-based Supabase client cache ─────────────────────────────────────────────────
+# contextvars.ContextVar provides per-task (and per-thread) isolation in ASGI apps.
+# Unlike threading.local(), a ContextVar is task-local: concurrent async requests
+# running on the same OS thread each get their own context, preventing client
+# cache sharing and auth-token leaks across requests.
+_ctx_anon_client: contextvars.ContextVar = contextvars.ContextVar("supabase_anon_client", default=None)
+_ctx_service_client: contextvars.ContextVar = contextvars.ContextVar("supabase_service_client", default=None)
 
 
 def get_supabase_client(token: str | None = None, use_service_role: bool = False):
-    """Centralized Supabase client factory.
+    """Context-safe Supabase client factory with per-task caching.
 
-    - use_service_role=True  → trả về Singleton admin client (không tạo mới)
-    - use_service_role=False → tạo client mới với anon key + gắn user token
+    Uses contextvars.ContextVar so that each asyncio task (i.e. each concurrent
+    ASGI request) gets its own cached client, even when multiple tasks run on the
+    same OS thread. This is the correct standard for FastAPI/ASGI environments and
+    prevents auth-token leaks that threading.local() cannot guard against.
+
+    Per-request auth tokens: for authenticated requests a fresh Supabase client
+    is instantiated and the token is applied via postgrest.auth(). This avoids
+    mutating a shared cached client, which would risk token leaks across tasks.
     """
-    if use_service_role:
-        return _get_admin_singleton()
-
     from supabase import create_client
+
+    if use_service_role:
+        if not getattr(settings, "SUPABASE_SERVICE_ROLE_KEY", None):
+            raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is not configured.")
+        # Cache service-role client per task context
+        client = _ctx_service_client.get(None)
+        if client is None:
+            client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+            _ctx_service_client.set(client)
+        return client
+
+    # Unauthenticated path: reuse cached anon client (no mutation)
+    if not token:
+        client = _ctx_anon_client.get(None)
+        if client is None:
+            client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+            _ctx_anon_client.set(client)
+        return client
+
+    # Authenticated path: create a fresh client per request.
+    # We intentionally do NOT cache or mutate the shared anon client here.
+    # Mutating a cached client with .auth(token) is unsafe because:
+    # (a) forgetting to clear it leaks auth to the next unauthenticated request,
+    # (b) clearing with .auth("") can race with concurrent async tasks.
     client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
-    if token:
-        client.postgrest.auth(token)
+    client.postgrest.auth(token)
     return client
 
 

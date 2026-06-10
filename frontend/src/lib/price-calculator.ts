@@ -42,12 +42,24 @@ export function getBasePrice(size: CakeSize): number {
 }
 
 /**
- * Calculate the topping cost from a topping type string.
- * Returns 0 if the topping is not recognized or not provided.
+ * Calculate the topping cost from an array of topping types.
+ * Returns 0 if no toppings selected. Sums cost of all selected toppings.
+ * Normalizes (trim + lowercase), filters non-string/falsy items, and
+ * deduplicates via Set to prevent overcharging for duplicates or whitespace variants.
  */
-export function getToppingCost(toppingType?: string): number {
+export function getToppingCost(toppingType?: string | string[]): number {
   if (!toppingType) return 0;
-  return TOPPING_COSTS[toppingType.toLowerCase()] ?? 0;
+  if (Array.isArray(toppingType)) {
+    // Normalize → filter → deduplicate
+    const unique = Array.from(new Set(
+      toppingType
+        .filter((t): t is string => typeof t === "string" && t.trim().length > 0)
+        .map((t) => t.trim().toLowerCase())
+    ));
+    return unique.reduce((sum, key) => sum + (TOPPING_COSTS[key] ?? 0), 0);
+  }
+  if (typeof toppingType !== "string") return 0;
+  return TOPPING_COSTS[toppingType.trim().toLowerCase()] ?? 0;
 }
 
 /**

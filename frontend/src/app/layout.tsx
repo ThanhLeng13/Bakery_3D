@@ -1,4 +1,4 @@
-﻿import type { Metadata, Viewport } from "next";
+import type { Metadata, Viewport } from "next";
 import { Playfair_Display, DM_Sans } from "next/font/google";
 import dynamic from "next/dynamic";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -63,7 +63,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" className={`${playfair.variable} ${dmSans.variable}`}>
+    <html lang="vi" className={`${playfair.variable} ${dmSans.variable}`} suppressHydrationWarning>
       <head>
         {/* Preconnect to Google Fonts CDN (already loaded by next/font but good practice) */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />

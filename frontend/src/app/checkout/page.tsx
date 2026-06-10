@@ -36,6 +36,7 @@ interface FormErrors {
   phone?: string;
   email?: string;
   pickup_date?: string;
+  branch?: string;   // lỗi chi nhánh khi isCartMode
   general?: string;
 }
 
@@ -359,11 +360,11 @@ function CheckoutContent() {
                     {formatDisplayDate(confirmation.pickup_date)}
                   </span>
                 </div>
-              ) : (confirmation as any).created_at ? (
+              ) : confirmation.created_at ? (
                 <div className="flex justify-between items-center">
                   <span className="text-mocha/70 text-sm">Ngày mua hàng</span>
                   <span className="font-medium text-mocha text-sm">
-                    {formatDisplayDate((confirmation as any).created_at)}
+                    {formatDisplayDate(confirmation.created_at)}
                   </span>
                 </div>
               ) : null}

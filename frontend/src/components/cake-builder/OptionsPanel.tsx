@@ -71,9 +71,13 @@ export default function OptionsPanel({
         panelRef.current &&
         !panelRef.current.contains(event.target as Node)
       ) {
-        // Check if click is on the SVG (zone click will handle it)
-        const target = event.target as HTMLElement;
+        // Guard: event.target may be a Text node or Document which lacks .closest()
+        if (!(event.target instanceof Element)) return;
+        const target = event.target;
+        // Don't close when clicking on SVG (old) OR 3D canvas wrapper
         if (target.closest("svg")) return;
+        if (target.closest("[data-cake3d]")) return;
+        if (target.closest("canvas")) return;
         onClose();
       }
     };
@@ -102,10 +106,14 @@ export default function OptionsPanel({
   const handleToppingSelect = useCallback(
     (topping: string) => {
       if (!activeZone) return;
-      const newTopping = zoneCustomization.topping === topping ? undefined : topping;
-      onOptionSelect(activeZone, { topping: newTopping });
+      const current = zoneCustomization.toppings ?? [];
+      const exists = current.includes(topping);
+      const newToppings = exists
+        ? current.filter((t) => t !== topping)
+        : [...current, topping];
+      onOptionSelect(activeZone, { toppings: newToppings });
     },
-    [activeZone, zoneCustomization.topping, onOptionSelect]
+    [activeZone, zoneCustomization.toppings, onOptionSelect]
   );
 
   const handleDecorationSelect = useCallback(
@@ -121,28 +129,35 @@ export default function OptionsPanel({
 
   const renderTopOptions = () => (
     <div className="space-y-4">
-      {/* Topping selector */}
+      {/* Topping selector - multi-select */}
       <div>
-        <h4 className="text-sm font-medium text-mocha mb-2">Toppings</h4>
+        <h4 className="text-sm font-medium text-mocha mb-1">Toppings</h4>
+        <p className="text-xs text-mocha/50 mb-2">Chọn một hoặc nhiều topping 🎉</p>
         <div className="grid grid-cols-3 gap-2">
-          {TOPPING_OPTIONS.map((option) => (
-            <button
-              key={option.id}
-              onClick={() => handleToppingSelect(option.id)}
-              className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all duration-100 min-w-[44px] min-h-[44px] ${
-                zoneCustomization.topping === option.id
-                  ? "border-pink-pastel bg-pink-pastel/10 shadow-sm"
-                  : "border-gray-200 hover:border-pink-pastel/50 hover:bg-cream"
-              }`}
-              aria-label={`Topping: ${option.label}`}
-              aria-pressed={zoneCustomization.topping === option.id}
-            >
-              <span className="text-lg" role="img" aria-hidden="true">
-                {option.icon}
-              </span>
-              <span className="text-xs mt-1 text-mocha">{option.label}</span>
-            </button>
-          ))}
+          {TOPPING_OPTIONS.map((option) => {
+            const selected = (zoneCustomization.toppings ?? []).includes(option.id);
+            return (
+              <button
+                key={option.id}
+                onClick={() => handleToppingSelect(option.id)}
+                className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all duration-100 min-w-[44px] min-h-[44px] ${
+                  selected
+                    ? "border-pink-pastel bg-pink-pastel/10 shadow-sm"
+                    : "border-gray-200 hover:border-pink-pastel/50 hover:bg-cream"
+                }`}
+                aria-label={`Topping: ${option.label}`}
+                aria-pressed={selected}
+              >
+                <span className="text-lg relative" role="img" aria-hidden="true">
+                  {option.icon}
+                  {selected && (
+                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-pink-pastel rounded-full flex items-center justify-center text-[8px] text-white font-bold">✓</span>
+                  )}
+                </span>
+                <span className="text-xs mt-1 text-mocha">{option.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

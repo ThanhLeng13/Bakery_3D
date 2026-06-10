@@ -148,23 +148,77 @@ function InventoryContent() {
 
     setAddLoading(true);
     setAddError(null);
+
+    const payload = {
+      product_id: selectedProductId,
+      quantity: parseInt(addQty, 10),
+      produced_at: addProduced,
+      expires_at: addExpires,
+      notes: addNotes.trim() || null,
+    };
+
     try {
-      await apiClient.post("/api/v1/baker/batches", {
-        product_id: selectedProductId,
-        quantity: parseInt(addQty, 10),
-        produced_at: addProduced,
-        expires_at: addExpires,
-        notes: addNotes.trim() || null,
-        branch_id: addBranchId || null,
-      });
+      if (addBranchId === "" && branches.length > 0) {
+        // Bulk API — may return 207 partial success (2xx so apiClient won't throw)
+        const res = await apiClient.post<{
+          batches?: unknown[];
+          errors?: { branch_id: string; error: string }[];
+          succeeded_branch_ids?: string[];
+          message?: string;
+        }>("/api/v1/baker/batches/bulk", {
+          ...payload,
+          branch_ids: branches.map((b) => b.id),
+        });
+
+        if (res.errors && res.errors.length > 0) {
+          // Partial failure (207): some branches succeeded, some failed
+          // Refresh batch list so user sees what was created
+          loadBatches();
+          const failedNames = res.errors
+            .map((e) => branches.find((b) => b.id === e.branch_id)?.name || e.branch_id)
+            .join(", ");
+          setAddError(
+            `${res.message || "Lỗi một phần"}. Thất bại tại: ${failedNames}. ` +
+            `Đã tạo ${res.batches?.length || 0} lô thành công. Chỉ cần thử lại cho chi nhánh lỗi.`
+          );
+          return; // keep form open
+        }
+      } else {
+        // Một chi nhánh cụ thể (hoặc null)
+        await apiClient.post("/api/v1/baker/batches", {
+          ...payload,
+          branch_id: addBranchId || null,
+        });
+      }
+
       setShowAddForm(false);
       setAddQty("10");
       setAddNotes("");
       setAddExpires(inThreeDays());
       loadBatches();
     } catch (err: unknown) {
-      const e = err as { detail?: string };
-      setAddError(e?.detail || "Không thể thêm lô hàng.");
+      // apiClient throws the parsed JSON body on non-ok responses.
+      // `detail` can be:
+      //   - a string (single batch, e.g. 400/404 errors)
+      //   - an array of objects (FastAPI 422 validation errors: [{loc, msg, type},...])
+      //   - an object { message, errors } (bulk endpoint partial failure)
+      const raw = err as { detail?: string | { message?: string } | { msg: string; loc: string[] }[]; message?: string };
+      let errorMsg = "Không thể thêm lô hàng.";
+      if (raw?.detail) {
+        if (typeof raw.detail === "string") {
+          errorMsg = raw.detail;
+        } else if (Array.isArray(raw.detail)) {
+          // FastAPI 422 validation errors — join individual messages for clarity
+          errorMsg = (raw.detail as { msg: string; loc: string[] }[])
+            .map((e) => `${e.loc?.slice(1).join(" → ") ?? "field"}: ${e.msg}`)
+            .join("; ");
+        } else if (typeof raw.detail === "object" && raw.detail.message) {
+          errorMsg = raw.detail.message;
+        }
+      } else if (typeof raw?.message === "string") {
+        errorMsg = raw.message;
+      }
+      setAddError(errorMsg);
     } finally {
       setAddLoading(false);
     }
@@ -498,8 +552,8 @@ function InventoryContent() {
                           : "border-mocha/15 text-mocha/70 hover:border-mocha/30"
                       }`}
                     >
-                      🏬 Tất cả
-                      <p className="text-xs font-normal text-mocha/40 mt-0.5 truncate">Kho chung</p>
+                      🏬 Tất cả chi nhánh
+                      <p className="text-xs font-normal text-mocha/40 mt-0.5 truncate">Mỗi CN nhận {addQty || "0"} cái</p>
                     </button>
 
                     {/* Card từng chi nhánh */}

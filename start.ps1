@@ -42,6 +42,21 @@ if (-not (Test-Path $frontendEnv)) {
     exit 1
 }
 
+# Chon che do chay cho Frontend
+Write-Host "Lua chon che do khoi dong cho Frontend:" -ForegroundColor Cyan
+Write-Host "  [1] Development Mode (Moi truong Phat trien, mac dinh)" -ForegroundColor White
+Write-Host "      - Hot Module Replacement, nhanh reload, connect-src bao gom http://localhost:8000" -ForegroundColor Gray
+Write-Host "  [2] Production Build  (Build toi uu, kiem tra truoc khi deploy)" -ForegroundColor White
+Write-Host "      - Build & chay qua 'npm run start', dung NEXT_PUBLIC_API_URL cho backend" -ForegroundColor Gray
+$choiceInput = Read-Host "Nhap lua chon cua ban [1 hoac 2, mac dinh la 1]"
+$isProduction = $false
+if ($choiceInput -eq "2") {
+    $isProduction = $true
+    Write-Host "[*] Da chon Production Build Mode." -ForegroundColor Cyan
+} else {
+    Write-Host "[*] Chay o che do Development Mode." -ForegroundColor Cyan
+}
+
 # ---- FRONTEND PORT RESOLUTION ----
 $lastPortFile = Join-Path $rootDir ".last_port"
 $frontendPort = 3000
@@ -114,13 +129,23 @@ Start-Process powershell -ArgumentList @(
 Start-Sleep -Seconds 3
 
 # ---- FRONTEND ----
-Write-Host "[2/2] Khoi dong FRONTEND (Next.js - cong $frontendPort)..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList @(
-    "-ExecutionPolicy", "Bypass",
-    "-NoExit",
-    "-Command",
-    "cd '$frontendDir'; Write-Host '[FRONTEND] Dang kiem tra packages...' -ForegroundColor Cyan; if (-not (Test-Path 'node_modules')) { npm install; if (`$LASTEXITCODE -ne 0) { Write-Host '[FRONTEND] npm install THAT BAI!' -ForegroundColor Red; Read-Host 'Nhan Enter de dong'; exit 1 } }; Write-Host '[FRONTEND] Dang chay server...' -ForegroundColor Green; npm run dev -- -p $frontendPort"
-)
+if ($isProduction) {
+    Write-Host "[2/2] Khoi dong FRONTEND (Next.js Production Build - cong $frontendPort)..." -ForegroundColor Yellow
+    Start-Process powershell -ArgumentList @(
+        "-ExecutionPolicy", "Bypass",
+        "-NoExit",
+        "-Command",
+        "cd '$frontendDir'; `$env:NEXT_PUBLIC_API_URL = 'http://127.0.0.1:8000'; Write-Host '[FRONTEND] Dang build production...' -ForegroundColor Cyan; if (-not (Test-Path 'node_modules')) { npm install }; npm run build; if (`$LASTEXITCODE -ne 0) { Write-Host '[FRONTEND] Build THAT BAI!' -ForegroundColor Red; Read-Host 'Nhan Enter de dong'; exit 1 }; Write-Host '[FRONTEND] Dang chay server production...' -ForegroundColor Green; npm run start -- -p $frontendPort"
+    )
+} else {
+    Write-Host "[2/2] Khoi dong FRONTEND (Next.js Development - cong $frontendPort)..." -ForegroundColor Yellow
+    Start-Process powershell -ArgumentList @(
+        "-ExecutionPolicy", "Bypass",
+        "-NoExit",
+        "-Command",
+        "cd '$frontendDir'; Write-Host '[FRONTEND] Dang kiem tra packages...' -ForegroundColor Cyan; if (-not (Test-Path 'node_modules')) { npm install; if (`$LASTEXITCODE -ne 0) { Write-Host '[FRONTEND] npm install THAT BAI!' -ForegroundColor Red; Read-Host 'Nhan Enter de dong'; exit 1 } }; Write-Host '[FRONTEND] Dang chay server dev...' -ForegroundColor Green; npm run dev -- -p $frontendPort"
+    )
+}
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Green

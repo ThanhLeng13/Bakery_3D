@@ -19,6 +19,8 @@ interface CompletionPanelProps {
   onCreamColorChange: (creamColor: string) => void;
   onSpecialNotesChange: (notes: string) => void;
   onComplete: () => void;
+  /** Unique suffix to prevent duplicate IDs when rendered multiple times (desktop + mobile) */
+  instanceId?: string;
 }
 
 /** Available flavor options */
@@ -90,6 +92,7 @@ export function CompletionPanel({
   onCreamColorChange,
   onSpecialNotesChange,
   onComplete,
+  instanceId = "default",
 }: CompletionPanelProps) {
   const [errors, setErrors] = useState<ValidationErrors>({});
 
@@ -258,13 +261,13 @@ export function CompletionPanel({
       {/* Special notes textarea */}
       <div>
         <label
-          htmlFor="special-notes"
+          htmlFor={`special-notes-${instanceId}`}
           className="block text-sm font-medium text-mocha mb-2"
         >
           Ghi chú đặc biệt
         </label>
         <textarea
-          id="special-notes"
+          id={`special-notes-${instanceId}`}
           value={design.special_notes ?? ""}
           onChange={(e) => onSpecialNotesChange(e.target.value)}
           maxLength={200}
