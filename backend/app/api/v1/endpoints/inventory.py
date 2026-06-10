@@ -91,15 +91,24 @@ def add_batch_bulk(
     body: BulkAddBatchRequest,
     baker: dict = Depends(require_baker),
 ):
-    """Tạo lô bánh ngọt cho nhiều chi nhánh cùng lúc (atomic).
+    """Tạo lô bánh ngọt cho nhiều chi nhánh trong một request.
 
-    Tất cả chi nhánh sẽ được tạo lô trong một request duy nhất.
-    Nếu bất kỳ chi nhánh nào thất bại, toàn bộ request sẽ thất bại
-    (không tạo duplicate khi user retry).
+    NOT truly atomic — each branch insert is a separate DB operation.
+    On partial failure, returns 207 Multi-Status with details of which
+    branches succeeded and which failed, so the frontend can retry
+    only the failed ones (avoiding duplicates).
+
+    Returns:
+        201: All branches succeeded.
+        207: Partial success — some branches failed. Response includes
+             succeeded_branch_ids and failed details for retry.
     """
+    from fastapi.responses import JSONResponse
+
     svc = _get_inventory_service()
     results = []
     errors = []
+    succeeded_branch_ids = []
 
     for branch_id in body.branch_ids:
         try:
@@ -113,16 +122,20 @@ def add_batch_bulk(
                 baker=baker,
             )
             results.append(result)
+            succeeded_branch_ids.append(branch_id)
         except InventoryServiceError as e:
             errors.append({"branch_id": branch_id, "error": e.message})
 
     if errors:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "message": f"Thất bại {len(errors)}/{len(body.branch_ids)} chi nhánh",
+        # 207 Multi-Status: some succeeded, some failed
+        # Frontend should retry only the failed branch_ids
+        return JSONResponse(
+            status_code=207,
+            content={
+                "message": f"Thành công {len(results)}/{len(body.branch_ids)} chi nhánh",
+                "batches": results,
+                "succeeded_branch_ids": succeeded_branch_ids,
                 "errors": errors,
-                "created": len(results),
             },
         )
 

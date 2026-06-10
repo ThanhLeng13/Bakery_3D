@@ -159,11 +159,30 @@ function InventoryContent() {
 
     try {
       if (addBranchId === "" && branches.length > 0) {
-        // Tất cả chi nhánh: gọi bulk API (atomic — tránh duplicate khi retry)
-        await apiClient.post("/api/v1/baker/batches/bulk", {
+        // Bulk API — may return 207 partial success (2xx so apiClient won't throw)
+        const res = await apiClient.post<{
+          batches?: unknown[];
+          errors?: { branch_id: string; error: string }[];
+          succeeded_branch_ids?: string[];
+          message?: string;
+        }>("/api/v1/baker/batches/bulk", {
           ...payload,
           branch_ids: branches.map((b) => b.id),
         });
+
+        if (res.errors && res.errors.length > 0) {
+          // Partial failure (207): some branches succeeded, some failed
+          // Refresh batch list so user sees what was created
+          loadBatches();
+          const failedNames = res.errors
+            .map((e) => branches.find((b) => b.id === e.branch_id)?.name || e.branch_id)
+            .join(", ");
+          setAddError(
+            `${res.message || "Lỗi một phần"}. Thất bại tại: ${failedNames}. ` +
+            `Đã tạo ${res.batches?.length || 0} lô thành công. Chỉ cần thử lại cho chi nhánh lỗi.`
+          );
+          return; // keep form open
+        }
       } else {
         // Một chi nhánh cụ thể (hoặc null)
         await apiClient.post("/api/v1/baker/batches", {

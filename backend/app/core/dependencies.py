@@ -58,8 +58,14 @@ def get_supabase_client(token: str | None = None, use_service_role: bool = False
         client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
         _thread_local.anon_client = client
 
+    # CRITICAL: Always set auth state on cached client.
+    # If token is provided → authenticate this request.
+    # If token is None → CLEAR previous request's token to prevent
+    # cross-request privilege escalation on the same thread.
     if token:
         client.postgrest.auth(token)
+    else:
+        client.postgrest.auth("")
     return client
 
 
