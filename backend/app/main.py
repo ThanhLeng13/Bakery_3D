@@ -85,9 +85,18 @@ def create_app() -> FastAPI:
                 error=str(exc),
                 traceback=traceback.format_exc(),
             )
+            # Phai them CORS headers thu cong vi response nay khong di qua CORSMiddleware
+            # (do exception thoat qua call_next trong BaseHTTPMiddleware).
+            origin = request.headers.get("origin", "")
+            cors_headers = {
+                "Access-Control-Allow-Origin": origin if origin in settings.CORS_ORIGINS else "",
+                "Access-Control-Allow-Credentials": "true",
+                "Vary": "Origin",
+            }
             return JSONResponse(
                 status_code=500,
                 content={"detail": "Internal server error"},
+                headers={k: v for k, v in cors_headers.items() if v},
             )
         finally:
             request_id_ctx.reset(token)

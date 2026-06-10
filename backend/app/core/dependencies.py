@@ -9,7 +9,7 @@ Provides:
 """
 
 import logging
-import threading
+import contextvars
 
 from typing import Callable
 
@@ -22,20 +22,22 @@ from app.core.config import settings
 # auto_error=False so we can return a custom 401 message
 security_scheme = HTTPBearer(auto_error=False)
 
-# ─── Thread-local Supabase client cache ────────────────────────────────────────
-# supabase-py is NOT thread-safe for concurrent requests on a shared client.
-# Using threading.local() gives each worker thread its own cached client instance,
-# avoiding both (a) cross-thread race conditions and (b) the overhead of creating
-# a new HTTP connection (TLS handshake, socket) on every single request.
-_thread_local = threading.local()
+# ─── ContextVar-based Supabase client cache ─────────────────────────────────────────────────
+# contextvars.ContextVar provides per-task (and per-thread) isolation in ASGI apps.
+# Unlike threading.local(), a ContextVar is task-local: concurrent async requests
+# running on the same OS thread each get their own context, preventing client
+# cache sharing and auth-token leaks across requests.
+_ctx_anon_client: contextvars.ContextVar = contextvars.ContextVar("supabase_anon_client", default=None)
+_ctx_service_client: contextvars.ContextVar = contextvars.ContextVar("supabase_service_client", default=None)
 
 
 def get_supabase_client(token: str | None = None, use_service_role: bool = False):
-    """Thread-safe Supabase client factory with per-thread caching.
+    """Context-safe Supabase client factory with per-task caching.
 
-    Each thread in the ASGI thread pool gets its own client instance stored in
-    threading.local(). This avoids connection exhaustion under load while
-    maintaining thread safety (no shared mutable state across threads).
+    Uses contextvars.ContextVar so that each asyncio task (i.e. each concurrent
+    ASGI request) gets its own cached client, even when multiple tasks run on the
+    same OS thread. This is the correct standard for FastAPI/ASGI environments and
+    prevents auth-token leaks that threading.local() cannot guard against.
 
     Per-request auth tokens are applied via postgrest.auth() on the cached client
     without creating a new connection.
@@ -45,19 +47,19 @@ def get_supabase_client(token: str | None = None, use_service_role: bool = False
     if use_service_role:
         if not getattr(settings, "SUPABASE_SERVICE_ROLE_KEY", None):
             raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is not configured.")
-        # Cache service-role client per thread
-        client = getattr(_thread_local, "service_client", None)
+        # Cache service-role client per task context
+        client = _ctx_service_client.get(None)
         if client is None:
             client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
-            _thread_local.service_client = client
+            _ctx_service_client.set(client)
         return client
 
     # Unauthenticated path: reuse cached anon client (no mutation)
     if not token:
-        client = getattr(_thread_local, "anon_client", None)
+        client = _ctx_anon_client.get(None)
         if client is None:
             client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
-            _thread_local.anon_client = client
+            _ctx_anon_client.set(client)
         return client
 
     # Authenticated path: create a fresh client per request.

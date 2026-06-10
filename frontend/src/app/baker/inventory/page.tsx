@@ -198,13 +198,20 @@ function InventoryContent() {
       loadBatches();
     } catch (err: unknown) {
       // apiClient throws the parsed JSON body on non-ok responses.
-      // `detail` can be a string (single batch) or an object { message, errors }
-      // (bulk endpoint). Handle both to avoid displaying "[object Object]".
-      const raw = err as { detail?: string | { message?: string }; message?: string };
+      // `detail` can be:
+      //   - a string (single batch, e.g. 400/404 errors)
+      //   - an array of objects (FastAPI 422 validation errors: [{loc, msg, type},...])
+      //   - an object { message, errors } (bulk endpoint partial failure)
+      const raw = err as { detail?: string | { message?: string } | { msg: string; loc: string[] }[]; message?: string };
       let errorMsg = "Không thể thêm lô hàng.";
       if (raw?.detail) {
         if (typeof raw.detail === "string") {
           errorMsg = raw.detail;
+        } else if (Array.isArray(raw.detail)) {
+          // FastAPI 422 validation errors — join individual messages for clarity
+          errorMsg = (raw.detail as { msg: string; loc: string[] }[])
+            .map((e) => `${e.loc?.slice(1).join(" → ") ?? "field"}: ${e.msg}`)
+            .join("; ");
         } else if (typeof raw.detail === "object" && raw.detail.message) {
           errorMsg = raw.detail.message;
         }

@@ -1,4 +1,5 @@
 export { default as CakeSVG } from "./CakeSVG";
+export { default as Cake3D } from "./Cake3D";
 export { default as OptionsPanel } from "./OptionsPanel";
 export { default as StorageWarning } from "./StorageWarning";
 export { SizeSelector } from "./SizeSelector";

@@ -71,7 +71,9 @@ export default function OptionsPanel({
         panelRef.current &&
         !panelRef.current.contains(event.target as Node)
       ) {
-        const target = event.target as HTMLElement;
+        // Guard: event.target may be a Text node or Document which lacks .closest()
+        if (!(event.target instanceof Element)) return;
+        const target = event.target;
         // Don't close when clicking on SVG (old) OR 3D canvas wrapper
         if (target.closest("svg")) return;
         if (target.closest("[data-cake3d]")) return;

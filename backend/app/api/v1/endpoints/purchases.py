@@ -25,9 +25,9 @@ router = APIRouter()
 # ─── Dependency ────────────────────────────────────────────────────────────────
 
 def _get_db():
-    """Tra ve Singleton Supabase admin client (service_role)."""
-    from app.core.dependencies import _get_supabase_admin_client
-    return _get_supabase_admin_client()
+    """Tao Supabase admin client (service_role) moi request."""
+    from supabase import create_client
+    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
 
 # ─── Schemas ───────────────────────────────────────────────────────────────────
