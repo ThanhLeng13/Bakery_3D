@@ -39,8 +39,9 @@ def get_supabase_client(token: str | None = None, use_service_role: bool = False
     same OS thread. This is the correct standard for FastAPI/ASGI environments and
     prevents auth-token leaks that threading.local() cannot guard against.
 
-    Per-request auth tokens are applied via postgrest.auth() on the cached client
-    without creating a new connection.
+    Per-request auth tokens: for authenticated requests a fresh Supabase client
+    is instantiated and the token is applied via postgrest.auth(). This avoids
+    mutating a shared cached client, which would risk token leaks across tasks.
     """
     from supabase import create_client
 

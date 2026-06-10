@@ -295,6 +295,10 @@ function TopToppings({ toppings, surfaceY, R }: { toppings?: string[]; surfaceY:
 }
 
 // ─── Viền trang trí ───────────────────────────────────────────────────────────
+// useMemo creates ONE geometry and ONE material instance per decoration type.
+// Without this, each mesh in the .map() loop (N=22) would instantiate its own
+// GPU buffer and material, multiplying VRAM usage and draw-call overhead by N.
+// R3F allows sharing geometry/material objects across multiple <mesh> nodes.
 function BorderDecor({ type, color, R, y }: { type: string; color: string; R: number; y: number }) {
   const N = 22;
   const pts = useMemo(() =>
@@ -303,15 +307,26 @@ function BorderDecor({ type, color, R, y }: { type: string; color: string; R: nu
       return { x: Math.cos(a) * (R + 0.06), z: Math.sin(a) * (R + 0.06), a };
     }), [R]);
 
+  // Shared geometry + material instances — one each, reused across all N meshes
+  const pipingGeo  = useMemo(() => new THREE.SphereGeometry(0.06, 10, 10),    []);
+  const pipingMat  = useMemo(() => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.25, roughness: 0.25 }), [color]);
+
+  const rOuter     = useMemo(() => new THREE.SphereGeometry(0.07, 10, 10),    []);
+  const rOuterMat  = useMemo(() => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.15, transparent: true, opacity: 0.85, roughness: 0.25 }), [color]);
+  const rInner     = useMemo(() => new THREE.SphereGeometry(0.038, 8, 8),     []);
+  const rInnerMat  = useMemo(() => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.35, roughness: 0.15 }), [color]);
+
+  const pearlGeo   = useMemo(() => new THREE.SphereGeometry(0.052, 12, 12),   []);
+  const pearlMat   = useMemo(() => new THREE.MeshStandardMaterial({ color: "#FFFDD0", emissive: "#FFFACD", emissiveIntensity: 0.45, roughness: 0.03, metalness: 0.6 }), []);
+
+  const spkGeo     = useMemo(() => new THREE.CylinderGeometry(0.015, 0.015, 0.052, 6), []);
+
   switch (type) {
     case "piping":
       return (
         <group>
           {pts.map((p, i) => (
-            <mesh key={i} position={[p.x, y, p.z]}>
-              <sphereGeometry args={[0.06, 10, 10]} />
-              <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.25} roughness={0.25} />
-            </mesh>
+            <mesh key={i} position={[p.x, y, p.z]} geometry={pipingGeo} material={pipingMat} />
           ))}
         </group>
       );
@@ -320,14 +335,8 @@ function BorderDecor({ type, color, R, y }: { type: string; color: string; R: nu
         <group>
           {pts.map((p, i) => (
             <group key={i} position={[p.x, y, p.z]}>
-              <mesh>
-                <sphereGeometry args={[0.07, 10, 10]} />
-                <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.15} transparent opacity={0.85} roughness={0.25} />
-              </mesh>
-              <mesh>
-                <sphereGeometry args={[0.038, 8, 8]} />
-                <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.35} roughness={0.15} />
-              </mesh>
+              <mesh geometry={rOuter} material={rOuterMat} />
+              <mesh geometry={rInner} material={rInnerMat} />
             </group>
           ))}
         </group>
@@ -336,20 +345,17 @@ function BorderDecor({ type, color, R, y }: { type: string; color: string; R: nu
       return (
         <group>
           {pts.map((p, i) => (
-            <mesh key={i} position={[p.x, y, p.z]}>
-              <sphereGeometry args={[0.052, 12, 12]} />
-              <meshStandardMaterial color="#FFFDD0" emissive="#FFFACD" emissiveIntensity={0.45} roughness={0.03} metalness={0.6} />
-            </mesh>
+            <mesh key={i} position={[p.x, y, p.z]} geometry={pearlGeo} material={pearlMat} />
           ))}
         </group>
       );
     case "sprinkles": {
       const sc = ["#FF69B4","#87CEEB","#98FB98","#FFD700"];
+      // Sprinkles vary per-item color so material must stay inline; geometry is shared.
       return (
         <group>
           {pts.map((p, i) => (
-            <mesh key={i} position={[p.x, y+(i%3-1)*0.022, p.z]} rotation={[Math.PI/2, 0, p.a]}>
-              <cylinderGeometry args={[0.015, 0.015, 0.052, 6]} />
+            <mesh key={i} position={[p.x, y+(i%3-1)*0.022, p.z]} rotation={[Math.PI/2, 0, p.a]} geometry={spkGeo}>
               <meshStandardMaterial color={sc[i%4]} emissive={sc[i%4]} emissiveIntensity={0.4} roughness={0.3} />
             </mesh>
           ))}

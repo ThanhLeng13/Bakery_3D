@@ -89,7 +89,7 @@ def create_app() -> FastAPI:
             # (do exception thoat qua call_next trong BaseHTTPMiddleware).
             origin = request.headers.get("origin", "")
             cors_headers = {
-                "Access-Control-Allow-Origin": origin if origin in settings.CORS_ORIGINS else "",
+                "Access-Control-Allow-Origin": origin if ("*" in settings.CORS_ORIGINS or origin in settings.CORS_ORIGINS) else "",
                 "Access-Control-Allow-Credentials": "true",
                 "Vary": "Origin",
             }

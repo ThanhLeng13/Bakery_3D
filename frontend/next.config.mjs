@@ -43,10 +43,16 @@ const nextConfig = {
     const isDev = process.env.NODE_ENV === "development";
 
     // Base connect-src always includes self + Supabase
+    // NEXT_PUBLIC_API_URL: added when set so that production deployments where
+    // the API backend lives on a different origin (e.g. https://api.bo-no.com)
+    // are not blocked by CSP. Has no effect when unset or same-origin.
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     const connectSrc = [
       "'self'",
       "https://*.supabase.co",
       "wss://*.supabase.co",
+      // External API backend (production): include only when explicitly configured
+      ...(apiUrl ? [apiUrl] : []),
       // Local backend origins: only in development
       ...(isDev ? ["http://127.0.0.1:8000", "http://localhost:8000"] : []),
     ].join(" ");

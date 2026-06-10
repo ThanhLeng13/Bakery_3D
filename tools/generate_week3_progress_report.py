@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from docx import Document
@@ -8,7 +9,15 @@ from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 
 
-OUT = Path(r"D:\DE_TAI")
+_env_out = os.environ.get("DE_TAI_OUTPUT_DIR")
+if _env_out:
+    OUT = Path(_env_out)
+else:
+    # Fall back to project root (parent of tools/) or home dir
+    _tools_dir = Path(__file__).resolve().parent
+    _project_root = _tools_dir.parent
+    OUT = _project_root if (_project_root / "backend").exists() else Path.home()
+
 DOCX_PATH = OUT / "Bao_Cao_Tien_Do_Thuc_Tap_Tuan_3_Ly_Thanh_Long.docx"
 
 SCHOOL = "TRƯỜNG ĐẠI HỌC KIẾN TRÚC ĐÀ NẴNG"
@@ -164,13 +173,19 @@ def build_docx():
     run = sign.add_run("Sinh viên thực hiện\n\n\nLý Thành Long")
     set_run_font(run, bold=True)
 
+    DOCX_PATH.parent.mkdir(parents=True, exist_ok=True)
     try:
         doc.save(DOCX_PATH)
         return DOCX_PATH
-    except PermissionError:
+    except (PermissionError, FileNotFoundError, OSError):
         fallback = DOCX_PATH.with_name(DOCX_PATH.stem + "_Moi.docx")
-        doc.save(fallback)
-        return fallback
+        try:
+            doc.save(fallback)
+            return fallback
+        except (PermissionError, FileNotFoundError, OSError):
+            last_resort = Path.cwd() / DOCX_PATH.name
+            doc.save(last_resort)
+            return last_resort
 
 
 if __name__ == "__main__":
