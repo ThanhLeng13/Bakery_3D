@@ -159,19 +159,11 @@ function InventoryContent() {
 
     try {
       if (addBranchId === "" && branches.length > 0) {
-        // Tất cả chi nhánh: tạo song song 1 lô cho mỗi chi nhánh
-        const results = await Promise.allSettled(
-          branches.map((b) =>
-            apiClient.post("/api/v1/baker/batches", { ...payload, branch_id: b.id })
-          )
-        );
-        const failed = results
-          .map((r, i) => (r.status === "rejected" ? branches[i].name : null))
-          .filter(Boolean);
-        if (failed.length > 0) {
-          setAddError(`Không thể tạo lô cho: ${failed.join(", ")}`);
-          return; // giữ form mở để user thử lại
-        }
+        // Tất cả chi nhánh: gọi bulk API (atomic — tránh duplicate khi retry)
+        await apiClient.post("/api/v1/baker/batches/bulk", {
+          ...payload,
+          branch_ids: branches.map((b) => b.id),
+        });
       } else {
         // Một chi nhánh cụ thể (hoặc null)
         await apiClient.post("/api/v1/baker/batches", {

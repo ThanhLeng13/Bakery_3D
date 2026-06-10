@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
-from app.core.dependencies import require_baker
+from app.core.dependencies import require_baker, get_supabase_client
 from app.services.inventory_service import (
     BatchNotFoundError,
     InsufficientStockError,
@@ -29,10 +29,8 @@ public_router = APIRouter()
 # ─── Dependency ────────────────────────────────────────────────────────────────
 
 def _get_inventory_service() -> InventoryService:
-    # Tao client moi moi request: Supabase Python SDK khong thread-safe
-    # khi co nhieu concurrent requests dung chung 1 client object.
-    from supabase import create_client
-    client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+    # Uses threading.local()-cached client from get_supabase_client()
+    client = get_supabase_client(use_service_role=True)
     return InventoryService(client)
 
 
@@ -52,6 +50,16 @@ class UpdateBatchRequest(BaseModel):
     notes: str | None = Field(default=None, max_length=300)
     is_active: bool | None = Field(default=None)
     expires_at: str | None = Field(default=None)
+
+
+class BulkAddBatchRequest(BaseModel):
+    """Create batches for multiple branches in a single atomic request."""
+    product_id: str = Field(..., description="UUID sản phẩm (phải là bánh ngọt)")
+    quantity: int = Field(..., ge=1, le=9999, description="Số lượng mỗi lô")
+    produced_at: date = Field(..., description="Ngày sản xuất (YYYY-MM-DD)")
+    expires_at: date = Field(..., description="Ngày hết hạn (YYYY-MM-DD)")
+    notes: str | None = Field(default=None, max_length=300, description="Ghi chú bếp")
+    branch_ids: list[str] = Field(..., min_length=1, description="Danh sách UUID chi nhánh")
 
 
 # ─── Baker Routes ──────────────────────────────────────────────────────────────
@@ -76,6 +84,49 @@ def add_batch(
         return result
     except InventoryServiceError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message) from e
+
+
+@baker_router.post("/batches/bulk", status_code=201)
+def add_batch_bulk(
+    body: BulkAddBatchRequest,
+    baker: dict = Depends(require_baker),
+):
+    """Tạo lô bánh ngọt cho nhiều chi nhánh cùng lúc (atomic).
+
+    Tất cả chi nhánh sẽ được tạo lô trong một request duy nhất.
+    Nếu bất kỳ chi nhánh nào thất bại, toàn bộ request sẽ thất bại
+    (không tạo duplicate khi user retry).
+    """
+    svc = _get_inventory_service()
+    results = []
+    errors = []
+
+    for branch_id in body.branch_ids:
+        try:
+            result = svc.add_batch(
+                product_id=body.product_id,
+                quantity=body.quantity,
+                produced_at=body.produced_at.isoformat(),
+                expires_at=body.expires_at.isoformat(),
+                notes=body.notes,
+                branch_id=branch_id,
+                baker=baker,
+            )
+            results.append(result)
+        except InventoryServiceError as e:
+            errors.append({"branch_id": branch_id, "error": e.message})
+
+    if errors:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": f"Thất bại {len(errors)}/{len(body.branch_ids)} chi nhánh",
+                "errors": errors,
+                "created": len(results),
+            },
+        )
+
+    return {"batches": results, "total": len(results)}
 
 
 @baker_router.get("/batches")

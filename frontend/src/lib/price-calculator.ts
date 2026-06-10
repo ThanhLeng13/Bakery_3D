@@ -44,12 +44,17 @@ export function getBasePrice(size: CakeSize): number {
 /**
  * Calculate the topping cost from an array of topping types.
  * Returns 0 if no toppings selected. Sums cost of all selected toppings.
+ * Defensively checks each element type to avoid TypeError on non-string values.
  */
 export function getToppingCost(toppingType?: string | string[]): number {
   if (!toppingType) return 0;
   if (Array.isArray(toppingType)) {
-    return toppingType.reduce((sum, t) => sum + (TOPPING_COSTS[t.toLowerCase()] ?? 0), 0);
+    return toppingType.reduce((sum, t) => {
+      if (typeof t !== "string") return sum;
+      return sum + (TOPPING_COSTS[t.toLowerCase()] ?? 0);
+    }, 0);
   }
+  if (typeof toppingType !== "string") return 0;
   return TOPPING_COSTS[toppingType.toLowerCase()] ?? 0;
 }
 

@@ -100,7 +100,7 @@ export default function CakeBuilderPage() {
   // Toppings chỉ áp dụng cho mặt trên (zone top)
   const selectedToppings = design.zones.top.toppings ?? [];
 
-  console.log("CakeBuilderPage render, design:", design, "selectedToppings:", selectedToppings);
+
 
   return (
     <main className="min-h-screen bg-cream">

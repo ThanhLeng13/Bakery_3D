@@ -52,13 +52,13 @@ const nextConfig = {
           { key: "X-XSS-Protection", value: "1; mode=block" },
           // Referrer policy
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          // CSP: allow eval for Three.js WebGL shader compilation
-          // Three.js REQUIRES 'unsafe-eval' to compile GLSL shaders at runtime
+          // CSP: WebGL shader compilation (gl.shaderSource, gl.compileShader) uses GPU APIs
+          // and is NOT affected by CSP script-src restrictions. No 'unsafe-eval' needed.
           {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+              "script-src 'self' 'unsafe-inline'",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https://*.supabase.co https://placehold.co",

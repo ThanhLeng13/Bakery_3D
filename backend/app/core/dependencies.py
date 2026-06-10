@@ -9,7 +9,7 @@ Provides:
 """
 
 import logging
-from threading import Lock
+import threading
 
 from typing import Callable
 
@@ -22,41 +22,42 @@ from app.core.config import settings
 # auto_error=False so we can return a custom 401 message
 security_scheme = HTTPBearer(auto_error=False)
 
-# ── Supabase Singleton ──────────────────────────────────────────────────────
-# Service-role client không thay đổi giữa các request → dùng Singleton
-# để tránh tạo connection pool mới (TCP/SSL handshake) cho mỗi request.
-_supabase_admin_client = None
-_supabase_admin_lock = Lock()
-
-
-def _get_admin_singleton():
-    """Trả về Singleton Supabase admin client (service_role). Thread-safe."""
-    global _supabase_admin_client
-    if _supabase_admin_client is None:
-        with _supabase_admin_lock:
-            if _supabase_admin_client is None:  # double-checked locking
-                from supabase import create_client
-                if not getattr(settings, "SUPABASE_SERVICE_ROLE_KEY", None):
-                    raise RuntimeError(
-                        "SUPABASE_SERVICE_ROLE_KEY is not configured."
-                    )
-                _supabase_admin_client = create_client(
-                    settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY
-                )
-    return _supabase_admin_client
+# ─── Thread-local Supabase client cache ────────────────────────────────────────
+# supabase-py is NOT thread-safe for concurrent requests on a shared client.
+# Using threading.local() gives each worker thread its own cached client instance,
+# avoiding both (a) cross-thread race conditions and (b) the overhead of creating
+# a new HTTP connection (TLS handshake, socket) on every single request.
+_thread_local = threading.local()
 
 
 def get_supabase_client(token: str | None = None, use_service_role: bool = False):
-    """Centralized Supabase client factory.
+    """Thread-safe Supabase client factory with per-thread caching.
 
-    - use_service_role=True  → trả về Singleton admin client (không tạo mới)
-    - use_service_role=False → tạo client mới với anon key + gắn user token
+    Each thread in the ASGI thread pool gets its own client instance stored in
+    threading.local(). This avoids connection exhaustion under load while
+    maintaining thread safety (no shared mutable state across threads).
+
+    Per-request auth tokens are applied via postgrest.auth() on the cached client
+    without creating a new connection.
     """
-    if use_service_role:
-        return _get_admin_singleton()
-
     from supabase import create_client
-    client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+
+    if use_service_role:
+        if not getattr(settings, "SUPABASE_SERVICE_ROLE_KEY", None):
+            raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is not configured.")
+        # Cache service-role client per thread
+        client = getattr(_thread_local, "service_client", None)
+        if client is None:
+            client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+            _thread_local.service_client = client
+        return client
+
+    # Cache anon client per thread
+    client = getattr(_thread_local, "anon_client", None)
+    if client is None:
+        client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+        _thread_local.anon_client = client
+
     if token:
         client.postgrest.auth(token)
     return client

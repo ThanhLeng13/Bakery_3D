@@ -27,20 +27,27 @@ interface Cake3DProps {
   selectedToppings?: string[];
 }
 
-// ─── Click detection based on click/tap time duration ─────────────────────────
+// ─── Click detection based on time duration + pointer distance ────────────────
+// A click must satisfy BOTH: elapsed < 250ms AND pointer moved < 5px.
+// This prevents fast swipes/drags from triggering accidental clicks.
 function useMeshClick(onConfirm: () => void) {
   const downTime = useRef<number>(0);
+  const downPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
     downTime.current = Date.now();
+    downPos.current = { x: e.clientX, y: e.clientY };
   };
 
   const onPointerUp = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
     const elapsed = Date.now() - downTime.current;
-    // Clicks/Taps are normally < 250ms. Drags are longer.
-    if (elapsed < 250) {
+    const dx = e.clientX - downPos.current.x;
+    const dy = e.clientY - downPos.current.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    // True click: short duration AND minimal pointer movement
+    if (elapsed < 250 && distance < 5) {
       onConfirm();
     }
   };
@@ -637,7 +644,7 @@ const ZONE_LABELS: Record<CakeZone, string> = {
 export default function Cake3D(props: Cake3DProps) {
   const { hoveredZone, activeZone, design } = props;
 
-  console.log("Cake3D component render, design.cream_color:", design.cream_color, "props.selectedToppings:", props.selectedToppings);
+
 
   // Tóm tắt thiết kế hiện tại
   const summary: string[] = [];
