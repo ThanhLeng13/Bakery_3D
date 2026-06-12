@@ -98,8 +98,11 @@ export function useLoyalty() {
       }
 
       const result: RedeemResult = await res.json();
-      // Refresh balance sau khi đổi điểm
-      await fetchLoyalty();
+      // Refresh balance fire-and-forget — redeem đã thành công nên không để
+      // lỗi refresh làm hỏng kết quả trả về cho caller.
+      fetchLoyalty().catch((err) =>
+        console.warn("[useLoyalty] fetchLoyalty after redeem failed:", err)
+      );
       return result;
     },
     [fetchLoyalty]

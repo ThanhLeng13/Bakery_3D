@@ -215,6 +215,8 @@ function RedeemModal({
   loading: boolean;
 }) {
   const [count, setCount] = useState(1);
+  // FIX: Enforce API cap of max 10 vouchers per redemption.
+  const maxSelectable = Math.min(availableVouchers, 10);
 
   return (
     <div
@@ -308,7 +310,7 @@ function RedeemModal({
 
           <button
             id="redeem-increase"
-            onClick={() => setCount(Math.min(availableVouchers, count + 1))}
+            onClick={() => setCount(Math.min(maxSelectable, count + 1))}
             style={{
               width: "44px",
               height: "44px",
@@ -318,8 +320,8 @@ function RedeemModal({
               color: "white",
               fontSize: "1.25rem",
               fontWeight: 700,
-              cursor: count >= availableVouchers ? "not-allowed" : "pointer",
-              opacity: count >= availableVouchers ? 0.4 : 1,
+              cursor: count >= maxSelectable ? "not-allowed" : "pointer",
+              opacity: count >= maxSelectable ? 0.4 : 1,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -369,7 +371,7 @@ function RedeemModal({
           </button>
           <button
             id="redeem-confirm"
-            onClick={() => onConfirm(count)}
+            onClick={() => onConfirm(Math.min(count, maxSelectable))}
             disabled={loading}
             style={{
               flex: 2,
@@ -768,7 +770,13 @@ export default function LoyaltyPage() {
                 <div
                   style={{
                     height: "100%",
-                    width: `${((pts % pointsPerVoucher) / pointsPerVoucher) * 100}%`,
+                    // FIX: Khi pts là bội số chính xác của pointsPerVoucher (và > 0),
+                    // thanh tiến trình phải hiển thị 100% (đã sẵn sàng đổi) thay vì 0%.
+                    width: `${
+                      pointsToNext === 0 && pts > 0
+                        ? 100
+                        : ((pts % pointsPerVoucher) / pointsPerVoucher) * 100
+                    }%`,
                     background: "rgba(255,255,255,0.85)",
                     borderRadius: "9999px",
                     transition: "width 1s ease-out",

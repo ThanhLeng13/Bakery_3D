@@ -393,10 +393,10 @@ class OrderService:
             InvalidStatusTransitionError: If transition is not valid
             InsufficientPermissionError: If user role cannot perform transition
         """
-        # Fetch current order
+        # Fetch current order (include total_price for loyalty award on delivery)
         order_result = (
             self._supabase.table("orders")
-            .select("id, status, customer_id")
+            .select("id, status, customer_id, total_price")
             .eq("id", order_id)
             .maybe_single()
             .execute()
@@ -445,12 +445,9 @@ class OrderService:
         if new_status == "delivered":
             try:
                 from app.services.loyalty_service import LoyaltyService
+                # total_price và customer_id đã có trong `order` (SELECT đã bao gồm)
                 total_price = order.get("total_price") or 0
-                # Lấy lại total_price từ updated row nếu cần
-                if not total_price:
-                    row = update_result.data[0]
-                    total_price = row.get("total_price", 0)
-                customer_id = order.get("customer_id") or update_result.data[0].get("customer_id")
+                customer_id = order.get("customer_id")
                 if customer_id and total_price:
                     loyalty_svc = LoyaltyService(self._supabase)
                     loyalty_svc.award_points(

@@ -45,3 +45,72 @@ CREATE POLICY "Customer can view own loyalty_transactions"
 
 -- Service role (backend) được phép ghi (INSERT/UPDATE) — bypass RLS
 -- (service_role key vốn bypass RLS, policy này chỉ rõ ý định)
+
+-- ─── 5. RPC: increment_loyalty_points ────────────────────────────────────────
+-- Cộng điểm atomically (upsert).  Được gọi bởi LoyaltyService.award_points.
+-- Dùng INSERT ... ON CONFLICT DO UPDATE nên thread-safe, không bị lost-update.
+CREATE OR REPLACE FUNCTION increment_loyalty_points(
+    p_user_id  UUID,
+    p_points   INTEGER
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_new_points INTEGER;
+BEGIN
+    INSERT INTO loyalty_points (user_id, points, total_earned, updated_at)
+    VALUES (p_user_id, p_points, p_points, now())
+    ON CONFLICT (user_id) DO UPDATE
+        SET points       = loyalty_points.points + EXCLUDED.points,
+            total_earned = loyalty_points.total_earned + EXCLUDED.points,
+            updated_at   = now()
+    RETURNING points INTO v_new_points;
+
+    RETURN v_new_points;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION increment_loyalty_points(UUID, INTEGER) TO service_role;
+
+-- ─── 6. RPC: rpc_redeem_points ────────────────────────────────────────────────
+-- Trừ điểm + ghi lịch sử trong một transaction duy nhất.
+-- Atomic check-and-decrement: loại bỏ race condition double-spending.
+-- Raise SQLSTATE P0001 'INSUFFICIENT_POINTS' nếu không đủ điểm.
+CREATE OR REPLACE FUNCTION rpc_redeem_points(
+    p_user_id       UUID,
+    p_points_needed INTEGER,
+    p_ref_id        TEXT,
+    p_note          TEXT
+)
+RETURNS TABLE(remaining_points INTEGER)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_remaining INTEGER;
+BEGIN
+    -- Atomic: UPDATE chỉ xảy ra khi points >= p_points_needed
+    UPDATE loyalty_points
+    SET points     = points - p_points_needed,
+        updated_at = now()
+    WHERE user_id = p_user_id
+      AND points  >= p_points_needed
+    RETURNING points INTO v_remaining;
+
+    -- Không UPDATE được hàng nào → không đủ điểm
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'INSUFFICIENT_POINTS'
+            USING ERRCODE = 'P0001';
+    END IF;
+
+    -- Ghi lịch sử trong cùng transaction
+    INSERT INTO loyalty_transactions (user_id, points, type, ref_id, note)
+    VALUES (p_user_id, -p_points_needed, 'redeem', p_ref_id, p_note);
+
+    RETURN QUERY SELECT v_remaining;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION rpc_redeem_points(UUID, INTEGER, TEXT, TEXT) TO service_role;

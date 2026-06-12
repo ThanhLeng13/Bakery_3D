@@ -12,6 +12,8 @@ Bảng Supabase:
 
 import logging
 import math
+import secrets
+from datetime import datetime, timezone
 from typing import Any
 
 _logger = logging.getLogger(__name__)
@@ -103,8 +105,9 @@ class LoyaltyService:
         balance = self._get_or_create_balance(user_id)
         current = balance["points"]
 
-        # Tính mốc đổi điểm tiếp theo
-        redeemed_so_far = current // REDEEM_POINTS_PER_VOUCHER * REDEEM_POINTS_PER_VOUCHER
+        # Tính số điểm còn thiếu để đến mốc voucher tiếp theo.
+        # Nếu current là bội số chính xác của REDEEM_POINTS_PER_VOUCHER thì
+        # đã đủ điều kiện đổi ngay (points_to_next = 0).
         points_to_next = REDEEM_POINTS_PER_VOUCHER - (current % REDEEM_POINTS_PER_VOUCHER)
         if points_to_next == REDEEM_POINTS_PER_VOUCHER:
             points_to_next = 0  # đang đúng mốc, có thể đổi ngay
@@ -142,6 +145,9 @@ class LoyaltyService:
         """
         Cộng điểm cho user sau khi hoàn thành giao dịch.
 
+        Ưu tiên dùng RPC `increment_loyalty_points` (atomic upsert).
+        Fallback về read-modify-write nếu RPC chưa khả dụng.
+
         Args:
             user_id:     UUID của khách hàng
             amount_vnd:  Số tiền giao dịch (VND)
@@ -163,22 +169,21 @@ class LoyaltyService:
             return 0
 
         try:
-            # Đảm bảo bản ghi tồn tại
-            self._get_or_create_balance(user_id)
-
-            # Cộng điểm vào bảng loyalty_points bằng raw SQL update
+            # Atomic upsert via RPC — không cần _get_or_create_balance trước
             self._db.rpc(
                 "increment_loyalty_points",
                 {"p_user_id": user_id, "p_points": pts},
             ).execute()
         except Exception:
-            # Fallback: dùng select + update thủ công nếu RPC chưa tồn tại
+            # Fallback: dùng select + update thủ công nếu RPC chưa tồn tại.
+            # FIX: Dùng datetime thật thay vì chuỗi "now()" literal.
+            now_iso = datetime.now(timezone.utc).isoformat()
             current = self._get_or_create_balance(user_id)
             new_points = current["points"] + pts
             new_total  = current["total_earned"] + pts
             (
                 self._db.table("loyalty_points")
-                .update({"points": new_points, "total_earned": new_total, "updated_at": "now()"})
+                .update({"points": new_points, "total_earned": new_total, "updated_at": now_iso})
                 .eq("user_id", user_id)
                 .execute()
             )
@@ -206,7 +211,10 @@ class LoyaltyService:
 
     def redeem_points(self, user_id: str, voucher_count: int) -> dict:
         """
-        Đổi điểm lấy voucher giảm giá.
+        Đổi điểm lấy voucher giảm giá — atomic via RPC `rpc_redeem_points`.
+
+        Sử dụng RPC DB để thực hiện check-and-decrement trong một transaction
+        duy nhất, loại bỏ race condition double-spending khi có request đồng thời.
 
         Args:
             user_id:       UUID của khách hàng
@@ -214,6 +222,10 @@ class LoyaltyService:
 
         Returns:
             dict: discount_vnd, points_used, remaining_points, voucher_codes
+
+        Raises:
+            InsufficientPointsError: Nếu không đủ điểm (do DB RPC báo lỗi).
+            LoyaltyServiceError: Nếu tham số không hợp lệ.
         """
         if voucher_count < 1:
             raise LoyaltyServiceError("Số voucher phải ít nhất là 1.")
@@ -225,40 +237,71 @@ class LoyaltyService:
                 f"Tối đa đổi {MAX_REDEEM_AT_ONCE // REDEEM_POINTS_PER_VOUCHER} voucher một lần."
             )
 
-        balance = self._get_or_create_balance(user_id)
-        if balance["points"] < points_needed:
-            raise InsufficientPointsError(balance["points"], points_needed)
-
-        # Trừ điểm
-        new_points = balance["points"] - points_needed
-        self._db.table("loyalty_points").update({
-            "points": new_points,
-            "updated_at": "now()",
-        }).eq("user_id", user_id).execute()
-
-        # Tạo voucher codes đơn giản: BONOBONO-<timestamp>-<seq>
-        import time
-        ts = int(time.time())
+        # Tạo voucher codes bảo mật bằng secrets module.
+        # FIX: Thay timestamp-sequential (dự đoán được) bằng hex ngẫu nhiên.
         voucher_codes = [
-            f"BONOBONO-{ts}-{i+1}" for i in range(voucher_count)
+            f"BNB-{secrets.token_hex(8).upper()}" for _ in range(voucher_count)
         ]
 
         discount_vnd = voucher_count * REDEEM_VALUE_PER_VOUCHER
-
-        # Ghi lịch sử
         note = f"Đổi {points_needed} điểm lấy {voucher_count} voucher giảm {discount_vnd:,} VND"
-        self._db.table("loyalty_transactions").insert({
-            "user_id": user_id,
-            "points":  -points_needed,
-            "type":    "redeem",
-            "ref_id":  voucher_codes[0],
-            "note":    note,
-        }).execute()
+
+        # ── Atomic redeem via DB RPC ──────────────────────────────────────────
+        # rpc_redeem_points thực hiện UPDATE ... WHERE points >= needed và INSERT
+        # transaction trong cùng một transaction DB. Nếu không đủ điểm, DB raise
+        # SQLSTATE P0001 'INSUFFICIENT_POINTS'.
+        try:
+            rpc_result = self._db.rpc("rpc_redeem_points", {
+                "p_user_id":       user_id,
+                "p_points_needed": points_needed,
+                "p_ref_id":        voucher_codes[0],
+                "p_note":          note,
+            }).execute()
+
+            # rpc_redeem_points trả về SETOF với cột remaining_points
+            rows = rpc_result.data or []
+            remaining_points: int = rows[0]["remaining_points"] if rows else 0
+
+        except Exception as exc:
+            exc_str = str(exc)
+            # P0001 / INSUFFICIENT_POINTS = không đủ điểm
+            if "INSUFFICIENT_POINTS" in exc_str or "P0001" in exc_str:
+                # Đọc balance thực tế để báo lỗi đúng số điểm hiện có
+                try:
+                    bal = self._get_or_create_balance(user_id)
+                    available = bal["points"]
+                except Exception:
+                    available = 0
+                raise InsufficientPointsError(available, points_needed) from exc
+
+            # RPC chưa tồn tại hoặc lỗi khác → fallback non-atomic (deprecated path)
+            _logger.warning(
+                "rpc_redeem_points không khả dụng, dùng fallback (user=%s): %s",
+                user_id, exc_str[:200],
+            )
+            now_iso = datetime.now(timezone.utc).isoformat()
+            balance = self._get_or_create_balance(user_id)
+            if balance["points"] < points_needed:
+                raise InsufficientPointsError(balance["points"], points_needed) from exc
+
+            remaining_points = balance["points"] - points_needed
+            self._db.table("loyalty_points").update({
+                "points":     remaining_points,
+                "updated_at": now_iso,
+            }).eq("user_id", user_id).execute()
+
+            self._db.table("loyalty_transactions").insert({
+                "user_id": user_id,
+                "points":  -points_needed,
+                "type":    "redeem",
+                "ref_id":  voucher_codes[0],
+                "note":    note,
+            }).execute()
 
         return {
             "voucher_codes": voucher_codes,
             "discount_vnd": discount_vnd,
             "points_used": points_needed,
-            "remaining_points": new_points,
+            "remaining_points": remaining_points,
             "message": f"Đổi thành công! Bạn nhận được {voucher_count} voucher giảm {discount_vnd:,} VND.",
         }
