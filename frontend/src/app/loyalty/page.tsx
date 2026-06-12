@@ -206,6 +206,7 @@ function RedeemModal({
   onClose,
   onConfirm,
   loading,
+  error,
 }: {
   availableVouchers: number;
   voucherValue: number;
@@ -213,6 +214,7 @@ function RedeemModal({
   onClose: () => void;
   onConfirm: (count: number) => void;
   loading: boolean;
+  error?: string | null;
 }) {
   const [count, setCount] = useState(1);
   // FIX: Enforce API cap of max 10 vouchers per redemption.
@@ -349,6 +351,21 @@ function RedeemModal({
             Nhận {formatVND(count * voucherValue)} giảm giá
           </p>
         </div>
+
+        {error && (
+          <div style={{
+            background: "#fff2f2",
+            color: "#d32f2f",
+            padding: "0.75rem",
+            borderRadius: "0.5rem",
+            fontSize: "0.875rem",
+            marginBottom: "1.5rem",
+            textAlign: "center",
+            border: "1px solid #ffcdd2"
+          }}>
+            {error}
+          </div>
+        )}
 
         <div style={{ display: "flex", gap: "0.75rem" }}>
           <button
@@ -1015,9 +1032,13 @@ export default function LoyaltyPage() {
           availableVouchers={availableVouchers}
           voucherValue={voucherValue}
           pointsPerVoucher={pointsPerVoucher}
-          onClose={() => setShowRedeem(false)}
+          onClose={() => {
+            setShowRedeem(false);
+            setRedeemError(null);
+          }}
           onConfirm={handleRedeem}
           loading={redeemLoading}
+          error={redeemError}
         />
       )}
 
