@@ -273,6 +273,7 @@ class LoyaltyService:
                 "p_user_id":       user_id,
                 "p_points_needed": points_needed,
                 "p_voucher_codes": voucher_codes,
+                "p_voucher_value": REDEEM_VALUE_PER_VOUCHER,
                 "p_note":          note,
             }).execute()
 

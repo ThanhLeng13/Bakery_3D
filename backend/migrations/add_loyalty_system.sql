@@ -132,6 +132,7 @@ CREATE OR REPLACE FUNCTION rpc_redeem_points(
     p_user_id       UUID,
     p_points_needed INTEGER,
     p_voucher_codes TEXT[],
+    p_voucher_value INTEGER,
     p_note          TEXT
 )
 RETURNS TABLE(remaining_points INTEGER)
@@ -167,7 +168,7 @@ BEGIN
     FOREACH v_code IN ARRAY p_voucher_codes
     LOOP
         INSERT INTO public.vouchers (code, user_id, discount_vnd, status, transaction_id)
-        VALUES (v_code, p_user_id, 5000, 'active', v_tx_id);
+        VALUES (v_code, p_user_id, p_voucher_value, 'active', v_tx_id);
     END LOOP;
 
     RETURN QUERY SELECT v_remaining;
@@ -175,7 +176,7 @@ END;
 $$;
 
 -- Revoke broad access first; chỉ service_role (backend) được gọi RPC này.
-REVOKE EXECUTE ON FUNCTION rpc_redeem_points(UUID, INTEGER, TEXT[], TEXT) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION rpc_redeem_points(UUID, INTEGER, TEXT[], TEXT) FROM anon;
-REVOKE EXECUTE ON FUNCTION rpc_redeem_points(UUID, INTEGER, TEXT[], TEXT) FROM authenticated;
-GRANT  EXECUTE ON FUNCTION rpc_redeem_points(UUID, INTEGER, TEXT[], TEXT) TO   service_role;
+REVOKE EXECUTE ON FUNCTION rpc_redeem_points(UUID, INTEGER, TEXT[], INTEGER, TEXT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION rpc_redeem_points(UUID, INTEGER, TEXT[], INTEGER, TEXT) FROM anon;
+REVOKE EXECUTE ON FUNCTION rpc_redeem_points(UUID, INTEGER, TEXT[], INTEGER, TEXT) FROM authenticated;
+GRANT  EXECUTE ON FUNCTION rpc_redeem_points(UUID, INTEGER, TEXT[], INTEGER, TEXT) TO   service_role;
