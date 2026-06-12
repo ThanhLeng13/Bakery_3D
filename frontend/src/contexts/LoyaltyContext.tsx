@@ -22,7 +22,8 @@ import {
   useCallback,
   ReactNode,
 } from "react";
-import { getStoredUser, getStoredToken } from "@/lib/auth";
+import { getStoredToken } from "@/lib/auth";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -71,10 +72,13 @@ interface LoyaltyContextValue {
 const LoyaltyContext = createContext<LoyaltyContextValue | null>(null);
 
 export function LoyaltyProvider({ children }: { children: ReactNode }) {
+  const { isAuthenticated } = useAuthContext();
+
   const [data, setData] = useState<LoyaltyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // fetchLoyalty depends on isAuthenticated so its closure is always current.
   const fetchLoyalty = useCallback(async () => {
     const token = getStoredToken();
     if (!token) {
@@ -102,14 +106,20 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch khi user đã đăng nhập
+  // Re-run whenever authentication state changes:
+  //   login  → isAuthenticated becomes true  → fetch loyalty data
+  //   logout → isAuthenticated becomes false → clear stale data
   useEffect(() => {
-    const user = getStoredUser();
-    if (user) fetchLoyalty();
-    else setLoading(false);
-  }, [fetchLoyalty]);
+    if (isAuthenticated) {
+      fetchLoyalty();
+    } else {
+      setData(null);
+      setLoading(false);
+      setError(null);
+    }
+  }, [isAuthenticated, fetchLoyalty]);
 
   const redeemPoints = useCallback(
     async (voucherCount: number): Promise<RedeemResult> => {

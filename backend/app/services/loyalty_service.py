@@ -299,9 +299,8 @@ class LoyaltyService:
 
         except Exception as exc:
             exc_str = str(exc)
-            # P0001 / INSUFFICIENT_POINTS = không đủ điểm
+            # P0001 / INSUFFICIENT_POINTS = không đủ điểm → raise ngay, không fallback
             if "INSUFFICIENT_POINTS" in exc_str or "P0001" in exc_str:
-                # Đọc balance thực tế để báo lỗi đúng số điểm hiện có
                 try:
                     bal = self._get_or_create_balance(user_id)
                     available = bal["points"]
@@ -309,9 +308,19 @@ class LoyaltyService:
                     available = 0
                 raise InsufficientPointsError(available, points_needed) from exc
 
-            # RPC chưa tồn tại hoặc lỗi khác → fallback non-atomic (deprecated path)
+            # Chỉ fallback khi lỗi là "undefined function" (SQLSTATE 42883 / PGRST202).
+            # Mọi lỗi khác (transient DB error, timeout, lock conflict, …) → re-raise
+            # để tránh kích hoạt path non-atomic và gây double-spending.
+            is_undefined = (
+                "42883" in exc_str           # PostgreSQL undefined_function
+                or "PGRST202" in exc_str     # PostgREST: function not in schema cache
+                or "Could not find the function" in exc_str
+            )
+            if not is_undefined:
+                raise
+
             _logger.warning(
-                "rpc_redeem_points không khả dụng, dùng fallback (user=%s): %s",
+                "rpc_redeem_points không tồn tại, dùng fallback non-atomic (user=%s): %s",
                 user_id, exc_str[:200],
             )
             now_iso = datetime.now(timezone.utc).isoformat()
