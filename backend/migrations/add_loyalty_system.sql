@@ -49,6 +49,7 @@ CREATE POLICY "Customer can view own loyalty_transactions"
 -- ─── 5. RPC: increment_loyalty_points ────────────────────────────────────────
 -- Cộng điểm atomically (upsert).  Được gọi bởi LoyaltyService.award_points.
 -- Dùng INSERT ... ON CONFLICT DO UPDATE nên thread-safe, không bị lost-update.
+-- SECURITY DEFINER + pinned search_path: ngăn search_path injection attack.
 CREATE OR REPLACE FUNCTION increment_loyalty_points(
     p_user_id  UUID,
     p_points   INTEGER
@@ -56,15 +57,16 @@ CREATE OR REPLACE FUNCTION increment_loyalty_points(
 RETURNS INTEGER
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 DECLARE
     v_new_points INTEGER;
 BEGIN
-    INSERT INTO loyalty_points (user_id, points, total_earned, updated_at)
+    INSERT INTO public.loyalty_points (user_id, points, total_earned, updated_at)
     VALUES (p_user_id, p_points, p_points, now())
     ON CONFLICT (user_id) DO UPDATE
-        SET points       = loyalty_points.points + EXCLUDED.points,
-            total_earned = loyalty_points.total_earned + EXCLUDED.points,
+        SET points       = public.loyalty_points.points + EXCLUDED.points,
+            total_earned = public.loyalty_points.total_earned + EXCLUDED.points,
             updated_at   = now()
     RETURNING points INTO v_new_points;
 
@@ -72,12 +74,17 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION increment_loyalty_points(UUID, INTEGER) TO service_role;
+-- Revoke broad access first; chỉ service_role (backend) được gọi RPC này.
+REVOKE EXECUTE ON FUNCTION increment_loyalty_points(UUID, INTEGER) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION increment_loyalty_points(UUID, INTEGER) FROM anon;
+REVOKE EXECUTE ON FUNCTION increment_loyalty_points(UUID, INTEGER) FROM authenticated;
+GRANT  EXECUTE ON FUNCTION increment_loyalty_points(UUID, INTEGER) TO   service_role;
 
 -- ─── 6. RPC: rpc_redeem_points ────────────────────────────────────────────────
 -- Trừ điểm + ghi lịch sử trong một transaction duy nhất.
 -- Atomic check-and-decrement: loại bỏ race condition double-spending.
 -- Raise SQLSTATE P0001 'INSUFFICIENT_POINTS' nếu không đủ điểm.
+-- SECURITY DEFINER + pinned search_path: ngăn search_path injection attack.
 CREATE OR REPLACE FUNCTION rpc_redeem_points(
     p_user_id       UUID,
     p_points_needed INTEGER,
@@ -87,12 +94,13 @@ CREATE OR REPLACE FUNCTION rpc_redeem_points(
 RETURNS TABLE(remaining_points INTEGER)
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 DECLARE
     v_remaining INTEGER;
 BEGIN
     -- Atomic: UPDATE chỉ xảy ra khi points >= p_points_needed
-    UPDATE loyalty_points
+    UPDATE public.loyalty_points
     SET points     = points - p_points_needed,
         updated_at = now()
     WHERE user_id = p_user_id
@@ -106,11 +114,15 @@ BEGIN
     END IF;
 
     -- Ghi lịch sử trong cùng transaction
-    INSERT INTO loyalty_transactions (user_id, points, type, ref_id, note)
+    INSERT INTO public.loyalty_transactions (user_id, points, type, ref_id, note)
     VALUES (p_user_id, -p_points_needed, 'redeem', p_ref_id, p_note);
 
     RETURN QUERY SELECT v_remaining;
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION rpc_redeem_points(UUID, INTEGER, TEXT, TEXT) TO service_role;
+-- Revoke broad access first; chỉ service_role (backend) được gọi RPC này.
+REVOKE EXECUTE ON FUNCTION rpc_redeem_points(UUID, INTEGER, TEXT, TEXT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION rpc_redeem_points(UUID, INTEGER, TEXT, TEXT) FROM anon;
+REVOKE EXECUTE ON FUNCTION rpc_redeem_points(UUID, INTEGER, TEXT, TEXT) FROM authenticated;
+GRANT  EXECUTE ON FUNCTION rpc_redeem_points(UUID, INTEGER, TEXT, TEXT) TO   service_role;

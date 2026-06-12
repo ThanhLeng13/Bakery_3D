@@ -74,7 +74,11 @@ class LoyaltyService:
         return math.floor(total_vnd / 1_000 * POINTS_PER_1000_VND_ORDER)
 
     def _get_or_create_balance(self, user_id: str) -> dict:
-        """Lấy bản ghi điểm của user, tạo mới nếu chưa có."""
+        """Lấy bản ghi điểm của user, tạo mới nếu chưa có.
+
+        An toàn với concurrent calls: nếu INSERT bị UniqueViolation do tiến trình
+        song song đã tạo trước, sẽ SELECT lại bản ghi đó thay vì raise lỗi.
+        """
         result = (
             self._db.table("loyalty_points")
             .select("user_id, points, total_earned, updated_at")
@@ -85,13 +89,30 @@ class LoyaltyService:
         if result and result.data:
             return result.data
 
-        # Tạo mới bản ghi với 0 điểm
-        insert_result = (
-            self._db.table("loyalty_points")
-            .insert({"user_id": user_id, "points": 0, "total_earned": 0})
-            .execute()
-        )
-        return insert_result.data[0] if insert_result.data else {"user_id": user_id, "points": 0, "total_earned": 0}
+        # Tạo mới bản ghi với 0 điểm.
+        # Nếu bị UniqueViolation (tiến trình song song đã INSERT trước), SELECT lại.
+        try:
+            insert_result = (
+                self._db.table("loyalty_points")
+                .insert({"user_id": user_id, "points": 0, "total_earned": 0})
+                .execute()
+            )
+            return insert_result.data[0] if insert_result.data else {"user_id": user_id, "points": 0, "total_earned": 0}
+        except Exception as insert_exc:
+            exc_str = str(insert_exc)
+            # 23505 = unique_violation (PK conflict from concurrent insert)
+            if "23505" in exc_str or "unique" in exc_str.lower() or "duplicate" in exc_str.lower():
+                _logger.debug("_get_or_create_balance: concurrent INSERT detected for user=%s, re-querying", user_id)
+                retry = (
+                    self._db.table("loyalty_points")
+                    .select("user_id, points, total_earned, updated_at")
+                    .eq("user_id", user_id)
+                    .maybe_single()
+                    .execute()
+                )
+                if retry and retry.data:
+                    return retry.data
+            raise
 
     # ── Public API ───────────────────────────────────────────────────────────
 
@@ -105,11 +126,11 @@ class LoyaltyService:
         balance = self._get_or_create_balance(user_id)
         current = balance["points"]
 
-        # Tính số điểm còn thiếu để đến mốc voucher tiếp theo.
-        # Nếu current là bội số chính xác của REDEEM_POINTS_PER_VOUCHER thì
-        # đã đủ điều kiện đổi ngay (points_to_next = 0).
+        # Tính số điểm còn thiếu đến mốc voucher tiếp theo.
+        # - current == 0  → points_to_next = 100 (chưa đủ điểm để đổi)
+        # - current đúng mốc (và > 0) → points_to_next = 0 (có thể đổi ngay)
         points_to_next = REDEEM_POINTS_PER_VOUCHER - (current % REDEEM_POINTS_PER_VOUCHER)
-        if points_to_next == REDEEM_POINTS_PER_VOUCHER:
+        if points_to_next == REDEEM_POINTS_PER_VOUCHER and current > 0:
             points_to_next = 0  # đang đúng mốc, có thể đổi ngay
 
         return {
@@ -169,14 +190,28 @@ class LoyaltyService:
             return 0
 
         try:
-            # Atomic upsert via RPC — không cần _get_or_create_balance trước
+            # Atomic upsert via RPC—không cần _get_or_create_balance trước
             self._db.rpc(
                 "increment_loyalty_points",
                 {"p_user_id": user_id, "p_points": pts},
             ).execute()
-        except Exception:
-            # Fallback: dùng select + update thủ công nếu RPC chưa tồn tại.
-            # FIX: Dùng datetime thật thay vì chuỗi "now()" literal.
+        except Exception as rpc_exc:
+            exc_str = str(rpc_exc)
+            # Chỉ fallback khi lỗi là "undefined function" (SQLSTATE 42883 / PGRST202).
+            # Mọi lỗi khác (network, auth, data, …) → re-raise để tránh double-mutation.
+            is_undefined = (
+                "42883" in exc_str          # PostgreSQL undefined_function
+                or "PGRST202" in exc_str    # PostgREST: function not found in schema cache
+                or "Could not find the function" in exc_str
+            )
+            if not is_undefined:
+                raise
+
+            _logger.warning(
+                "increment_loyalty_points RPC không tồn tại, dùng fallback (user=%s): %s",
+                user_id, exc_str[:200],
+            )
+            # Fallback: dùng select + update thủ công.
             now_iso = datetime.now(timezone.utc).isoformat()
             current = self._get_or_create_balance(user_id)
             new_points = current["points"] + pts

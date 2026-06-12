@@ -6,12 +6,12 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import CartDrawer from "@/components/CartDrawer";
-import { useLoyalty } from "@/hooks/useLoyalty";
+import { useLoyaltyContext } from "@/contexts/LoyaltyContext";
 
 export default function Header() {
   const { user, isAuthenticated, logout } = useAuthContext();
   const { totalItems, openCart } = useCart();
-  const { data: loyaltyData } = useLoyalty();
+  const { data: loyaltyData } = useLoyaltyContext();
   const router = useRouter();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);

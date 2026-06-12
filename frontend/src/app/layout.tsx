@@ -3,6 +3,7 @@ import { Playfair_Display, DM_Sans } from "next/font/google";
 import dynamic from "next/dynamic";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
+import { LoyaltyProvider } from "@/contexts/LoyaltyContext";
 import "./globals.css";
 
 // ---- Fonts ----
@@ -72,9 +73,11 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <AuthProvider>
           <CartProvider>
-            {children}
-            {/* ChatWidget loaded dynamically to not block initial paint */}
-            <ChatWidget />
+            <LoyaltyProvider>
+              {children}
+              {/* ChatWidget loaded dynamically to not block initial paint */}
+              <ChatWidget />
+            </LoyaltyProvider>
           </CartProvider>
         </AuthProvider>
       </body>

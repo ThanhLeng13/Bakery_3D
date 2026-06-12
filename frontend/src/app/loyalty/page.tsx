@@ -13,7 +13,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Header from "@/components/Header";
-import { useLoyalty, LoyaltyTransaction } from "@/hooks/useLoyalty";
+import { useLoyaltyContext, LoyaltyTransaction } from "@/contexts/LoyaltyContext";
 import { useAuthContext } from "@/contexts/AuthContext";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -492,7 +492,7 @@ function SuccessModal({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function LoyaltyPage() {
   const { user, isAuthenticated } = useAuthContext();
-  const { data, loading, error, redeemPoints } = useLoyalty();
+  const { data, loading, error, redeemPoints } = useLoyaltyContext();
 
   const [showRedeem, setShowRedeem] = useState(false);
   const [redeemLoading, setRedeemLoading] = useState(false);
