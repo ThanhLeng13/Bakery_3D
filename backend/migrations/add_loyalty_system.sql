@@ -26,13 +26,38 @@ CREATE TABLE IF NOT EXISTS loyalty_transactions (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ─── 3. Indexes ───────────────────────────────────────────────────────────────
+-- ─── 3. Bảng vouchers (Mã giảm giá) ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS vouchers (
+    id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    code            TEXT        NOT NULL UNIQUE,
+    user_id         UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    discount_vnd    INTEGER     NOT NULL,
+    status          TEXT        NOT NULL DEFAULT 'active'
+                        CHECK (status IN ('active', 'used', 'expired')),
+    transaction_id  UUID        REFERENCES loyalty_transactions(id) ON DELETE SET NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    used_at         TIMESTAMPTZ,
+    expires_at      TIMESTAMPTZ
+);
+
+-- ─── 4. Indexes & Constraints ──────────────────────────────────────────────────
+-- Ràng buộc tránh cộng điểm 2 lần cho cùng 1 giao dịch
+ALTER TABLE loyalty_transactions 
+    ADD CONSTRAINT unique_user_type_ref UNIQUE (user_id, type, ref_id);
+
 CREATE INDEX IF NOT EXISTS idx_loyalty_transactions_user_id
     ON loyalty_transactions(user_id, created_at DESC);
 
--- ─── 4. Row Level Security ────────────────────────────────────────────────────
+CREATE INDEX IF NOT EXISTS idx_vouchers_code
+    ON vouchers(code);
+
+CREATE INDEX IF NOT EXISTS idx_vouchers_user_id
+    ON vouchers(user_id, created_at DESC);
+
+-- ─── 5. Row Level Security ────────────────────────────────────────────────────
 ALTER TABLE loyalty_points       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE loyalty_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vouchers             ENABLE ROW LEVEL SECURITY;
 
 -- Khách hàng chỉ đọc dữ liệu của chính mình
 CREATE POLICY "Customer can view own loyalty_points"
@@ -41,6 +66,10 @@ CREATE POLICY "Customer can view own loyalty_points"
 
 CREATE POLICY "Customer can view own loyalty_transactions"
     ON loyalty_transactions FOR SELECT
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Customer can view own vouchers"
+    ON vouchers FOR SELECT
     USING (auth.uid() = user_id);
 
 -- Service role (backend) được phép ghi (INSERT/UPDATE) — bypass RLS
