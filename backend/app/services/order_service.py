@@ -4,9 +4,12 @@ Handles order creation, listing, detail retrieval, and status transitions.
 Enforces pickup date validation and role-based status transition rules.
 """
 
+import logging
 import math
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
+
+_logger = logging.getLogger(__name__)
 
 
 class OrderServiceError(Exception):
@@ -174,9 +177,19 @@ class OrderService:
 
         # Create order items
         for item in items:
+            # Cake Builder custom cakes use a null/placeholder UUID
+            # (00000000-0000-0000-0000-000000000000) because they are not a
+            # catalog product. Store as NULL to avoid FK constraint violations.
+            NULL_UUID = "00000000-0000-0000-0000-000000000000"
+            raw_pid = item.get("product_id")
+            # Treat Python None AND the placeholder UUID both as NULL in DB.
+            # Calling str(None) would produce the literal string "None" which
+            # causes a UUID column constraint error.
+            product_id_value = None if (raw_pid is None or str(raw_pid) == NULL_UUID) else str(raw_pid)
+
             item_insert = {
                 "order_id": order_id,
-                "product_id": str(item["product_id"]),
+                "product_id": product_id_value,
                 "size": item.get("size"),
                 "flavor": item.get("flavor"),
                 "quantity": item["quantity"],
@@ -207,11 +220,12 @@ class OrderService:
                 ).execute()
 
         # Record initial status in history
+        changed_by_id = customer.get("id") or None
         self._supabase.table("order_status_history").insert({
             "order_id": order_id,
             "old_status": None,
             "new_status": "pending",
-            "changed_by": customer["id"],
+            "changed_by": changed_by_id,
         }).execute()
 
         return order
@@ -382,10 +396,10 @@ class OrderService:
             InvalidStatusTransitionError: If transition is not valid
             InsufficientPermissionError: If user role cannot perform transition
         """
-        # Fetch current order
+        # Fetch current order (include total_price for loyalty award on delivery)
         order_result = (
             self._supabase.table("orders")
-            .select("id, status, customer_id")
+            .select("id, status, customer_id, total_price")
             .eq("id", order_id)
             .maybe_single()
             .execute()
@@ -422,11 +436,38 @@ class OrderService:
             raise OrderServiceError("Failed to update order status", status_code=500)
 
         # Record status change in history
+        changed_by_id = user.get("id") or None
         self._supabase.table("order_status_history").insert({
             "order_id": order_id,
             "old_status": current_status,
             "new_status": new_status,
-            "changed_by": user["id"],
+            "changed_by": changed_by_id,
         }).execute()
+
+        # Cộng điểm tích lũy khi order giao thành công
+        if new_status == "delivered":
+            try:
+                from app.services.loyalty_service import LoyaltyService
+                from app.core.dependencies import get_supabase_client
+                
+                # total_price và customer_id đã có trong `order` (SELECT đã bao gồm)
+                total_price = order.get("total_price") or 0
+                customer_id = order.get("customer_id")
+                if customer_id and total_price:
+                    # Phải dùng service_role client vì bảng loyalty_points
+                    # bị chặn RLS ghi đối với user thường (kể cả baker/admin user_id)
+                    admin_client = get_supabase_client(use_service_role=True)
+                    loyalty_svc = LoyaltyService(admin_client)
+                    
+                    loyalty_svc.award_points(
+                        user_id=customer_id,
+                        amount_vnd=int(total_price),
+                        source_type="order",
+                        ref_id=order_id,
+                    )
+            except Exception as loyalty_err:
+                _logger.warning(
+                    "Không thể cộng điểm cho order %s: %s", order_id, loyalty_err
+                )
 
         return update_result.data[0]
