@@ -181,8 +181,11 @@ class OrderService:
             # (00000000-0000-0000-0000-000000000000) because they are not a
             # catalog product. Store as NULL to avoid FK constraint violations.
             NULL_UUID = "00000000-0000-0000-0000-000000000000"
-            raw_pid = str(item["product_id"])
-            product_id_value = None if raw_pid == NULL_UUID else raw_pid
+            raw_pid = item.get("product_id")
+            # Treat Python None AND the placeholder UUID both as NULL in DB.
+            # Calling str(None) would produce the literal string "None" which
+            # causes a UUID column constraint error.
+            product_id_value = None if (raw_pid is None or str(raw_pid) == NULL_UUID) else str(raw_pid)
 
             item_insert = {
                 "order_id": order_id,
