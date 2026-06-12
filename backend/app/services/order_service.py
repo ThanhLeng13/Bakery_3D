@@ -445,11 +445,17 @@ class OrderService:
         if new_status == "delivered":
             try:
                 from app.services.loyalty_service import LoyaltyService
+                from app.core.dependencies import get_supabase_client
+                
                 # total_price và customer_id đã có trong `order` (SELECT đã bao gồm)
                 total_price = order.get("total_price") or 0
                 customer_id = order.get("customer_id")
                 if customer_id and total_price:
-                    loyalty_svc = LoyaltyService(self._supabase)
+                    # Phải dùng service_role client vì bảng loyalty_points
+                    # bị chặn RLS ghi đối với user thường (kể cả baker/admin user_id)
+                    admin_client = get_supabase_client(use_service_role=True)
+                    loyalty_svc = LoyaltyService(admin_client)
+                    
                     loyalty_svc.award_points(
                         user_id=customer_id,
                         amount_vnd=int(total_price),

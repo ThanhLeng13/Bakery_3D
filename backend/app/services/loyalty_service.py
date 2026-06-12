@@ -251,6 +251,9 @@ class LoyaltyService:
         Sử dụng RPC DB để thực hiện check-and-decrement trong một transaction
         duy nhất, loại bỏ race condition double-spending khi có request đồng thời.
 
+        Tất cả voucher codes được lưu vào bảng `vouchers` để nhân viên có thể
+        xác minh tính hợp lệ và tránh gian lận / mất mã.
+
         Args:
             user_id:       UUID của khách hàng
             voucher_count: Số voucher muốn đổi (mỗi voucher = 100 điểm = 5,000 VND)
@@ -272,14 +275,17 @@ class LoyaltyService:
                 f"Tối đa đổi {MAX_REDEEM_AT_ONCE // REDEEM_POINTS_PER_VOUCHER} voucher một lần."
             )
 
-        # Tạo voucher codes bảo mật bằng secrets module.
-        # FIX: Thay timestamp-sequential (dự đoán được) bằng hex ngẫu nhiên.
+        # Tạo voucher codes bảo mật — 64-bit entropy hex, không thể đoán được.
         voucher_codes = [
             f"BNB-{secrets.token_hex(8).upper()}" for _ in range(voucher_count)
         ]
 
         discount_vnd = voucher_count * REDEEM_VALUE_PER_VOUCHER
         note = f"Đổi {points_needed} điểm lấy {voucher_count} voucher giảm {discount_vnd:,} VND"
+
+        # transaction_id sẽ được lấy sau khi insert loyalty_transactions (fallback path)
+        # hoặc look up từ loyalty_transactions (RPC path) để link với vouchers.
+        transaction_id: str | None = None
 
         # ── Atomic redeem via DB RPC ──────────────────────────────────────────
         # rpc_redeem_points thực hiện UPDATE ... WHERE points >= needed và INSERT
@@ -296,6 +302,24 @@ class LoyaltyService:
             # rpc_redeem_points trả về SETOF với cột remaining_points
             rows = rpc_result.data or []
             remaining_points: int = rows[0]["remaining_points"] if rows else 0
+
+            # Lấy transaction_id vừa được INSERT bởi RPC để link vouchers
+            try:
+                tx_row = (
+                    self._db.table("loyalty_transactions")
+                    .select("id")
+                    .eq("user_id", user_id)
+                    .eq("type", "redeem")
+                    .eq("ref_id", voucher_codes[0])
+                    .order("created_at", desc=True)
+                    .limit(1)
+                    .maybe_single()
+                    .execute()
+                )
+                if tx_row and tx_row.data:
+                    transaction_id = tx_row.data["id"]
+            except Exception as tx_err:
+                _logger.debug("Không lấy được transaction_id sau RPC (user=%s): %s", user_id, tx_err)
 
         except Exception as exc:
             exc_str = str(exc)
@@ -334,13 +358,40 @@ class LoyaltyService:
                 "updated_at": now_iso,
             }).eq("user_id", user_id).execute()
 
-            self._db.table("loyalty_transactions").insert({
+            tx_insert = self._db.table("loyalty_transactions").insert({
                 "user_id": user_id,
                 "points":  -points_needed,
                 "type":    "redeem",
                 "ref_id":  voucher_codes[0],
                 "note":    note,
             }).execute()
+
+            # Lấy transaction_id vừa INSERT (fallback path)
+            if tx_insert.data:
+                transaction_id = tx_insert.data[0].get("id")
+
+        # ── Lưu TẤT CẢ voucher codes vào bảng vouchers ──────────────────────
+        # Mỗi code được ghi riêng để nhân viên có thể xác minh tính hợp lệ.
+        # Trước đây chỉ lưu voucher_codes[0] trong ref_id → các code còn lại bị mất.
+        try:
+            voucher_rows = [
+                {
+                    "code":         code,
+                    "user_id":      user_id,
+                    "discount_vnd": REDEEM_VALUE_PER_VOUCHER,
+                    "status":       "active",
+                    "transaction_id": transaction_id,
+                }
+                for code in voucher_codes
+            ]
+            self._db.table("vouchers").insert(voucher_rows).execute()
+        except Exception as v_err:
+            # Ghi vouchers thất bại không nên huỷ giao dịch đã thành công,
+            # nhưng cần log để xử lý thủ công nếu cần.
+            _logger.error(
+                "Không ghi được vouchers sau khi redeem (user=%s, codes=%s): %s",
+                user_id, voucher_codes, v_err,
+            )
 
         return {
             "voucher_codes": voucher_codes,
@@ -349,3 +400,4 @@ class LoyaltyService:
             "remaining_points": remaining_points,
             "message": f"Đổi thành công! Bạn nhận được {voucher_count} voucher giảm {discount_vnd:,} VND.",
         }
+
