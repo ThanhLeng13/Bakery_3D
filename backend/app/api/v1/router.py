@@ -4,7 +4,7 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     admin_orders, admin_products, auth, baker_orders,
-    branches, catalog, chat, inventory, orders, purchases, reviews,
+    branches, catalog, chat, inventory, loyalty, orders, purchases, reviews,
 )
 
 router = APIRouter()
@@ -42,3 +42,6 @@ router.include_router(inventory.public_router, prefix="", tags=["Stock"])
 
 # Purchases — direct sweet purchase (trừ stock ngay)
 router.include_router(purchases.router, prefix="/purchases", tags=["Purchases"])
+
+# Loyalty — hệ thống tích điểm khách hàng
+router.include_router(loyalty.router, prefix="/loyalty", tags=["Loyalty"])

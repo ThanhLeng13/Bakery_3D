@@ -18,6 +18,7 @@ from app.services.inventory_service import (
     InventoryService,
     InventoryServiceError,
 )
+from app.services.loyalty_service import LoyaltyService
 
 router = APIRouter()
 
@@ -263,6 +264,21 @@ def create_purchase(
 
         # Update purchase status to "completed" only after successfully decrementing stock and inserting all items
         db.table("purchases").update({"status": "completed"}).eq("id", purchase_id).execute()
+
+        # Cộng điểm tích lũy cho khách hàng (fire-and-forget — lỗi không ảnh hưởng đơn hàng)
+        try:
+            loyalty_svc = LoyaltyService(db)
+            loyalty_svc.award_points(
+                user_id=customer["id"],
+                amount_vnd=int(total_price),
+                source_type="purchase",
+                ref_id=purchase_id,
+            )
+        except Exception as loyalty_err:
+            _logger.warning(
+                "Không thể cộng điểm cho purchase %s (user=%s): %s",
+                purchase_id, customer["id"], loyalty_err,
+            )
 
     except (InsufficientStockError, InventoryServiceError) as e:
         _rollback_purchase(inv_svc, db, all_decrements, purchase_id)

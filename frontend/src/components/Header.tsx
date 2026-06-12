@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -6,10 +6,12 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import CartDrawer from "@/components/CartDrawer";
+import { useLoyalty } from "@/hooks/useLoyalty";
 
 export default function Header() {
   const { user, isAuthenticated, logout } = useAuthContext();
   const { totalItems, openCart } = useCart();
+  const { data: loyaltyData } = useLoyalty();
   const router = useRouter();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -33,6 +35,7 @@ export default function Header() {
     { href: "/products", label: "Menu" },
     { href: "/cake-builder", label: "Thiết kế bánh" },
     { href: "/orders", label: "Đơn hàng" },
+    { href: "/loyalty", label: "🌿 Tích điểm" },
   ];
 
   return (
@@ -101,6 +104,20 @@ export default function Header() {
                   <span className="text-sm font-medium text-mocha hidden sm:block max-w-[120px] truncate">
                     {user.full_name}
                   </span>
+                  {/* Points badge */}
+                  {loyaltyData && loyaltyData.points > 0 && (
+                    <span
+                      className="hidden sm:flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold"
+                      style={{
+                        background: "linear-gradient(135deg, #3d6b35 0%, #8cbd6e 100%)",
+                        color: "white",
+                        boxShadow: "0 2px 6px rgba(61,107,53,0.3)",
+                        minHeight: "unset",
+                      }}
+                    >
+                      🌿 {loyaltyData.points.toLocaleString("vi-VN")}
+                    </span>
+                  )}
                   <svg
                     className={`w-4 h-4 text-mocha/50 transition-transform ${userMenuOpen ? "rotate-180" : ""}`}
                     fill="none"
@@ -142,6 +159,25 @@ export default function Header() {
                           onClick={() => setUserMenuOpen(false)}
                         >
                           📦 Đơn hàng của tôi
+                        </Link>
+                        <Link
+                          href="/loyalty"
+                          className="flex items-center gap-2 px-4 py-2 text-sm text-mocha hover:bg-cream transition-colors"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <span>🌿 Điểm tích lũy</span>
+                          {loyaltyData && loyaltyData.points > 0 && (
+                            <span
+                              className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                              style={{
+                                background: "linear-gradient(135deg, #3d6b35, #8cbd6e)",
+                                color: "white",
+                                minHeight: "unset",
+                              }}
+                            >
+                              {loyaltyData.points.toLocaleString("vi-VN")}
+                            </span>
+                          )}
                         </Link>
                         {user.role === "admin" && (
                           <Link
