@@ -189,57 +189,34 @@ class LoyaltyService:
         if pts <= 0:
             return 0
 
-        try:
-            # Atomic upsert via RPC—không cần _get_or_create_balance trước
-            self._db.rpc(
-                "increment_loyalty_points",
-                {"p_user_id": user_id, "p_points": pts},
-            ).execute()
-        except Exception as rpc_exc:
-            exc_str = str(rpc_exc)
-            # Chỉ fallback khi lỗi là "undefined function" (SQLSTATE 42883 / PGRST202).
-            # Mọi lỗi khác (network, auth, data, …) → re-raise để tránh double-mutation.
-            is_undefined = (
-                "42883" in exc_str          # PostgreSQL undefined_function
-                or "PGRST202" in exc_str    # PostgREST: function not found in schema cache
-                or "Could not find the function" in exc_str
-            )
-            if not is_undefined:
-                raise
-
-            _logger.warning(
-                "increment_loyalty_points RPC không tồn tại, dùng fallback (user=%s): %s",
-                user_id, exc_str[:200],
-            )
-            # Fallback: dùng select + update thủ công.
-            now_iso = datetime.now(timezone.utc).isoformat()
-            current = self._get_or_create_balance(user_id)
-            new_points = current["points"] + pts
-            new_total  = current["total_earned"] + pts
-            (
-                self._db.table("loyalty_points")
-                .update({"points": new_points, "total_earned": new_total, "updated_at": now_iso})
-                .eq("user_id", user_id)
-                .execute()
-            )
-
-        # Ghi lịch sử
         if not note:
             if source_type == "purchase":
                 note = f"Mua bánh ngọt — {amount_vnd:,} VND"
             else:
                 note = f"Đặt bánh kem — {amount_vnd:,} VND"
 
+        # Atomic upsert via RPC + Idempotent history insertion
+        # Gọi RPC để insert transaction (nếu chưa có) và cộng điểm trong một transaction DB.
+        # RPC sẽ no-op (không cộng điểm 2 lần) nếu giao dịch đã tồn tại.
         try:
-            self._db.table("loyalty_transactions").insert({
-                "user_id":  user_id,
-                "points":   pts,
-                "type":     source_type,
-                "ref_id":   ref_id,
-                "note":     note,
-            }).execute()
-        except Exception as e:
-            _logger.warning("Không ghi được loyalty_transaction (user=%s): %s", user_id, e)
+            self._db.rpc(
+                "increment_loyalty_points",
+                {
+                    "p_user_id": user_id, 
+                    "p_points": pts,
+                    "p_type": source_type,
+                    "p_ref_id": ref_id,
+                    "p_note": note
+                },
+            ).execute()
+        except Exception as rpc_exc:
+            _logger.error(
+                "Lỗi khi cộng điểm (user=%s, type=%s, ref=%s): %s",
+                user_id, source_type, ref_id, rpc_exc
+            )
+            # Quăng lỗi để caller biết việc cộng điểm thất bại, không tự fallback 
+            # để đảm bảo tính toàn vẹn (tránh double-spend).
+            raise LoyaltyServiceError("Không thể cộng điểm do lỗi hệ thống.") from rpc_exc
 
         _logger.info("Đã cộng %d điểm cho user %s (type=%s, ref=%s)", pts, user_id, source_type, ref_id)
         return pts
@@ -283,19 +260,19 @@ class LoyaltyService:
         discount_vnd = voucher_count * REDEEM_VALUE_PER_VOUCHER
         note = f"Đổi {points_needed} điểm lấy {voucher_count} voucher giảm {discount_vnd:,} VND"
 
-        # transaction_id sẽ được lấy sau khi insert loyalty_transactions (fallback path)
-        # hoặc look up từ loyalty_transactions (RPC path) để link với vouchers.
-        transaction_id: str | None = None
-
         # ── Atomic redeem via DB RPC ──────────────────────────────────────────
-        # rpc_redeem_points thực hiện UPDATE ... WHERE points >= needed và INSERT
-        # transaction trong cùng một transaction DB. Nếu không đủ điểm, DB raise
-        # SQLSTATE P0001 'INSUFFICIENT_POINTS'.
+        # rpc_redeem_points thực hiện:
+        # 1. Trừ điểm (sẽ lỗi P0001 nếu không đủ điểm)
+        # 2. Ghi lịch sử giao dịch loyalty_transactions
+        # 3. Lưu TẤT CẢ voucher codes vào bảng vouchers
+        # Tất cả nằm trong một database transaction. Nếu có bất kỳ lỗi nào (như đứt
+        # kết nối hoặc constraint violation), mọi thứ rollback 100%. Không có rủi ro
+        # mất điểm mà không nhận được voucher.
         try:
             rpc_result = self._db.rpc("rpc_redeem_points", {
                 "p_user_id":       user_id,
                 "p_points_needed": points_needed,
-                "p_ref_id":        voucher_codes[0],
+                "p_voucher_codes": voucher_codes,
                 "p_note":          note,
             }).execute()
 
@@ -303,27 +280,9 @@ class LoyaltyService:
             rows = rpc_result.data or []
             remaining_points: int = rows[0]["remaining_points"] if rows else 0
 
-            # Lấy transaction_id vừa được INSERT bởi RPC để link vouchers
-            try:
-                tx_row = (
-                    self._db.table("loyalty_transactions")
-                    .select("id")
-                    .eq("user_id", user_id)
-                    .eq("type", "redeem")
-                    .eq("ref_id", voucher_codes[0])
-                    .order("created_at", desc=True)
-                    .limit(1)
-                    .maybe_single()
-                    .execute()
-                )
-                if tx_row and tx_row.data:
-                    transaction_id = tx_row.data["id"]
-            except Exception as tx_err:
-                _logger.debug("Không lấy được transaction_id sau RPC (user=%s): %s", user_id, tx_err)
-
         except Exception as exc:
             exc_str = str(exc)
-            # P0001 / INSUFFICIENT_POINTS = không đủ điểm → raise ngay, không fallback
+            # P0001 / INSUFFICIENT_POINTS = không đủ điểm → raise lỗi mượt mà
             if "INSUFFICIENT_POINTS" in exc_str or "P0001" in exc_str:
                 try:
                     bal = self._get_or_create_balance(user_id)
@@ -332,66 +291,11 @@ class LoyaltyService:
                     available = 0
                 raise InsufficientPointsError(available, points_needed) from exc
 
-            # Chỉ fallback khi lỗi là "undefined function" (SQLSTATE 42883 / PGRST202).
-            # Mọi lỗi khác (transient DB error, timeout, lock conflict, …) → re-raise
-            # để tránh kích hoạt path non-atomic và gây double-spending.
-            is_undefined = (
-                "42883" in exc_str           # PostgreSQL undefined_function
-                or "PGRST202" in exc_str     # PostgREST: function not in schema cache
-                or "Could not find the function" in exc_str
-            )
-            if not is_undefined:
-                raise
-
-            _logger.warning(
-                "rpc_redeem_points không tồn tại, dùng fallback non-atomic (user=%s): %s",
-                user_id, exc_str[:200],
-            )
-            now_iso = datetime.now(timezone.utc).isoformat()
-            balance = self._get_or_create_balance(user_id)
-            if balance["points"] < points_needed:
-                raise InsufficientPointsError(balance["points"], points_needed) from exc
-
-            remaining_points = balance["points"] - points_needed
-            self._db.table("loyalty_points").update({
-                "points":     remaining_points,
-                "updated_at": now_iso,
-            }).eq("user_id", user_id).execute()
-
-            tx_insert = self._db.table("loyalty_transactions").insert({
-                "user_id": user_id,
-                "points":  -points_needed,
-                "type":    "redeem",
-                "ref_id":  voucher_codes[0],
-                "note":    note,
-            }).execute()
-
-            # Lấy transaction_id vừa INSERT (fallback path)
-            if tx_insert.data:
-                transaction_id = tx_insert.data[0].get("id")
-
-        # ── Lưu TẤT CẢ voucher codes vào bảng vouchers ──────────────────────
-        # Mỗi code được ghi riêng để nhân viên có thể xác minh tính hợp lệ.
-        # Trước đây chỉ lưu voucher_codes[0] trong ref_id → các code còn lại bị mất.
-        try:
-            voucher_rows = [
-                {
-                    "code":         code,
-                    "user_id":      user_id,
-                    "discount_vnd": REDEEM_VALUE_PER_VOUCHER,
-                    "status":       "active",
-                    "transaction_id": transaction_id,
-                }
-                for code in voucher_codes
-            ]
-            self._db.table("vouchers").insert(voucher_rows).execute()
-        except Exception as v_err:
-            # Ghi vouchers thất bại không nên huỷ giao dịch đã thành công,
-            # nhưng cần log để xử lý thủ công nếu cần.
-            _logger.error(
-                "Không ghi được vouchers sau khi redeem (user=%s, codes=%s): %s",
-                user_id, voucher_codes, v_err,
-            )
+            # Các lỗi khác (cả undefined_function do chưa chạy migration, 
+            # lỗi constraint vouchers, hoặc network) đều quăng ra 500
+            # Không dùng fallback Python để đảm bảo nguyên tắc 100% atomic DB-side.
+            _logger.error("Lỗi RPC rpc_redeem_points (user=%s): %s", user_id, exc_str)
+            raise LoyaltyServiceError("Hệ thống lỗi khi đổi điểm, vui lòng thử lại sau.") from exc
 
         return {
             "voucher_codes": voucher_codes,
