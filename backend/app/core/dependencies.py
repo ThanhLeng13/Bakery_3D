@@ -139,7 +139,7 @@ def get_current_user(
         try:
             user_result = (
                 supabase_admin.table("users")
-                .select("id, email, full_name, phone, role")
+                .select("*")
                 .eq("id", str(supabase_user.id))
                 .maybe_single()
                 .execute()
@@ -192,14 +192,17 @@ def get_current_user(
                 "full_name": full_name,
                 "phone": None,
                 "role": "customer",
+                "user_metadata": supabase_user.user_metadata or {},
             }
 
         return {
             "id": user_result.data["id"],
             "email": user_result.data["email"],
             "full_name": user_result.data.get("full_name", ""),
-            "phone": user_result.data.get("phone"),
+            "phone": user_result.data.get("phone", None),
             "role": user_result.data.get("role", "customer"),
+            "branch_id": user_result.data.get("branch_id"),
+            "user_metadata": supabase_user.user_metadata or {},
         }
 
     except HTTPException:

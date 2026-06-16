@@ -85,10 +85,11 @@ class OrderService:
         """Initialize with a Supabase client instance."""
         self._supabase = supabase_client
 
-    def _check_baker_authorization(self, order_id: str, order: dict, baker: dict) -> None:
+    def _check_baker_authorization(self, order_id: str, order: dict, baker: dict, read_only: bool = False) -> None:
         """
         Verify that the baker is authorized to access or modify this order.
         Prevents Broken Object Level Authorization (BOLA) when RLS is bypassed.
+        If read_only is True, bypasses the ownership check.
         """
         if baker.get("role") != "baker":
             return
@@ -100,7 +101,7 @@ class OrderService:
             raise InsufficientPermissionError("baker", "access orders from another branch")
             
         # 2. Explicit ownership check (baker who claimed the order)
-        if order.get("status") in ("in_production", "ready"):
+        if not read_only and order.get("status") in ("in_production", "ready"):
             history = (
                 self._supabase.table("order_status_history")
                 .select("changed_by")
@@ -355,7 +356,7 @@ class OrderService:
             raise OrderNotFoundError(order_id)
             
         # Validate baker authorization
-        self._check_baker_authorization(order_id, order, user)
+        self._check_baker_authorization(order_id, order, user, read_only=True)
 
         # Fetch order items
         items_result = (
