@@ -396,25 +396,111 @@ function BakerDashboardContent() {
                   </section>
                 )}
 
-                {/* Customization details */}
+                {/* Customization details - Full baker view */}
                 {selectedOrder.customizations && selectedOrder.customizations.length > 0 && (
-                  <section className="bg-pink-50 rounded-xl p-4">
-                    <h3 className="font-semibold text-pink-800 text-sm mb-3">Chi tiết tùy chỉnh bánh</h3>
+                  <section className="border-2 border-pink-300 rounded-xl overflow-hidden">
+                    <div className="bg-pink-500 px-4 py-2 flex items-center gap-2">
+                      <span className="text-lg">🎂</span>
+                      <h3 className="font-bold text-white text-sm">Yêu cầu tùy chỉnh bánh của khách</h3>
+                    </div>
                     {selectedOrder.customizations.map((c) => {
-                      const json = c.customization_json as Record<string, unknown>;
+                      type ZoneData = { color?: string; decoration?: string; toppings?: string[] };
+                      const json = c.customization_json as {
+                        size?: string;
+                        flavor?: string;
+                        cream_type?: string;
+                        cream_color?: string;
+                        topping_type?: string[];
+                        special_notes?: string;
+                        zones?: { top?: ZoneData; body?: ZoneData; border?: ZoneData };
+                      };
+                      const zones = json.zones;
                       return (
-                        <div key={c.id} className="text-sm space-y-1">
-                          {!!(json.size) && <p className="text-pink-700">📏 Kích thước: <strong>{String(json.size)}</strong></p>}
-                          {!!(json.flavor) && <p className="text-pink-700">🍰 Hương vị: <strong>{String(json.flavor)}</strong></p>}
-                          {!!(json.cream_type) && <p className="text-pink-700">🧁 Loại kem: <strong>{String(json.cream_type)}</strong></p>}
-                          {!!(json.cream_color) && (
-                            <p className="text-pink-700 flex items-center gap-1">
-                              🎨 Màu kem: <strong>{String(json.cream_color)}</strong>
-                              <span className="inline-block w-4 h-4 rounded-full border border-pink-200 ml-1" style={{ backgroundColor: String(json.cream_color) }} />
-                            </p>
+                        <div key={c.id} className="p-4 space-y-3">
+                          {/* Basic specs grid */}
+                          <div className="grid grid-cols-2 gap-2">
+                            {json.size && (
+                              <div className="bg-white rounded-lg p-2.5 border border-pink-100">
+                                <p className="text-xs text-pink-500 font-medium mb-0.5">📏 Kích thước</p>
+                                <p className="font-bold text-mocha text-sm">{json.size}</p>
+                              </div>
+                            )}
+                            {json.flavor && (
+                              <div className="bg-white rounded-lg p-2.5 border border-pink-100">
+                                <p className="text-xs text-pink-500 font-medium mb-0.5">🍰 Hương vị</p>
+                                <p className="font-bold text-mocha text-sm">{json.flavor}</p>
+                              </div>
+                            )}
+                            {json.cream_type && (
+                              <div className="bg-white rounded-lg p-2.5 border border-pink-100">
+                                <p className="text-xs text-pink-500 font-medium mb-0.5">🧁 Loại kem</p>
+                                <p className="font-bold text-mocha text-sm">{json.cream_type}</p>
+                              </div>
+                            )}
+                            {json.cream_color && (
+                              <div className="bg-white rounded-lg p-2.5 border border-pink-100">
+                                <p className="text-xs text-pink-500 font-medium mb-0.5">🎨 Màu kem</p>
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className="inline-block w-6 h-6 rounded-full border-2 border-pink-200 shadow-sm flex-shrink-0"
+                                    style={{ backgroundColor: json.cream_color }}
+                                  />
+                                  <p className="font-bold text-mocha text-sm font-mono">{json.cream_color}</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Toppings */}
+                          {json.topping_type && json.topping_type.length > 0 && (
+                            <div className="bg-white rounded-lg p-2.5 border border-pink-100">
+                              <p className="text-xs text-pink-500 font-medium mb-1.5">🍓 Topping</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {json.topping_type.map((t, i) => (
+                                  <span key={i} className="px-2 py-0.5 bg-pink-100 text-pink-700 rounded-full text-xs font-medium">{t}</span>
+                                ))}
+                              </div>
+                            </div>
                           )}
-                          {!!(json.topping_type) && <p className="text-pink-700">🍓 Topping: <strong>{String(json.topping_type)}</strong></p>}
-                          {!!(json.special_notes) && <p className="text-pink-700">📝 Ghi chú đặc biệt: <em>{String(json.special_notes)}</em></p>}
+
+                          {/* Zones - decoration details */}
+                          {zones && (
+                            <div className="space-y-2">
+                              <p className="text-xs text-pink-500 font-medium">🖌️ Trang trí từng vùng bánh</p>
+                              <div className="grid grid-cols-3 gap-2">
+                                {(["top", "body", "border"] as const).map((zone) => {
+                                  const z = zones[zone];
+                                  if (!z || (!z.color && !z.decoration && (!z.toppings || z.toppings.length === 0))) return null;
+                                  const zoneLabel = { top: "Mặt trên", body: "Thân bánh", border: "Viền" }[zone];
+                                  return (
+                                    <div key={zone} className="bg-white rounded-lg p-2 border border-pink-100 text-xs">
+                                      <p className="font-semibold text-mocha mb-1">{zoneLabel}</p>
+                                      {z.color && (
+                                        <div className="flex items-center gap-1 mb-0.5">
+                                          <span className="w-3 h-3 rounded-full border border-pink-200" style={{ backgroundColor: z.color }} />
+                                          <span className="text-mocha/60 font-mono">{z.color}</span>
+                                        </div>
+                                      )}
+                                      {z.decoration && <p className="text-mocha/70">✨ {z.decoration}</p>}
+                                      {z.toppings && z.toppings.length > 0 && (
+                                        <p className="text-mocha/70">🍓 {z.toppings.join(", ")}</p>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Special notes - Most prominent */}
+                          {json.special_notes && (
+                            <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-3">
+                              <p className="text-xs font-bold text-yellow-700 mb-1 flex items-center gap-1">
+                                ⚠️ Ghi chú đặc biệt của khách
+                              </p>
+                              <p className="text-yellow-900 font-medium text-sm whitespace-pre-wrap">{json.special_notes}</p>
+                            </div>
+                          )}
                         </div>
                       );
                     })}

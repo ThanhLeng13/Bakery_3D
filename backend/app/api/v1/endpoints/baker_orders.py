@@ -36,8 +36,12 @@ class BakerStatusRequest(BaseModel):
 
 
 def _get_order_service(token: str | None = None) -> OrderService:
-    """Create OrderService with Supabase client."""
-    client = get_supabase_client(token, use_service_role=False)
+    """Create OrderService with service-role Supabase client.
+
+    Authentication is already verified upstream by require_baker (JWT validation).
+    We use the service-role client here to bypass RLS policies.
+    """
+    client = get_supabase_client(token, use_service_role=True)
     return OrderService(client)
 
 
@@ -53,7 +57,7 @@ def list_baker_orders(
     Returns complete order info including customization details and AI summary.
     """
     token = credentials.credentials if credentials else None
-    supabase = get_supabase_client(token, use_service_role=False)
+    supabase = get_supabase_client(token, use_service_role=True)
 
     try:
         result = (
@@ -122,7 +126,7 @@ async def update_baker_notes(
     Notes max 500 characters. Order must be in confirmed or in_production status.
     """
     token = credentials.credentials if credentials else None
-    supabase = get_supabase_client(token, use_service_role=False)
+    supabase = get_supabase_client(token, use_service_role=True)
 
     try:
         # Verify order exists and is accessible

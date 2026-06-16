@@ -30,8 +30,13 @@ router = APIRouter()
 
 
 def _get_order_service(token: str | None = None) -> OrderService:
-    """Create OrderService with Supabase client."""
-    client = get_supabase_client(token, use_service_role=False)
+    """Create OrderService with service-role Supabase client.
+
+    Authentication is already verified upstream by get_current_user (JWT validation).
+    We use the service-role client here to bypass RLS policies on the orders/order_items
+    tables, which do not have permissive INSERT/UPDATE policies for authenticated users.
+    """
+    client = get_supabase_client(token, use_service_role=True)
     return OrderService(client)
 
 

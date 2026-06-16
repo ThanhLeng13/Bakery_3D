@@ -157,11 +157,39 @@ def get_current_user(
 
 
         if user_result is None or user_result.data is None:
-            # User exists in auth but not in users table - treat as customer
+            # User exists in auth but not in users table.
+            # Auto-create the profile so that FK constraints (e.g. orders.customer_id)
+            # are satisfied. This covers Google OAuth users whose on_auth_user_created
+            # trigger may not have fired, or accounts created outside the app.
+            user_id = str(supabase_user.id)
+            user_email = supabase_user.email or ""
+            full_name = ""
+            if supabase_user.user_metadata:
+                full_name = (
+                    supabase_user.user_metadata.get("full_name")
+                    or supabase_user.user_metadata.get("name")
+                    or ""
+                )
+            try:
+                supabase_admin.table("users").upsert(
+                    {
+                        "id": user_id,
+                        "email": user_email,
+                        "full_name": full_name,
+                        "role": "customer",
+                    },
+                    on_conflict="id",
+                ).execute()
+            except Exception as upsert_err:
+                logging.getLogger(__name__).warning(
+                    "Could not auto-create user profile for %s: %s",
+                    user_id,
+                    str(upsert_err),
+                )
             return {
-                "id": str(supabase_user.id),
-                "email": supabase_user.email,
-                "full_name": "",
+                "id": user_id,
+                "email": user_email,
+                "full_name": full_name,
                 "phone": None,
                 "role": "customer",
             }

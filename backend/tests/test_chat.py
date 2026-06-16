@@ -127,8 +127,8 @@ class TestRAGServiceBuildSystemPrompt:
         result = self.rag_service.build_system_prompt(catalog_json)
 
         assert "Luôn trả lời bằng tiếng Việt" in result
-        assert "Chỉ gợi ý sản phẩm có trong danh mục" in result
-        assert "Tối đa 5 gợi ý mỗi lần" in result
+        assert "Chỉ gợi ý sản phẩm CÓ trong danh mục" in result
+        assert "Tối đa 3-5 gợi ý mỗi lần" in result
         assert "AI_Summary" in result
 
 

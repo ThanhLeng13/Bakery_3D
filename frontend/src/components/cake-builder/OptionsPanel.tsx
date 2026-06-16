@@ -22,6 +22,10 @@ const TOPPING_OPTIONS = [
   { id: "text", label: "Chữ viết", icon: "✍️" },
 ] as const;
 
+function getToppingLabel(topping: string): string {
+  return TOPPING_OPTIONS.find((option) => option.id === topping)?.label ?? topping;
+}
+
 /** Available border decoration options */
 const BORDER_OPTIONS = [
   { id: "piping", label: "Piping", icon: "〰️" },
@@ -67,23 +71,22 @@ export default function OptionsPanel({
   // Close panel when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        panelRef.current &&
-        !panelRef.current.contains(event.target as Node)
-      ) {
-        // Guard: event.target may be a Text node or Document which lacks .closest()
-        if (!(event.target instanceof Element)) return;
-        const target = event.target;
-        // Don't close when clicking on SVG (old) OR 3D canvas wrapper
-        if (target.closest("svg")) return;
-        if (target.closest("[data-cake3d]")) return;
-        if (target.closest("canvas")) return;
-        onClose();
-      }
+      // Guard: not an Element (e.g. Text node)
+      if (!(event.target instanceof Element)) return;
+      const target = event.target;
+      // Don't close if click is inside the panel itself
+      if (panelRef.current && panelRef.current.contains(target)) return;
+      // Don't close when clicking on 3D canvas / zone selector
+      if (target.closest("[data-cake3d]")) return;
+      if (target.closest("canvas")) return;
+      if (target.closest("[data-zone-selector]")) return;
+      onClose();
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    // Use bubble phase (no capture) to avoid conflicting with React's synthetic event system.
+    // mousedown fires before click so we still prevent accidental closes from fast drags.
+    document.addEventListener("mousedown", handleClickOutside, false);
+    return () => document.removeEventListener("mousedown", handleClickOutside, false);
   }, [onClose]);
 
   // Close on Escape key
@@ -139,26 +142,43 @@ export default function OptionsPanel({
             return (
               <button
                 key={option.id}
-                onClick={() => handleToppingSelect(option.id)}
-                className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all duration-100 min-w-[44px] min-h-[44px] ${
+                type="button"
+                data-topping-option={option.id}
+                onPointerDown={(e) => {
+                  if (e.pointerType === "mouse" && e.button !== 0) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleToppingSelect(option.id);
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (e.detail === 0) handleToppingSelect(option.id);
+                }}
+                className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all duration-150 min-w-[44px] min-h-[44px] ${
                   selected
-                    ? "border-pink-pastel bg-pink-pastel/10 shadow-sm"
+                    ? "border-pink-pastel bg-pink-pastel/10 shadow-sm scale-105 ring-2 ring-pink-pastel/30"
                     : "border-gray-200 hover:border-pink-pastel/50 hover:bg-cream"
                 }`}
                 aria-label={`Topping: ${option.label}`}
                 aria-pressed={selected}
               >
-                <span className="text-lg relative" role="img" aria-hidden="true">
+                <span className="text-xl relative" role="img" aria-hidden="true">
                   {option.icon}
                   {selected && (
-                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-pink-pastel rounded-full flex items-center justify-center text-[8px] text-white font-bold">✓</span>
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-pink-pastel rounded-full flex items-center justify-center text-[9px] text-white font-bold shadow-sm">✓</span>
                   )}
                 </span>
-                <span className="text-xs mt-1 text-mocha">{option.label}</span>
+                <span className={`text-xs mt-1 font-medium ${ selected ? "text-pink-pastel" : "text-mocha" }`}>{option.label}</span>
               </button>
             );
           })}
         </div>
+        {/* Selected toppings summary */}
+        {(zoneCustomization.toppings ?? []).length > 0 && (
+          <p className="mt-2 text-xs text-pink-pastel font-medium bg-pink-pastel/5 rounded-lg px-3 py-1.5">
+            ✓ Đã chọn: {(zoneCustomization.toppings ?? []).map(getToppingLabel).join(", ")}
+          </p>
+        )}
       </div>
 
       {/* Top zone color */}
@@ -168,10 +188,12 @@ export default function OptionsPanel({
           {CREAM_COLOR_ENTRIES.map((color) => (
             <button
               key={color.id}
-              onClick={() => handleColorSelect(color.id)}
+              type="button"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); handleColorSelect(color.id); }}
               className={`w-9 h-9 rounded-full border-2 transition-all duration-100 min-w-[44px] min-h-[44px] flex items-center justify-center ${
                 zoneCustomization.color === color.id
-                  ? "border-pink-pastel scale-110 shadow-md"
+                  ? "border-pink-pastel scale-110 shadow-md ring-2 ring-pink-pastel/30"
                   : "border-gray-300 hover:scale-105 hover:border-pink-pastel/50"
               }`}
               style={{ backgroundColor: color.id }}
@@ -200,10 +222,12 @@ export default function OptionsPanel({
           {CREAM_COLOR_ENTRIES.map((color) => (
             <button
               key={color.id}
-              onClick={() => handleColorSelect(color.id)}
+              type="button"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); handleColorSelect(color.id); }}
               className={`w-9 h-9 rounded-full border-2 transition-all duration-100 min-w-[44px] min-h-[44px] flex items-center justify-center ${
                 zoneCustomization.color === color.id
-                  ? "border-pink-pastel scale-110 shadow-md"
+                  ? "border-pink-pastel scale-110 shadow-md ring-2 ring-pink-pastel/30"
                   : "border-gray-300 hover:scale-105 hover:border-pink-pastel/50"
               }`}
               style={{ backgroundColor: color.id }}
@@ -228,20 +252,27 @@ export default function OptionsPanel({
           {BODY_PATTERN_OPTIONS.map((option) => (
             <button
               key={option.id}
-              onClick={() => handleDecorationSelect(option.id)}
-              className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all duration-100 min-w-[44px] min-h-[44px] ${
+              type="button"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); handleDecorationSelect(option.id); }}
+              className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all duration-150 min-w-[44px] min-h-[44px] ${
                 zoneCustomization.decoration === option.id
-                  ? "border-pink-pastel bg-pink-pastel/10 shadow-sm"
+                  ? "border-pink-pastel bg-pink-pastel/10 shadow-sm scale-105 ring-2 ring-pink-pastel/30"
                   : "border-gray-200 hover:border-pink-pastel/50 hover:bg-cream"
               }`}
               aria-label={`Hoa văn: ${option.label}`}
               aria-pressed={zoneCustomization.decoration === option.id}
             >
-              <span className="text-lg">{option.icon}</span>
-              <span className="text-xs mt-1 text-mocha">{option.label}</span>
+              <span className={`text-lg ${ zoneCustomization.decoration === option.id ? "scale-110" : "" }`}>{option.icon}</span>
+              <span className={`text-xs mt-1 font-medium ${ zoneCustomization.decoration === option.id ? "text-pink-pastel" : "text-mocha" }`}>{option.label}</span>
             </button>
           ))}
         </div>
+        {zoneCustomization.decoration && (
+          <p className="mt-2 text-xs text-pink-pastel font-medium bg-pink-pastel/5 rounded-lg px-3 py-1.5">
+            ✓ Đã chọn: {zoneCustomization.decoration}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -255,22 +286,29 @@ export default function OptionsPanel({
           {BORDER_OPTIONS.map((option) => (
             <button
               key={option.id}
-              onClick={() => handleDecorationSelect(option.id)}
-              className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all duration-100 min-w-[44px] min-h-[44px] ${
+              type="button"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); handleDecorationSelect(option.id); }}
+              className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all duration-150 min-w-[44px] min-h-[44px] ${
                 zoneCustomization.decoration === option.id
-                  ? "border-pink-pastel bg-pink-pastel/10 shadow-sm"
+                  ? "border-pink-pastel bg-pink-pastel/10 shadow-sm scale-105 ring-2 ring-pink-pastel/30"
                   : "border-gray-200 hover:border-pink-pastel/50 hover:bg-cream"
               }`}
               aria-label={`Viền: ${option.label}`}
               aria-pressed={zoneCustomization.decoration === option.id}
             >
-              <span className="text-lg" role="img" aria-hidden="true">
+              <span className="text-xl" role="img" aria-hidden="true">
                 {option.icon}
               </span>
-              <span className="text-xs mt-1 text-mocha">{option.label}</span>
+              <span className={`text-xs mt-1 font-medium ${ zoneCustomization.decoration === option.id ? "text-pink-pastel" : "text-mocha" }`}>{option.label}</span>
             </button>
           ))}
         </div>
+        {zoneCustomization.decoration && (
+          <p className="mt-2 text-xs text-pink-pastel font-medium bg-pink-pastel/5 rounded-lg px-3 py-1.5">
+            ✓ Đã chọn: {zoneCustomization.decoration}
+          </p>
+        )}
       </div>
 
       {/* Border color */}
@@ -280,10 +318,12 @@ export default function OptionsPanel({
           {CREAM_COLOR_ENTRIES.map((color) => (
             <button
               key={color.id}
-              onClick={() => handleColorSelect(color.id)}
+              type="button"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); handleColorSelect(color.id); }}
               className={`w-9 h-9 rounded-full border-2 transition-all duration-100 min-w-[44px] min-h-[44px] flex items-center justify-center ${
                 zoneCustomization.color === color.id
-                  ? "border-pink-pastel scale-110 shadow-md"
+                  ? "border-pink-pastel scale-110 shadow-md ring-2 ring-pink-pastel/30"
                   : "border-gray-300 hover:scale-105 hover:border-pink-pastel/50"
               }`}
               style={{ backgroundColor: color.id }}
