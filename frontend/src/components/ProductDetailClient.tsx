@@ -128,8 +128,14 @@ function ReviewSubmitForm({
       setShowForm(false);
       onSuccess();
     } catch (err: unknown) {
-      const apiErr = err as { detail?: string };
-      setError(apiErr?.detail ?? "Không thể gửi đánh giá. Vui lòng thử lại.");
+      const apiErr = err as { detail?: string | any[] };
+      let errorMsg = "Không thể gửi đánh giá. Vui lòng thử lại.";
+      if (typeof apiErr?.detail === "string") {
+        errorMsg = apiErr.detail;
+      } else if (Array.isArray(apiErr?.detail)) {
+        errorMsg = apiErr.detail[0]?.msg || errorMsg;
+      }
+      setError(errorMsg);
     } finally {
       setSubmitting(false);
     }
