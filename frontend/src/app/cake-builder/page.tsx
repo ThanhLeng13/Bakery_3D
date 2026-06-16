@@ -201,7 +201,7 @@ export default function CakeBuilderPage() {
             {activeZone && (
               <OptionsPanel
                 activeZone={activeZone}
-                zoneCustomization={design.zones[activeZone]}
+                zoneCustomization={design.zones?.[activeZone] || {}}
                 onOptionSelect={handleOptionSelect}
                 onClose={handleClosePanel}
               />
@@ -224,7 +224,7 @@ export default function CakeBuilderPage() {
         <div className="md:hidden">
           <OptionsPanel
             activeZone={activeZone}
-            zoneCustomization={activeZone ? design.zones[activeZone] : {}}
+            zoneCustomization={activeZone ? (design.zones?.[activeZone] || {}) : {}}
             onOptionSelect={handleOptionSelect}
             onClose={handleClosePanel}
           />

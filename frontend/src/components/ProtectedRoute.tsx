@@ -35,6 +35,7 @@ export default function ProtectedRoute({
     [allowedRoles?.join(",")]
   );
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     // Chờ async validate xong mới xử lý
     if (loading) return;

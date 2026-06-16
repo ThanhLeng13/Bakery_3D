@@ -630,6 +630,7 @@ export default function AdminProductNewPage() {
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
               {images.map((img, index) => (
                 <div key={index} className="relative group aspect-square">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={img.preview}
                     alt={`Preview ${index + 1}`}

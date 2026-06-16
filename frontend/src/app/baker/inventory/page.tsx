@@ -74,7 +74,7 @@ function inThreeDays(): string {
 
 function InventoryContent() {
   const router = useRouter();
-  const { user } = useAuthContext();
+  const {  } = useAuthContext();
 
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string>("all");

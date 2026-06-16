@@ -176,12 +176,12 @@ export default function CakeSVG({
   );
 
   // Get cream color for body
-  const bodyColor = design.zones.body.color || design.cream_color || CREAM_COLORS.pink;
-  const borderColor = design.zones.border.color || "#D4A574";
+  const bodyColor = design.zones?.body?.color || design.cream_color || CREAM_COLORS.pink;
+  const borderColor = design.zones?.border?.color || "#D4A574";
 
   // Render toppings on top zone
   const renderToppings = () => {
-    const activeToppings = design.zones.top.toppings ?? [];
+    const activeToppings = design.zones?.top?.toppings ?? [];
     if (activeToppings.length === 0) return null;
 
     const positions = [
@@ -203,7 +203,7 @@ export default function CakeSVG({
 
   // Render border decorations
   const renderBorderDecorations = () => {
-    const decoration = design.zones.border.decoration;
+    const decoration = design.zones?.border?.decoration;
     if (!decoration || !BORDER_VISUALS[decoration]) return null;
 
     return (
@@ -215,7 +215,7 @@ export default function CakeSVG({
 
   // Render body pattern
   const renderBodyPattern = () => {
-    const decoration = design.zones.body.decoration;
+    const decoration = design.zones?.body?.decoration;
     if (!decoration) return null;
 
     switch (decoration) {

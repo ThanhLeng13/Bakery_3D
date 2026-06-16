@@ -300,8 +300,8 @@ function TopToppings({ toppings, surfaceY, R }: { toppings?: string[]; surfaceY:
 // GPU buffer and material, multiplying VRAM usage and draw-call overhead by N.
 // R3F allows sharing geometry/material objects across multiple <mesh> nodes.
 function getVisibleToppings(design: CakeDesign): string[] {
-  if (design.zones.top.toppings !== undefined) {
-    return Array.from(new Set(design.zones.top.toppings)).filter(Boolean);
+  if (design.zones?.top?.toppings !== undefined) {
+    return Array.from(new Set(design.zones?.top?.toppings)).filter(Boolean);
   }
   const legacyToppings = design.topping_type ?? [];
   return Array.from(new Set(legacyToppings)).filter(Boolean);
@@ -432,9 +432,9 @@ function BodyPattern({ type, R, H, y }: { type: string; R: number; H: number; y:
 
 // ─── Toàn bộ mô hình bánh ─────────────────────────────────────────────────────
 function CakeMesh({ design, activeZone, hoveredZone, onZoneClick, onZoneHover }: Cake3DProps) {
-  const bodyColor   = design.zones.body.color   || design.cream_color || "#E8837A";
-  const borderColor = design.zones.border.color || "#D4A574";
-  const topColor    = design.zones.top.color    || bodyColor;
+  const bodyColor   = design.zones?.body?.color   || design.cream_color || "#E8837A";
+  const borderColor = design.zones?.border?.color || "#D4A574";
+  const topColor    = design.zones?.top?.color    || bodyColor;
 
   const size = design.size;
   const zoneProps = { onZoneClick, onZoneHover, activeZone, hoveredZone };
@@ -471,14 +471,14 @@ function CakeMesh({ design, activeZone, hoveredZone, onZoneClick, onZoneHover }:
         <group position={[0, bodyY1, 0]}>
           <ZoneMesh zone="body" color={bodyColor} roughness={0.35} metalness={0.05}
             geometry={<cylinderGeometry args={[R1, R1, bodyH1, 64]} />} {...zoneProps} />
-          <BodyPattern type={design.zones.body.decoration || ""} R={R1} H={bodyH1} y={0} />
+          <BodyPattern type={design.zones?.body?.decoration || ""} R={R1} H={bodyH1} y={0} />
         </group>
 
         {/* Viền dưới tầng dưới */}
         <group position={[0, borderY1, 0]}>
           <ZoneMesh zone="border" color={borderColor} roughness={0.28} metalness={0.1}
             geometry={<cylinderGeometry args={[R1 + 0.028, R1 + 0.028, borderH1, 64]} />} {...zoneProps} />
-          {design.zones.border.decoration && (
+          {design.zones?.border?.decoration && (
             <BorderDecor type={design.zones.border.decoration} color={borderColor} R={R1 + 0.028} y={0.05} />
           )}
         </group>
@@ -495,14 +495,14 @@ function CakeMesh({ design, activeZone, hoveredZone, onZoneClick, onZoneHover }:
         <group position={[0, bodyY2, 0]}>
           <ZoneMesh zone="body" color={bodyColor} roughness={0.35} metalness={0.05}
             geometry={<cylinderGeometry args={[R2, R2, bodyH2, 64]} />} {...zoneProps} />
-          <BodyPattern type={design.zones.body.decoration || ""} R={R2} H={bodyH2} y={0} />
+          <BodyPattern type={design.zones?.body?.decoration || ""} R={R2} H={bodyH2} y={0} />
         </group>
 
         {/* Viền dưới tầng trên */}
         <group position={[0, borderY2, 0]}>
           <ZoneMesh zone="border" color={borderColor} roughness={0.28} metalness={0.1}
             geometry={<cylinderGeometry args={[R2 + 0.028, R2 + 0.028, borderH2, 64]} />} {...zoneProps} />
-          {design.zones.border.decoration && (
+          {design.zones?.border?.decoration && (
             <BorderDecor type={design.zones.border.decoration} color={borderColor} R={R2 + 0.028} y={0.04} />
           )}
         </group>
@@ -564,14 +564,14 @@ function CakeMesh({ design, activeZone, hoveredZone, onZoneClick, onZoneHover }:
       <group position={[0, bodyY, 0]}>
         <ZoneMesh zone="body" color={bodyColor} roughness={0.35} metalness={0.05}
           geometry={<cylinderGeometry args={[R, R, bodyH, 64]} />} {...zoneProps} />
-        <BodyPattern type={design.zones.body.decoration || ""} R={R} H={bodyH} y={0} />
+        <BodyPattern type={design.zones?.body?.decoration || ""} R={R} H={bodyH} y={0} />
       </group>
 
       {/* ── Viền dưới (clickable) ── */}
       <group position={[0, borderY, 0]}>
         <ZoneMesh zone="border" color={borderColor} roughness={0.28} metalness={0.1}
           geometry={<cylinderGeometry args={[R+0.028, R+0.028, borderH, 64]} />} {...zoneProps} />
-        {design.zones.border.decoration && (
+        {design.zones?.border?.decoration && (
           <BorderDecor type={design.zones.border.decoration} color={borderColor} R={R+0.028} y={0.05} />
         )}
       </group>
@@ -667,8 +667,8 @@ export default function Cake3D(props: Cake3DProps) {
   const summary: string[] = [];
   const activeToppings = getVisibleToppings(design);
   if (activeToppings.length > 0) summary.push(`🎂 ${activeToppings.join(", ")}`);
-  if (design.zones.body.decoration)   summary.push(`✨ ${design.zones.body.decoration}`);
-  if (design.zones.border.decoration) summary.push(`🎀 ${design.zones.border.decoration}`);
+  if (design.zones?.body?.decoration)   summary.push(`✨ ${design.zones.body.decoration}`);
+  if (design.zones?.border?.decoration) summary.push(`🎀 ${design.zones.border.decoration}`);
 
   return (
     <div

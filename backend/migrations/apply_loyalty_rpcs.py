@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SQL_FILE = "backend/migrations/add_loyalty_system.sql"
+SQL_FILE = os.path.join(os.path.dirname(__file__), "add_loyalty_system.sql")
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 # Service role key (bypasses RLS, has DDL if configured)
 SERVICE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
@@ -41,4 +41,6 @@ except Exception as e1:
         result = db.rpc("query", {"sql": sql}).execute()
         print(f"  OK via query rpc: {result.data}")
     except Exception as e2:
-        print(f"  Both failed:\n    exec_sql: {str(e1)[:100]}\n    query: {str(e2)[:100]}")
+        print(f"  Both failed:\n    exec_sql: {str(e1)}\n    query: {str(e2)}")
+        import sys
+        sys.exit(1)

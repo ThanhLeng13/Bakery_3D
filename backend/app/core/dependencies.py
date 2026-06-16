@@ -162,7 +162,7 @@ def get_current_user(
             # are satisfied. This covers Google OAuth users whose on_auth_user_created
             # trigger may not have fired, or accounts created outside the app.
             user_id = str(supabase_user.id)
-            user_email = supabase_user.email or ""
+            user_email = supabase_user.email or None
             full_name = ""
             if supabase_user.user_metadata:
                 full_name = (

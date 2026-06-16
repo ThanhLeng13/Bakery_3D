@@ -283,10 +283,10 @@ function ReviewsSection({ productId }: { productId: string }) {
   const [avgRating, setAvgRating] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchReviews = useCallback(async () => {
+  const fetchReviews = useCallback(async (pageNum: number) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: page.toString(), page_size: "10" });
+      const params = new URLSearchParams({ page: pageNum.toString(), page_size: "10" });
       const data = await apiClient.get<ReviewsResponse>(
         `/api/v1/products/${productId}/reviews?${params}`
       );
@@ -299,14 +299,13 @@ function ReviewsSection({ productId }: { productId: string }) {
     } finally {
       setLoading(false);
     }
-  }, [productId, page]);
+  }, [productId]);
 
   useEffect(() => {
-    fetchReviews();
-  }, [fetchReviews]);
+    fetchReviews(page);
+  }, [fetchReviews, page]);
 
-  const distribution = computeDistribution(reviews);
-  const maxDist = Math.max(...Object.values(distribution), 1);
+  // computeDistribution was removed
 
   return (
     <section className="pt-6 border-t border-mocha/10 space-y-5" aria-label="Đánh giá sản phẩm">
@@ -344,7 +343,7 @@ function ReviewsSection({ productId }: { productId: string }) {
       )}
 
       {/* Submit form */}
-      <ReviewSubmitForm productId={productId} onSuccess={() => { setPage(1); fetchReviews(); }} />
+      <ReviewSubmitForm productId={productId} onSuccess={() => { setPage(1); fetchReviews(1); }} />
 
       {/* Reviews list */}
       {loading && (
