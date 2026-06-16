@@ -73,7 +73,9 @@ async def submit_review(
     except ReviewServiceError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi hệ thống: {str(e)}")
+        import logging
+        logging.error(f"Unexpected error submitting review: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while processing your request")
 
 
 @router.get("/products/{product_id}/reviews")

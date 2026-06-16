@@ -131,8 +131,8 @@ def build_docx():
     run = sign.add_run("Sinh viên thực hiện\n\n\nLý Thành Long")
     set_run_font(run, bold=True)
 
-    DOCX_PATH.parent.mkdir(parents=True, exist_ok=True)
     try:
+        DOCX_PATH.parent.mkdir(parents=True, exist_ok=True)
         doc.save(DOCX_PATH)
         return DOCX_PATH
     except (PermissionError, FileNotFoundError, OSError):

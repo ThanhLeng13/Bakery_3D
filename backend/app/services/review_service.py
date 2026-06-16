@@ -107,8 +107,8 @@ class ReviewService:
         )
         if order_id is not None:
             query = query.eq("order_id", order_id)
-        # When order_id is None we only check product+customer uniqueness
-        # (don't filter by order_id to avoid complex NULL handling)
+        else:
+            query = query.is_("order_id", "null")
 
         existing = query.maybe_single().execute()
 
@@ -181,8 +181,8 @@ class ReviewService:
         except Exception as e:
             err_str = str(e).lower()
             if "unique" in err_str or "duplicate" in err_str:
-                raise ReviewDuplicateError()
-            raise ReviewServiceError(f"Không thể lưu đánh giá: {e}", status_code=500)
+                raise ReviewDuplicateError() from e
+            raise ReviewServiceError("Không thể lưu đánh giá. Đã xảy ra lỗi hệ thống.", status_code=500) from e
 
         if not result.data:
             raise ReviewServiceError("Không thể lưu đánh giá.", status_code=500)
