@@ -115,7 +115,7 @@ class ReviewService:
         if existing is not None and existing.data is not None:
             raise ReviewDuplicateError()
 
-    async def submit_review(
+    def submit_review(
         self,
         product_id: str,
         order_id: str | None,
@@ -189,7 +189,7 @@ class ReviewService:
 
         return result.data[0]
 
-    async def get_product_reviews(
+    def get_product_reviews(
         self,
         product_id: str,
         page: int = 1,

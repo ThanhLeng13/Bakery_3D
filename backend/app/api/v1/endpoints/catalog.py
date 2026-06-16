@@ -27,7 +27,7 @@ def _get_catalog_service() -> CatalogService:
 
 
 @router.get("", response_model=ProductListResponse)
-async def list_products(
+def list_products(
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(
         default=20, ge=1, le=100, description="Items per page (default 20, max 100)"
@@ -46,7 +46,7 @@ async def list_products(
     catalog_service = _get_catalog_service()
 
     try:
-        result = await catalog_service.list_products(
+        result = catalog_service.list_products(
             page=page,
             page_size=page_size,
             category=category,
@@ -57,7 +57,7 @@ async def list_products(
 
 
 @router.get("/{product_id}", response_model=ProductDetailResponse)
-async def get_product_detail(product_id: str):
+def get_product_detail(product_id: str):
     """
     Get full product detail by ID.
 
@@ -68,7 +68,7 @@ async def get_product_detail(product_id: str):
     catalog_service = _get_catalog_service()
 
     try:
-        result = await catalog_service.get_product_detail(product_id)
+        result = catalog_service.get_product_detail(product_id)
         return result
     except ProductNotFoundError:
         raise HTTPException(

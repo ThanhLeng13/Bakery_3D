@@ -56,7 +56,7 @@ class ProductService:
         """Initialize with a Supabase client instance (service role)."""
         self._supabase = supabase_client
 
-    async def create_product(self, data: dict) -> dict:
+    def create_product(self, data: dict) -> dict:
         """
         Create a new product.
 
@@ -110,7 +110,7 @@ class ProductService:
                 )
             raise ProductServiceError(f"Failed to create product: {str(e)}", status_code=500)
 
-    async def update_product(self, product_id: str, data: dict) -> dict:
+    def update_product(self, product_id: str, data: dict) -> dict:
         """
         Update an existing product.
 
@@ -126,7 +126,7 @@ class ProductService:
             ProductServiceError: If update fails
         """
         # Verify product exists
-        await self._get_product_or_raise(product_id)
+        self._get_product_or_raise(product_id)
 
         try:
             update_data = {}
@@ -148,7 +148,7 @@ class ProductService:
 
             if not update_data:
                 # Nothing to update, return current product
-                return await self._get_product_with_images(product_id)
+                return self._get_product_with_images(product_id)
 
             result = (
                 self._supabase.table("products")
@@ -161,16 +161,16 @@ class ProductService:
                 raise ProductServiceError("Failed to update product", status_code=500)
 
             # Trigger catalog revalidation
-            await self._trigger_revalidation(product_id)
+            self._trigger_revalidation(product_id)
 
-            return await self._get_product_with_images(product_id)
+            return self._get_product_with_images(product_id)
 
         except (ProductServiceError, ProductNotFoundError):
             raise
         except Exception as e:
             raise ProductServiceError(f"Failed to update product: {str(e)}", status_code=500)
 
-    async def toggle_status(self, product_id: str, is_active: bool) -> dict:
+    def toggle_status(self, product_id: str, is_active: bool) -> dict:
         """
         Toggle product active status.
 
@@ -184,7 +184,7 @@ class ProductService:
         Raises:
             ProductNotFoundError: If product doesn't exist
         """
-        await self._get_product_or_raise(product_id)
+        self._get_product_or_raise(product_id)
 
         try:
             result = (
@@ -198,16 +198,16 @@ class ProductService:
                 raise ProductServiceError("Failed to update product status", status_code=500)
 
             # Trigger catalog revalidation
-            await self._trigger_revalidation(product_id)
+            self._trigger_revalidation(product_id)
 
-            return await self._get_product_with_images(product_id)
+            return self._get_product_with_images(product_id)
 
         except (ProductServiceError, ProductNotFoundError):
             raise
         except Exception as e:
             raise ProductServiceError(f"Failed to toggle status: {str(e)}", status_code=500)
 
-    async def upload_image(
+    def upload_image(
         self,
         product_id: str,
         file_content: bytes,
@@ -237,7 +237,7 @@ class ProductService:
             ProductValidationError: If image validation fails
         """
         # Verify product exists
-        await self._get_product_or_raise(product_id)
+        self._get_product_or_raise(product_id)
 
         # Validate content type
         if content_type not in ALLOWED_IMAGE_TYPES:
@@ -300,7 +300,7 @@ class ProductService:
                 raise ProductServiceError("Failed to save image record", status_code=500)
 
             # Trigger catalog revalidation
-            await self._trigger_revalidation(product_id)
+            self._trigger_revalidation(product_id)
 
             image_record = result.data[0]
             if "url" in image_record:
@@ -358,7 +358,7 @@ class ProductService:
                 [{"field": "image", "message": f"Invalid image file: {str(e)}"}]
             )
 
-    async def _get_product_or_raise(self, product_id: str) -> dict:
+    def _get_product_or_raise(self, product_id: str) -> dict:
         """Fetch product by ID or raise ProductNotFoundError."""
         try:
             result = (
@@ -379,9 +379,9 @@ class ProductService:
         except Exception as e:
             raise ProductServiceError(f"Failed to fetch product: {str(e)}", status_code=500)
 
-    async def _get_product_with_images(self, product_id: str) -> dict:
+    def _get_product_with_images(self, product_id: str) -> dict:
         """Fetch product with its images."""
-        product = await self._get_product_or_raise(product_id)
+        product = self._get_product_or_raise(product_id)
 
         # Fetch images
         images_result = (
@@ -399,7 +399,7 @@ class ProductService:
         product["images"] = images
         return product
 
-    async def _trigger_revalidation(self, product_id: str) -> None:
+    def _trigger_revalidation(self, product_id: str) -> None:
         """
         Trigger catalog revalidation after product update.
 

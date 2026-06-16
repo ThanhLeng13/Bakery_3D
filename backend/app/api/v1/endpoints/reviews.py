@@ -42,7 +42,7 @@ def _get_review_service(token: str | None = None, use_service_role: bool = False
 
 
 @router.post("/reviews", status_code=201)
-async def submit_review(
+def submit_review(
     body: SubmitReviewRequest,
     customer: dict = Depends(require_customer),
     credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
@@ -58,7 +58,7 @@ async def submit_review(
     review_service = _get_review_service(token, use_service_role=True)
 
     try:
-        result = await review_service.submit_review(
+        result = review_service.submit_review(
             product_id=body.product_id,
             order_id=body.order_id,
             rating=body.rating,
@@ -79,7 +79,7 @@ async def submit_review(
 
 
 @router.get("/products/{product_id}/reviews")
-async def get_product_reviews(
+def get_product_reviews(
     product_id: str,
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(default=10, ge=1, le=50, description="Items per page"),
@@ -93,7 +93,7 @@ async def get_product_reviews(
     review_service = _get_review_service(use_service_role=True)
 
     try:
-        result = await review_service.get_product_reviews(
+        result = review_service.get_product_reviews(
             product_id=product_id,
             page=page,
             page_size=page_size,

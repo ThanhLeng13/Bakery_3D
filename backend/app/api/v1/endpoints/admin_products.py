@@ -131,7 +131,7 @@ def list_admin_products(
 
 
 @router.post("", status_code=201)
-async def create_product(
+def create_product(
     request: CreateProductRequest,
     current_user: dict = Depends(require_admin),
 ):
@@ -160,7 +160,7 @@ async def create_product(
             "is_active": request.is_active,
         }
 
-        result = await service.create_product(product_data)
+        result = service.create_product(product_data)
         return JSONResponse(status_code=201, content=result)
 
     except (ProductValidationError, ProductServiceError) as e:
@@ -168,7 +168,7 @@ async def create_product(
 
 
 @router.put("/{product_id}")
-async def update_product(
+def update_product(
     product_id: str,
     request: UpdateProductRequest,
     current_user: dict = Depends(require_admin),
@@ -200,7 +200,7 @@ async def update_product(
         if request.is_active is not None:
             update_data["is_active"] = request.is_active
 
-        result = await service.update_product(product_id, update_data)
+        result = service.update_product(product_id, update_data)
         return result
 
     except (ProductValidationError, ProductNotFoundError, ProductServiceError) as e:
@@ -208,7 +208,7 @@ async def update_product(
 
 
 @router.patch("/{product_id}/status")
-async def toggle_product_status(
+def toggle_product_status(
     product_id: str,
     request: UpdateProductStatusRequest,
     current_user: dict = Depends(require_admin),
@@ -224,7 +224,7 @@ async def toggle_product_status(
     service = _get_product_service()
 
     try:
-        result = await service.toggle_status(product_id, request.is_active)
+        result = service.toggle_status(product_id, request.is_active)
         return result
 
     except (ProductNotFoundError, ProductServiceError) as e:
@@ -232,7 +232,7 @@ async def toggle_product_status(
 
 
 @router.post("/{product_id}/images", status_code=201)
-async def upload_product_image(
+def upload_product_image(
     product_id: str,
     file: UploadFile = File(...),
     current_user: dict = Depends(require_admin),
@@ -259,7 +259,7 @@ async def upload_product_image(
 
     try:
         # Read file content
-        file_content = await file.read()
+        file_content = file.file.read()
 
         # Validate file size
         if len(file_content) > 5 * 1024 * 1024:
@@ -268,7 +268,7 @@ async def upload_product_image(
                 content={"detail": "File exceeds 5MB limit"},
             )
 
-        result = await service.upload_image(
+        result = service.upload_image(
             product_id=product_id,
             file_content=file_content,
             content_type=content_type,
