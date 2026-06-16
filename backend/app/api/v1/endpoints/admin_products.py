@@ -258,15 +258,19 @@ def upload_product_image(
         )
 
     try:
-        # Read file content
-        file_content = file.file.read()
-
-        # Validate file size
-        if len(file_content) > 5 * 1024 * 1024:
+        # Validate file size without reading into memory
+        file.file.seek(0, 2)
+        file_size = file.file.tell()
+        file.file.seek(0)
+        
+        if file_size > 5 * 1024 * 1024:
             return JSONResponse(
                 status_code=413,
                 content={"detail": "File exceeds 5MB limit"},
             )
+
+        # Read file content
+        file_content = file.file.read()
 
         result = service.upload_image(
             product_id=product_id,
