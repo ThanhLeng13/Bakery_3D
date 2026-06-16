@@ -6,6 +6,7 @@ interface CustomizationDetailsProps {
 }
 
 export default function CustomizationDetails({ customizationJson }: CustomizationDetailsProps) {
+  if (!customizationJson) return null;
   const json = customizationJson as CustomizationJson;
   const zones = json.zones;
 
