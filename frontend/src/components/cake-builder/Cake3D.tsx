@@ -300,10 +300,10 @@ function TopToppings({ toppings, surfaceY, R }: { toppings?: string[]; surfaceY:
 // GPU buffer and material, multiplying VRAM usage and draw-call overhead by N.
 // R3F allows sharing geometry/material objects across multiple <mesh> nodes.
 function getVisibleToppings(design: CakeDesign): string[] {
-  if (design.zones?.top?.toppings !== undefined) {
+  if (Array.isArray(design.zones?.top?.toppings)) {
     return Array.from(new Set(design.zones?.top?.toppings)).filter(Boolean);
   }
-  const legacyToppings = design.topping_type ?? [];
+  const legacyToppings = Array.isArray(design.topping_type) ? design.topping_type : [];
   return Array.from(new Set(legacyToppings)).filter(Boolean);
 }
 
