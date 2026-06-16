@@ -126,47 +126,17 @@ def update_baker_notes(
     Notes max 500 characters. Order must be in confirmed or in_production status.
     """
     token = credentials.credentials if credentials else None
-    supabase = get_supabase_client(token, use_service_role=True)
+    order_service = _get_order_service(token)
 
     try:
-        # Verify order exists and is accessible
-        order_result = (
-            supabase.table("orders")
-            .select("id, status")
-            .eq("id", order_id)
-            .maybe_single()
-            .execute()
-        )
-
-        if order_result is None or order_result.data is None:
-            raise HTTPException(status_code=404, detail="Order not found")
-
-        order = order_result.data
-        if order["status"] not in ("confirmed", "in_production", "ready"):
-            raise HTTPException(
-                status_code=400,
-                detail="Baker notes can only be updated for orders in confirmed, in_production, or ready status",
-            )
-
-        # Update baker notes
-        update_result = (
-            supabase.table("orders")
-            .update({"baker_notes": body.notes})
-            .eq("id", order_id)
-            .execute()
-        )
-
-        if not update_result.data:
-            raise HTTPException(status_code=500, detail="Failed to update baker notes")
-
-        return {
-            "id": order_id,
-            "baker_notes": body.notes,
-            "message": "Baker notes updated successfully",
-        }
-
-    except HTTPException:
-        raise
+        result = order_service.update_baker_notes(order_id, body.notes, baker)
+        return result
+    except OrderNotFoundError:
+        raise HTTPException(status_code=404, detail="Order not found")
+    except InsufficientPermissionError as e:
+        raise HTTPException(status_code=403, detail=e.message)
+    except OrderServiceError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
     except Exception:
         logger.exception("Failed to update baker notes for order %s", order_id)
         raise HTTPException(status_code=500, detail="Failed to update baker notes")

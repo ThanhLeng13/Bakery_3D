@@ -160,31 +160,52 @@ class TestReviewServiceGetReviews:
         self.mock_supabase = MagicMock()
         self.review_service = ReviewService(self.mock_supabase)
     def test_get_product_reviews(self):
-        # Mock count
-        count_mock = MagicMock()
-        count_mock.count = 15
-        self.mock_supabase.table().select().eq().execute.return_value = count_mock
+        class MockQueryBuilder:
+            def __init__(self, data=None, count=None):
+                self._data = data
+                self._count = count
+            def select(self, *args, **kwargs): return self
+            def eq(self, *args, **kwargs): return self
+            def order(self, *args, **kwargs): return self
+            def range(self, *args, **kwargs): return self
+            def in_(self, *args, **kwargs): return self
+            def maybe_single(self): return self
+            def execute(self):
+                result = MagicMock()
+                result.data = self._data
+                result.count = self._count
+                return result
 
-        # Mock stats
-        self.mock_supabase.table().select().eq().maybe_single().execute.return_value = MagicMock(
-            data={"review_count": 15, "average_rating": 4.5}
-        )
-
-        # Mock reviews
-        self.mock_supabase.table().select().eq().order().range().execute.return_value = MagicMock(
+        count_builder = MockQueryBuilder(count=15)
+        stats_builder = MockQueryBuilder(data={"review_count": 15, "average_rating": 4.5})
+        reviews_builder = MockQueryBuilder(
             data=[
                 {"id": "rev-1", "rating": 5, "comment": "Good", "created_at": "2024-01-01", "customer_id": "cust-1"},
                 {"id": "rev-2", "rating": 4, "comment": "Ok", "created_at": "2024-01-02", "customer_id": "cust-2"}
             ]
         )
-
-        # Mock users
-        self.mock_supabase.table().select().in_().execute.return_value = MagicMock(
+        users_builder = MockQueryBuilder(
             data=[
                 {"id": "cust-1", "full_name": "Nguyen A", "email": "a@x.com"},
                 {"id": "cust-2", "full_name": "", "email": "b@y.com"},
             ]
         )
+
+        call_count = {"value": 0}
+
+        def mock_table(table_name):
+            call_count["value"] += 1
+            if table_name == "reviews":
+                if call_count["value"] == 1:
+                    return count_builder
+                return reviews_builder
+            elif table_name == "product_review_stats":
+                return stats_builder
+            elif table_name == "users":
+                return users_builder
+            return MockQueryBuilder()
+
+        self.mock_supabase.table = mock_table
 
         result = self.review_service.get_product_reviews("prod-1", page=1, page_size=10)
 
