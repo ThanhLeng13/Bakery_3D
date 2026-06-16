@@ -193,5 +193,5 @@ class TestReviewServiceGetReviews:
         assert result["pagination"]["total_pages"] == 2
         assert len(result["reviews"]) == 2
         assert result["reviews"][0]["customer_name"] == "Nguyen A"
-        assert result["reviews"][1]["customer_name"] == "b"
+        assert result["reviews"][1]["customer_name"] == "Khách hàng"
         assert "customer_id" not in result["reviews"][0]

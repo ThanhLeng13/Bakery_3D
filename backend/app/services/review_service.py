@@ -247,7 +247,7 @@ class ReviewService:
             customer_ids = list({r["customer_id"] for r in reviews})
             users_result = (
                 self._supabase.table("users")
-                .select("id, full_name, email")
+                .select("id, full_name")
                 .in_("id", customer_ids)
                 .execute()
             )
