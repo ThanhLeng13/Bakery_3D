@@ -107,7 +107,7 @@ class OrderService:
                 .select("changed_by")
                 .eq("order_id", order_id)
                 .eq("new_status", "in_production")
-                .order("changed_at", desc=False)
+                .order("changed_at", desc=True)
                 .limit(1)
                 .execute()
             )
