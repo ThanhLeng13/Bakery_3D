@@ -144,15 +144,10 @@ export default function OptionsPanel({
                 key={option.id}
                 type="button"
                 data-topping-option={option.id}
-                onPointerDown={(e) => {
-                  if (e.pointerType === "mouse" && e.button !== 0) return;
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleToppingSelect(option.id);
-                }}
+                onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (e.detail === 0) handleToppingSelect(option.id);
+                  handleToppingSelect(option.id);
                 }}
                 className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all duration-150 min-w-[44px] min-h-[44px] ${
                   selected

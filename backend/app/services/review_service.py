@@ -256,10 +256,7 @@ class ReviewService:
                 name = u.get("full_name") or ""
                 if name.strip():
                     return name.strip()
-                email = u.get("email") or ""
-                if email:
-                    return email.split("@")[0]  # e.g. "nguyen.van.a"
-                return "Người dùng"
+                return "Khách hàng"
 
             user_map = {u["id"]: _display_name(u) for u in (users_result.data or [])}
 

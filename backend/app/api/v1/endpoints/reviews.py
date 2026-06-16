@@ -35,9 +35,9 @@ class SubmitReviewRequest(BaseModel):
     )
 
 
-def _get_review_service(token: str | None = None, use_service_role: bool = False) -> ReviewService:
+def _get_review_service(use_service_role: bool = False) -> ReviewService:
     """Create ReviewService with Supabase client."""
-    client = get_supabase_client(token, use_service_role=use_service_role)
+    client = get_supabase_client(None, use_service_role=use_service_role)
     return ReviewService(client)
 
 
@@ -53,9 +53,8 @@ def submit_review(
     Rating must be 1-5. Comment is optional, max 1000 chars.
     order_id is optional — when omitted, review is submitted without order link.
     """
-    token = credentials.credentials if credentials else None
     # Use service role to bypass RLS — auth is already validated by require_customer
-    review_service = _get_review_service(token, use_service_role=True)
+    review_service = _get_review_service(use_service_role=True)
 
     try:
         result = review_service.submit_review(

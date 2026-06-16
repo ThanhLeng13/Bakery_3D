@@ -114,7 +114,7 @@ async def get_baker_order_detail(
 
 
 @router.patch("/{order_id}/notes")
-async def update_baker_notes(
+def update_baker_notes(
     order_id: str,
     body: BakerNotesRequest,
     baker: dict = Depends(require_baker),
