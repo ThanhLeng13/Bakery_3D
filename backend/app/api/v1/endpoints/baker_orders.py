@@ -80,7 +80,7 @@ def list_baker_orders(
 
 
 @router.get("/{order_id}")
-async def get_baker_order_detail(
+def get_baker_order_detail(
     order_id: str,
     baker: dict = Depends(require_baker),
     credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
@@ -95,7 +95,7 @@ async def get_baker_order_detail(
     order_service = _get_order_service(token)
 
     try:
-        result = await order_service.get_order_detail(order_id, baker)
+        result = order_service.get_order_detail(order_id, baker)
 
         # Verify order is in baker-accessible status
         if result["status"] not in ("confirmed", "in_production", "ready"):
@@ -143,7 +143,7 @@ def update_baker_notes(
 
 
 @router.patch("/{order_id}/status")
-async def update_baker_order_status(
+def update_baker_order_status(
     order_id: str,
     body: BakerStatusRequest,
     baker: dict = Depends(require_baker),
@@ -170,7 +170,7 @@ async def update_baker_order_status(
         )
 
     try:
-        result = await order_service.update_order_status(order_id, body.status, baker)
+        result = order_service.update_order_status(order_id, body.status, baker)
         return result
     except OrderNotFoundError:
         raise HTTPException(status_code=404, detail="Order not found")

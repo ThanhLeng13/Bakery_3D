@@ -158,7 +158,7 @@ class OrderService:
                     "Please select a later pickup date."
                 )
 
-    async def create_order(self, order_data: dict, customer: dict) -> dict:
+    def create_order(self, order_data: dict, customer: dict) -> dict:
         """
         Create a new order with status 'pending'.
 
@@ -260,7 +260,7 @@ class OrderService:
 
         return order
 
-    async def list_customer_orders(
+    def list_customer_orders(
         self,
         customer_id: str,
         page: int = 1,
@@ -319,7 +319,7 @@ class OrderService:
             "pagination": pagination,
         }
 
-    async def get_order_detail(self, order_id: str, user: dict) -> dict:
+    def get_order_detail(self, order_id: str, user: dict) -> dict:
         """
         Get full order detail by ID.
 
@@ -404,7 +404,7 @@ class OrderService:
             "updated_at": order["updated_at"],
         }
 
-    async def update_order_status(
+    def update_order_status(
         self, order_id: str, new_status: str, user: dict
     ) -> dict:
         """

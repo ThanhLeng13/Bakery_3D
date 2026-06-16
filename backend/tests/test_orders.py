@@ -183,8 +183,7 @@ class TestCreateOrder:
 
         return mock_execute
 
-    @pytest.mark.asyncio
-    async def test_create_order_calculates_total_price(self):
+    def test_create_order_calculates_total_price(self):
         """Total price should be sum of (unit_price * quantity) for all items."""
         order_id = str(uuid4())
         item_id = str(uuid4())
@@ -214,15 +213,14 @@ class TestCreateOrder:
             "ai_summary": None,
         }
 
-        result = await self.service.create_order(order_data, self.customer)
+        result = self.service.create_order(order_data, self.customer)
 
         # Verify the insert was called with correct total_price
         insert_call = mock_table.insert.call_args_list[0]
         inserted_data = insert_call[0][0]
         assert inserted_data["total_price"] == 350000  # 150000*2 + 50000*1
 
-    @pytest.mark.asyncio
-    async def test_create_order_stores_ai_summary(self):
+    def test_create_order_stores_ai_summary(self):
         """AI summary should be stored in the order record."""
         order_id = str(uuid4())
 
@@ -247,15 +245,14 @@ class TestCreateOrder:
             "ai_summary": "Bánh kem chocolate 20cm, nhận ngày mai",
         }
 
-        await self.service.create_order(order_data, self.customer)
+        self.service.create_order(order_data, self.customer)
 
         # Verify ai_summary was included in the insert
         insert_call = mock_table.insert.call_args_list[0]
         inserted_data = insert_call[0][0]
         assert inserted_data["ai_summary"] == "Bánh kem chocolate 20cm, nhận ngày mai"
 
-    @pytest.mark.asyncio
-    async def test_create_order_stores_customization_json(self):
+    def test_create_order_stores_customization_json(self):
         """Customization JSON should be stored in cake_customizations table."""
         order_id = str(uuid4())
         item_id = str(uuid4())
@@ -295,7 +292,7 @@ class TestCreateOrder:
             "ai_summary": None,
         }
 
-        await self.service.create_order(order_data, self.customer)
+        self.service.create_order(order_data, self.customer)
 
         # Verify cake_customizations insert was called
         # The third insert call should be for cake_customizations
@@ -357,72 +354,65 @@ class TestUpdateOrderStatus:
 
         return mock_table
 
-    @pytest.mark.asyncio
-    async def test_valid_transition_pending_to_confirmed_by_admin(self):
+    def test_valid_transition_pending_to_confirmed_by_admin(self):
         """Admin can transition pending → confirmed."""
         order_id = str(uuid4())
         self._setup_order_fetch(order_id, "pending")
 
         admin = {"id": str(uuid4()), "role": "admin"}
-        result = await self.service.update_order_status(order_id, "confirmed", admin)
+        result = self.service.update_order_status(order_id, "confirmed", admin)
         assert result is not None
 
-    @pytest.mark.asyncio
-    async def test_invalid_transition_pending_to_delivered(self):
+    def test_invalid_transition_pending_to_delivered(self):
         """Cannot skip statuses: pending → delivered is invalid."""
         order_id = str(uuid4())
         self._setup_order_fetch(order_id, "pending")
 
         admin = {"id": str(uuid4()), "role": "admin"}
         with pytest.raises(InvalidStatusTransitionError) as exc_info:
-            await self.service.update_order_status(order_id, "delivered", admin)
+            self.service.update_order_status(order_id, "delivered", admin)
         assert "confirmed" in exc_info.value.message
 
-    @pytest.mark.asyncio
-    async def test_invalid_transition_reverse_confirmed_to_pending(self):
+    def test_invalid_transition_reverse_confirmed_to_pending(self):
         """Cannot reverse: confirmed → pending is invalid."""
         order_id = str(uuid4())
         self._setup_order_fetch(order_id, "confirmed")
 
         admin = {"id": str(uuid4()), "role": "admin"}
         with pytest.raises(InvalidStatusTransitionError) as exc_info:
-            await self.service.update_order_status(order_id, "pending", admin)
+            self.service.update_order_status(order_id, "pending", admin)
         assert "in_production" in exc_info.value.message
 
-    @pytest.mark.asyncio
-    async def test_baker_cannot_confirm_order(self):
+    def test_baker_cannot_confirm_order(self):
         """Baker cannot perform pending → confirmed (Admin only)."""
         order_id = str(uuid4())
         self._setup_order_fetch(order_id, "pending")
 
         baker = {"id": str(uuid4()), "role": "baker"}
         with pytest.raises(InsufficientPermissionError) as exc_info:
-            await self.service.update_order_status(order_id, "confirmed", baker)
+            self.service.update_order_status(order_id, "confirmed", baker)
         assert "baker" in exc_info.value.message
 
-    @pytest.mark.asyncio
-    async def test_admin_cannot_start_production(self):
+    def test_admin_cannot_start_production(self):
         """Admin cannot perform confirmed → in_production (Baker only)."""
         order_id = str(uuid4())
         self._setup_order_fetch(order_id, "confirmed")
 
         admin = {"id": str(uuid4()), "role": "admin"}
         with pytest.raises(InsufficientPermissionError) as exc_info:
-            await self.service.update_order_status(order_id, "in_production", admin)
+            self.service.update_order_status(order_id, "in_production", admin)
         assert "admin" in exc_info.value.message
 
-    @pytest.mark.asyncio
-    async def test_customer_cannot_update_status(self):
+    def test_customer_cannot_update_status(self):
         """Customer cannot perform any status transition."""
         order_id = str(uuid4())
         self._setup_order_fetch(order_id, "pending")
 
         customer = {"id": str(uuid4()), "role": "customer"}
         with pytest.raises(InsufficientPermissionError):
-            await self.service.update_order_status(order_id, "confirmed", customer)
+            self.service.update_order_status(order_id, "confirmed", customer)
 
-    @pytest.mark.asyncio
-    async def test_order_not_found_raises_error(self):
+    def test_order_not_found_raises_error(self):
         """Non-existent order raises OrderNotFoundError."""
         order_id = str(uuid4())
 
@@ -438,7 +428,7 @@ class TestUpdateOrderStatus:
 
         admin = {"id": str(uuid4()), "role": "admin"}
         with pytest.raises(OrderNotFoundError):
-            await self.service.update_order_status(order_id, "confirmed", admin)
+            self.service.update_order_status(order_id, "confirmed", admin)
 
 
 # ============================================================
@@ -548,8 +538,7 @@ class TestListCustomerOrders:
         self.mock_supabase = MagicMock()
         self.service = OrderService(self.mock_supabase)
 
-    @pytest.mark.asyncio
-    async def test_list_orders_returns_pagination(self):
+    def test_list_orders_returns_pagination(self):
         """Should return correct pagination metadata."""
         customer_id = str(uuid4())
 
@@ -574,7 +563,7 @@ class TestListCustomerOrders:
              "customer_phone": "0901234567", "created_at": "2024-01-10T10:00:00Z"}
         ])
 
-        result = await self.service.list_customer_orders(customer_id, page=1, page_size=10)
+        result = self.service.list_customer_orders(customer_id, page=1, page_size=10)
 
         assert result["pagination"]["total_items"] == 25
         assert result["pagination"]["total_pages"] == 3

@@ -109,7 +109,7 @@ def list_admin_orders(
 
 
 @router.get("/{order_id}")
-async def get_admin_order_detail(
+def get_admin_order_detail(
     order_id: str,
     admin: dict = Depends(require_admin),
 ):
@@ -122,7 +122,7 @@ async def get_admin_order_detail(
     order_service = _get_order_service()
 
     try:
-        result = await order_service.get_order_detail(order_id, admin)
+        result = order_service.get_order_detail(order_id, admin)
         return result
     except OrderNotFoundError:
         raise HTTPException(status_code=404, detail="Order not found")

@@ -125,7 +125,7 @@ def get_current_user(
 
         # Fetch user role from users table using admin client to bypass RLS
         try:
-            supabase_admin = _get_supabase_admin_client()
+            supabase_admin = get_supabase_client(use_service_role=True)
         except Exception as init_err:
             logging.getLogger(__name__).error(
                 "Failed to initialize admin client: %s",
