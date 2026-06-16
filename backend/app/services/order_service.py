@@ -95,7 +95,7 @@ class OrderService:
             return
             
         # 1. Branch-level check (if branch_id exists in future schemas)
-        baker_branch = baker.get("branch_id") or baker.get("user_metadata", {}).get("branch_id")
+        baker_branch = baker.get("branch_id") or (baker.get("user_metadata") or {}).get("branch_id")
         order_branch = order.get("branch_id")
         if baker_branch and order_branch and baker_branch != order_branch:
             raise InsufficientPermissionError("baker", "access orders from another branch")
