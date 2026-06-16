@@ -64,7 +64,7 @@ class CatalogService:
         """Initialize with a Supabase client instance."""
         self._supabase = supabase_client
 
-    async def list_products(
+    def list_products(
         self,
         page: int = 1,
         page_size: int = 20,
@@ -169,7 +169,7 @@ class CatalogService:
             "pagination": pagination,
         }
 
-    async def get_product_detail(self, product_id: str) -> dict:
+    def get_product_detail(self, product_id: str) -> dict:
         """
         Get full product detail by ID.
 

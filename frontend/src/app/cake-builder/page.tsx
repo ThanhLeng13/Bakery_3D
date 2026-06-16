@@ -142,7 +142,7 @@ export default function CakeBuilderPage() {
             </div>
 
             {/* Bộ chọn vùng thiết kế nhanh (Quick zone selector) */}
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3" data-zone-selector="true">
               <h4 className="text-sm font-semibold text-mocha text-center">
                 Chọn vùng cần trang trí:
               </h4>
@@ -201,7 +201,7 @@ export default function CakeBuilderPage() {
             {activeZone && (
               <OptionsPanel
                 activeZone={activeZone}
-                zoneCustomization={design.zones[activeZone]}
+                zoneCustomization={design.zones?.[activeZone] || {}}
                 onOptionSelect={handleOptionSelect}
                 onClose={handleClosePanel}
               />
@@ -224,7 +224,7 @@ export default function CakeBuilderPage() {
         <div className="md:hidden">
           <OptionsPanel
             activeZone={activeZone}
-            zoneCustomization={activeZone ? design.zones[activeZone] : {}}
+            zoneCustomization={activeZone ? (design.zones?.[activeZone] || {}) : {}}
             onOptionSelect={handleOptionSelect}
             onClose={handleClosePanel}
           />

@@ -85,13 +85,13 @@ export function PreviewModal({
 
   // Gather toppings and decorations from zones
   const toppings: string[] = [
-    ...(design.zones.top.toppings ?? []),
+    ...(design.zones?.top?.toppings ?? []),
   ];
 
   const decorations: string[] = [];
-  if (design.zones.top.decoration) decorations.push(design.zones.top.decoration);
-  if (design.zones.body.decoration) decorations.push(design.zones.body.decoration);
-  if (design.zones.border.decoration) decorations.push(design.zones.border.decoration);
+  if (design.zones?.top?.decoration) decorations.push(design.zones.top.decoration);
+  if (design.zones?.body?.decoration) decorations.push(design.zones.body.decoration);
+  if (design.zones?.border?.decoration) decorations.push(design.zones.border.decoration);
 
   return (
     <div

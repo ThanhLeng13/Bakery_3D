@@ -125,7 +125,7 @@ def get_current_user(
 
         # Fetch user role from users table using admin client to bypass RLS
         try:
-            supabase_admin = _get_supabase_admin_client()
+            supabase_admin = get_supabase_client(use_service_role=True)
         except Exception as init_err:
             logging.getLogger(__name__).error(
                 "Failed to initialize admin client: %s",
@@ -139,7 +139,7 @@ def get_current_user(
         try:
             user_result = (
                 supabase_admin.table("users")
-                .select("id, email, full_name, phone, role")
+                .select("*")
                 .eq("id", str(supabase_user.id))
                 .maybe_single()
                 .execute()
@@ -157,21 +157,52 @@ def get_current_user(
 
 
         if user_result is None or user_result.data is None:
-            # User exists in auth but not in users table - treat as customer
+            # User exists in auth but not in users table.
+            # Auto-create the profile so that FK constraints (e.g. orders.customer_id)
+            # are satisfied. This covers Google OAuth users whose on_auth_user_created
+            # trigger may not have fired, or accounts created outside the app.
+            user_id = str(supabase_user.id)
+            user_email = supabase_user.email or None
+            full_name = ""
+            if supabase_user.user_metadata:
+                full_name = (
+                    supabase_user.user_metadata.get("full_name")
+                    or supabase_user.user_metadata.get("name")
+                    or ""
+                )
+            try:
+                supabase_admin.table("users").upsert(
+                    {
+                        "id": user_id,
+                        "email": user_email,
+                        "full_name": full_name,
+                        "role": "customer",
+                    },
+                    on_conflict="id",
+                ).execute()
+            except Exception as upsert_err:
+                logging.getLogger(__name__).warning(
+                    "Could not auto-create user profile for %s: %s",
+                    user_id,
+                    str(upsert_err),
+                )
             return {
-                "id": str(supabase_user.id),
-                "email": supabase_user.email,
-                "full_name": "",
+                "id": user_id,
+                "email": user_email,
+                "full_name": full_name,
                 "phone": None,
                 "role": "customer",
+                "user_metadata": supabase_user.user_metadata or {},
             }
 
         return {
             "id": user_result.data["id"],
             "email": user_result.data["email"],
             "full_name": user_result.data.get("full_name", ""),
-            "phone": user_result.data.get("phone"),
+            "phone": user_result.data.get("phone", None),
             "role": user_result.data.get("role", "customer"),
+            "branch_id": user_result.data.get("branch_id"),
+            "user_metadata": supabase_user.user_metadata or {},
         }
 
     except HTTPException:

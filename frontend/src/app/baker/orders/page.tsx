@@ -15,6 +15,7 @@ import { apiClient } from "@/lib/api";
 import type { OrderStatus } from "@/types";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Link from "next/link";
+import CustomizationDetails from "@/components/CustomizationDetails";
 
 interface BakerOrder {
   id: string;
@@ -396,28 +397,16 @@ function BakerDashboardContent() {
                   </section>
                 )}
 
-                {/* Customization details */}
+                {/* Customization details - Full baker view */}
                 {selectedOrder.customizations && selectedOrder.customizations.length > 0 && (
-                  <section className="bg-pink-50 rounded-xl p-4">
-                    <h3 className="font-semibold text-pink-800 text-sm mb-3">Chi tiết tùy chỉnh bánh</h3>
-                    {selectedOrder.customizations.map((c) => {
-                      const json = c.customization_json as Record<string, unknown>;
-                      return (
-                        <div key={c.id} className="text-sm space-y-1">
-                          {!!(json.size) && <p className="text-pink-700">📏 Kích thước: <strong>{String(json.size)}</strong></p>}
-                          {!!(json.flavor) && <p className="text-pink-700">🍰 Hương vị: <strong>{String(json.flavor)}</strong></p>}
-                          {!!(json.cream_type) && <p className="text-pink-700">🧁 Loại kem: <strong>{String(json.cream_type)}</strong></p>}
-                          {!!(json.cream_color) && (
-                            <p className="text-pink-700 flex items-center gap-1">
-                              🎨 Màu kem: <strong>{String(json.cream_color)}</strong>
-                              <span className="inline-block w-4 h-4 rounded-full border border-pink-200 ml-1" style={{ backgroundColor: String(json.cream_color) }} />
-                            </p>
-                          )}
-                          {!!(json.topping_type) && <p className="text-pink-700">🍓 Topping: <strong>{String(json.topping_type)}</strong></p>}
-                          {!!(json.special_notes) && <p className="text-pink-700">📝 Ghi chú đặc biệt: <em>{String(json.special_notes)}</em></p>}
-                        </div>
-                      );
-                    })}
+                  <section className="border-2 border-pink-300 rounded-xl overflow-hidden">
+                    <div className="bg-pink-500 px-4 py-2 flex items-center gap-2">
+                      <span className="text-lg">🎂</span>
+                      <h3 className="font-bold text-white text-sm">Yêu cầu tùy chỉnh bánh của khách</h3>
+                    </div>
+                    {selectedOrder.customizations.map((c) => (
+                      <CustomizationDetails key={c.id} customizationJson={c.customization_json} />
+                    ))}
                   </section>
                 )}
 

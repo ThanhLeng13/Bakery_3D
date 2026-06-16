@@ -13,6 +13,7 @@ import { useEffect, useState, useCallback, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api";
 import type { OrderStatus, PaginationMeta } from "@/types";
+import CustomizationDetails from "@/components/CustomizationDetails";
 
 interface AdminOrder {
   id: string;
@@ -518,7 +519,19 @@ function AdminOrdersContent() {
                   </section>
                 )}
 
-                {/* AI Summary */}
+                {/* Customization details - Full baker/admin view */}
+                {selectedOrder.customizations && selectedOrder.customizations.length > 0 && (
+                  <section className="border-2 border-pink-300 rounded-xl overflow-hidden">
+                    <div className="bg-pink-500 px-4 py-2 flex items-center gap-2">
+                      <span className="text-lg">🎂</span>
+                      <h3 className="font-bold text-white text-sm">Yêu cầu tùy chỉnh bánh của khách</h3>
+                    </div>
+                    {selectedOrder.customizations.map((c) => (
+                      <CustomizationDetails key={c.id} customizationJson={c.customization_json} />
+                    ))}
+                  </section>
+                )}
+
                 {selectedOrder.ai_summary && (
                   <section className="bg-purple-50 rounded-xl p-4">
                     <h3 className="font-semibold text-purple-800 text-sm mb-2">AI Tư vấn</h3>

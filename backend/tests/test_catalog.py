@@ -91,9 +91,7 @@ class TestListProducts:
     def mock_supabase(self):
         """Create a mock Supabase client."""
         return MagicMock()
-
-    @pytest.mark.asyncio
-    async def test_list_products_returns_paginated_results(self, mock_supabase):
+    def test_list_products_returns_paginated_results(self, mock_supabase):
         """Should return products with pagination metadata."""
         product = make_product()
         # Embed relations as PostgREST would return them
@@ -118,7 +116,7 @@ class TestListProducts:
         mock_supabase.table = mock_table
 
         service = CatalogService(mock_supabase)
-        result = await service.list_products(page=1, page_size=20)
+        result = service.list_products(page=1, page_size=20)
 
         assert "products" in result
         assert "pagination" in result
@@ -133,9 +131,7 @@ class TestListProducts:
         assert result["pagination"]["total_pages"] == 1
         assert result["pagination"]["has_next"] is False
         assert result["pagination"]["has_previous"] is False
-
-    @pytest.mark.asyncio
-    async def test_list_products_empty_catalog(self, mock_supabase):
+    def test_list_products_empty_catalog(self, mock_supabase):
         """Should return empty list with zero pagination when no products exist."""
         count_builder = MockQueryBuilder(data=[], count=0)
         data_builder = MockQueryBuilder(data=[])
@@ -153,16 +149,14 @@ class TestListProducts:
         mock_supabase.table = mock_table
 
         service = CatalogService(mock_supabase)
-        result = await service.list_products()
+        result = service.list_products()
 
         assert result["products"] == []
         assert result["pagination"]["total_items"] == 0
         assert result["pagination"]["total_pages"] == 0
         assert result["pagination"]["has_next"] is False
         assert result["pagination"]["has_previous"] is False
-
-    @pytest.mark.asyncio
-    async def test_list_products_truncates_description(self, mock_supabase):
+    def test_list_products_truncates_description(self, mock_supabase):
         """Should truncate description to 100 characters in list view."""
         long_desc = "A" * 150
         product = make_product(description=long_desc)
@@ -185,12 +179,10 @@ class TestListProducts:
         mock_supabase.table = mock_table
 
         service = CatalogService(mock_supabase)
-        result = await service.list_products()
+        result = service.list_products()
 
         assert len(result["products"][0]["description"]) == 100
-
-    @pytest.mark.asyncio
-    async def test_list_products_no_image_returns_none(self, mock_supabase):
+    def test_list_products_no_image_returns_none(self, mock_supabase):
         """Should return None for image_url when product has no images."""
         product = make_product()
         product["product_images"] = []
@@ -212,12 +204,10 @@ class TestListProducts:
         mock_supabase.table = mock_table
 
         service = CatalogService(mock_supabase)
-        result = await service.list_products()
+        result = service.list_products()
 
         assert result["products"][0]["image_url"] is None
-
-    @pytest.mark.asyncio
-    async def test_list_products_no_reviews_returns_null_rating(self, mock_supabase):
+    def test_list_products_no_reviews_returns_null_rating(self, mock_supabase):
         """Should return None for average_rating when product has no reviews."""
         product = make_product()
         product["product_images"] = []
@@ -239,7 +229,7 @@ class TestListProducts:
         mock_supabase.table = mock_table
 
         service = CatalogService(mock_supabase)
-        result = await service.list_products()
+        result = service.list_products()
 
         assert result["products"][0]["average_rating"] is None
         assert result["products"][0]["review_count"] == 0
@@ -257,9 +247,7 @@ class TestGetProductDetail:
     def mock_supabase(self):
         """Create a mock Supabase client."""
         return MagicMock()
-
-    @pytest.mark.asyncio
-    async def test_get_product_detail_success(self, mock_supabase):
+    def test_get_product_detail_success(self, mock_supabase):
         """Should return full product detail with images and reviews."""
         product_id = str(uuid4())
         product = make_product(product_id=product_id)
@@ -288,7 +276,7 @@ class TestGetProductDetail:
         mock_supabase.table = mock_table
 
         service = CatalogService(mock_supabase)
-        result = await service.get_product_detail(product_id)
+        result = service.get_product_detail(product_id)
 
         assert result["id"] == product_id
         assert result["name"] == "Bánh kem socola"
@@ -300,9 +288,7 @@ class TestGetProductDetail:
         assert len(result["images"]) == 2
         assert result["average_rating"] == 4.0
         assert result["review_count"] == 3
-
-    @pytest.mark.asyncio
-    async def test_get_product_detail_not_found(self, mock_supabase):
+    def test_get_product_detail_not_found(self, mock_supabase):
         """Should raise ProductNotFoundError when product doesn't exist."""
         product_builder = MockQueryBuilder(data=None)
 
@@ -314,10 +300,8 @@ class TestGetProductDetail:
         service = CatalogService(mock_supabase)
 
         with pytest.raises(ProductNotFoundError):
-            await service.get_product_detail(str(uuid4()))
-
-    @pytest.mark.asyncio
-    async def test_get_product_detail_inactive_not_found(self, mock_supabase):
+            service.get_product_detail(str(uuid4()))
+    def test_get_product_detail_inactive_not_found(self, mock_supabase):
         """Should raise ProductNotFoundError for inactive products."""
         # The query filters by is_active=True, so inactive products return None
         product_builder = MockQueryBuilder(data=None)
@@ -330,10 +314,8 @@ class TestGetProductDetail:
         service = CatalogService(mock_supabase)
 
         with pytest.raises(ProductNotFoundError):
-            await service.get_product_detail(str(uuid4()))
-
-    @pytest.mark.asyncio
-    async def test_get_product_detail_no_images(self, mock_supabase):
+            service.get_product_detail(str(uuid4()))
+    def test_get_product_detail_no_images(self, mock_supabase):
         """Should return empty images list when product has no images."""
         product_id = str(uuid4())
         product = make_product(product_id=product_id)
@@ -357,12 +339,10 @@ class TestGetProductDetail:
         mock_supabase.table = mock_table
 
         service = CatalogService(mock_supabase)
-        result = await service.get_product_detail(product_id)
+        result = service.get_product_detail(product_id)
 
         assert result["images"] == []
-
-    @pytest.mark.asyncio
-    async def test_get_product_detail_null_sizes_flavors(self, mock_supabase):
+    def test_get_product_detail_null_sizes_flavors(self, mock_supabase):
         """Should return empty lists when sizes/flavors are null in DB."""
         product_id = str(uuid4())
         product = make_product(product_id=product_id, sizes=None, flavors=None)
@@ -389,7 +369,7 @@ class TestGetProductDetail:
         mock_supabase.table = mock_table
 
         service = CatalogService(mock_supabase)
-        result = await service.get_product_detail(product_id)
+        result = service.get_product_detail(product_id)
 
         assert result["sizes"] == []
         assert result["flavors"] == []

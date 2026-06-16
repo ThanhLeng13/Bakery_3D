@@ -1,8 +1,8 @@
 """Review service - business logic for submitting and fetching reviews.
 
 Handles:
-- Review eligibility validation (order must be delivered, within 30 days)
-- Uniqueness enforcement (one review per product/customer/order)
+- Review eligibility validation (optional: order must be delivered, within 30 days)
+- Uniqueness enforcement (one review per product/customer, optionally scoped to order)
 - Average rating calculation
 """
 
@@ -89,30 +89,36 @@ class ReviewService:
 
         return order
 
-    def _check_duplicate(self, product_id: str, customer_id: str, order_id: str) -> None:
+    def _check_duplicate(self, product_id: str, customer_id: str, order_id: str | None) -> None:
         """
-        Check if a review already exists for this product/customer/order combination.
+        Check if a review already exists for this product/customer combination.
+
+        When order_id is None, checks for reviews with NULL order_id
+        (product+customer uniqueness). When provided, also checks order_id.
 
         Raises:
             ReviewDuplicateError: If a review already exists
         """
-        existing = (
+        query = (
             self._supabase.table("reviews")
             .select("id")
             .eq("product_id", product_id)
             .eq("customer_id", customer_id)
-            .eq("order_id", order_id)
-            .maybe_single()
-            .execute()
         )
+        if order_id is not None:
+            query = query.eq("order_id", order_id)
+        else:
+            query = query.is_("order_id", "null")
+
+        existing = query.maybe_single().execute()
 
         if existing is not None and existing.data is not None:
             raise ReviewDuplicateError()
 
-    async def submit_review(
+    def submit_review(
         self,
         product_id: str,
-        order_id: str,
+        order_id: str | None,
         rating: int,
         comment: str | None,
         customer: dict,
@@ -122,7 +128,9 @@ class ReviewService:
 
         Args:
             product_id: UUID of the product being reviewed
-            order_id: UUID of the order (must be delivered, within 30 days)
+            order_id: UUID of the order (optional). When provided, validates
+                      that the order is delivered and within 30 days.
+                      When None, skips order eligibility check.
             rating: Rating 1-5
             comment: Optional comment (max 1000 chars)
             customer: Current user dict
@@ -131,14 +139,15 @@ class ReviewService:
             Created review dict
 
         Raises:
-            ReviewNotEligibleError: If order is not eligible
+            ReviewNotEligibleError: If order is not eligible (only when order_id provided)
             ReviewDuplicateError: If review already exists
             ReviewServiceError: If review creation fails
         """
         customer_id = customer["id"]
 
-        # Validate eligibility
-        self._check_eligibility(order_id, customer_id)
+        # Validate eligibility only when order_id is provided
+        if order_id is not None:
+            self._check_eligibility(order_id, customer_id)
 
         # Check duplicate
         self._check_duplicate(product_id, customer_id, order_id)
@@ -156,23 +165,31 @@ class ReviewService:
         if product_result is None or product_result.data is None:
             raise ReviewServiceError("Sản phẩm không tồn tại.", status_code=404)
 
-        # Create review
-        review_insert = {
+        # Create review — omit order_id key entirely when None to avoid NULL issues
+        review_insert: dict = {
             "product_id": product_id,
             "customer_id": customer_id,
-            "order_id": order_id,
             "rating": rating,
-            "comment": comment,
         }
+        if order_id is not None:
+            review_insert["order_id"] = order_id
+        if comment is not None:
+            review_insert["comment"] = comment
 
-        result = self._supabase.table("reviews").insert(review_insert).execute()
+        try:
+            result = self._supabase.table("reviews").insert(review_insert).execute()
+        except Exception as e:
+            err_str = str(e).lower()
+            if "unique" in err_str or "duplicate" in err_str:
+                raise ReviewDuplicateError() from e
+            raise ReviewServiceError("Không thể lưu đánh giá. Đã xảy ra lỗi hệ thống.", status_code=500) from e
 
         if not result.data:
             raise ReviewServiceError("Không thể lưu đánh giá.", status_code=500)
 
         return result.data[0]
 
-    async def get_product_reviews(
+    def get_product_reviews(
         self,
         product_id: str,
         page: int = 1,
@@ -225,7 +242,7 @@ class ReviewService:
 
         reviews = reviews_result.data or []
 
-        # Fetch customer names
+        # Fetch customer names — use service role client so RLS doesn't block
         if reviews:
             customer_ids = list({r["customer_id"] for r in reviews})
             users_result = (
@@ -234,10 +251,17 @@ class ReviewService:
                 .in_("id", customer_ids)
                 .execute()
             )
-            user_map = {u["id"]: u.get("full_name", "Khách hàng") for u in (users_result.data or [])}
+
+            def _display_name(u: dict) -> str:
+                name = u.get("full_name") or ""
+                if name.strip():
+                    return name.strip()
+                return "Khách hàng"
+
+            user_map = {u["id"]: _display_name(u) for u in (users_result.data or [])}
 
             for review in reviews:
-                review["customer_name"] = user_map.get(review["customer_id"], "Khách hàng")
+                review["customer_name"] = user_map.get(review["customer_id"], "Người dùng")
                 del review["customer_id"]  # Don't expose customer IDs
 
         return {

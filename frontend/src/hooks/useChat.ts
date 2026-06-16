@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback, useRef } from "react";
-import { getStoredToken } from "@/lib/auth";
+import { getStoredToken, isAuthenticated as checkIsAuthenticated } from "@/lib/auth";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -66,7 +66,7 @@ export function useChat(): UseChatReturn {
   const sessionIdRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const isAuthenticated = !!getStoredToken();
+  const isAuthenticated = checkIsAuthenticated();
 
   const createSession = useCallback(async (): Promise<string> => {
     const token = getStoredToken();

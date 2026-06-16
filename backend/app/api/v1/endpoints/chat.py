@@ -29,8 +29,12 @@ router = APIRouter()
 
 
 def _get_chat_service(token: str | None = None) -> ChatService:
-    """Create ChatService with Supabase client."""
-    client = get_supabase_client(token, use_service_role=False)
+    """Create ChatService with service-role Supabase client.
+
+    Authentication is verified upstream by require_customer.
+    Service role is used to bypass RLS for chat operations.
+    """
+    client = get_supabase_client(token, use_service_role=True)
     return ChatService(client)
 
 

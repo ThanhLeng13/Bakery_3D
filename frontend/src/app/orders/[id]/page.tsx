@@ -139,12 +139,16 @@ function ReviewForm({ orderId, items }: { orderId: string; items: OrderItem[] })
       });
       setSubmitted(true);
     } catch (err: unknown) {
-      const apiErr = err as { detail?: string };
-      if (apiErr?.detail === "Bạn đã đánh giá sản phẩm này cho đơn hàng này rồi.") {
-        setError("Bạn đã đánh giá sản phẩm này rồi.");
-      } else {
-        setError(apiErr?.detail || "Gửi đánh giá thất bại. Vui lòng thử lại.");
+      const apiErr = err as { detail?: string | any[] };
+      let errorMsg = "Gửi đánh giá thất bại. Vui lòng thử lại.";
+      if (typeof apiErr?.detail === "string") {
+        errorMsg = apiErr.detail === "Bạn đã đánh giá sản phẩm này cho đơn hàng này rồi."
+          ? "Bạn đã đánh giá sản phẩm này rồi."
+          : apiErr.detail;
+      } else if (Array.isArray(apiErr?.detail)) {
+        errorMsg = apiErr.detail[0]?.msg || errorMsg;
       }
+      setError(errorMsg);
     } finally {
       setSubmitting(false);
     }

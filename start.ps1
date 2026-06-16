@@ -161,9 +161,28 @@ Write-Host " De TAT het, dong 2 cua so terminal kia" -ForegroundColor Yellow
 Write-Host " hoac chay: .\stop.ps1" -ForegroundColor Yellow
 Write-Host ""
 
-# Tu dong mo trinh duyet sau 12 giay
-Write-Host " Trinh duyet se tu dong mo sau 12 giay..." -ForegroundColor Cyan
-Start-Sleep -Seconds 12
-Start-Process "http://localhost:$frontendPort"
+# Tu dong mo trinh duyet khi frontend san sang (toi da doi 3 phut cho build production)
+Write-Host " Dang doi frontend khoi dong (co the mat 1-2 phut neu la Production Build)..." -ForegroundColor Cyan
+$maxRetries = 180
+$retryCount = 0
+$portIsUp = $false
+while (-not $portIsUp -and $retryCount -lt $maxRetries) {
+    try {
+        $tcpClient = New-Object System.Net.Sockets.TcpClient("127.0.0.1", $frontendPort)
+        $tcpClient.Close()
+        $portIsUp = $true
+    } catch {
+        Start-Sleep -Seconds 1
+        $retryCount++
+    }
+}
+
+if ($portIsUp) {
+    Write-Host " [OK] Frontend da san sang. Dang mo trinh duyet..." -ForegroundColor Green
+    Start-Process "http://localhost:$frontendPort"
+} else {
+    Write-Host " [!] Khong the ket noi toi frontend sau $maxRetries giay. Vui long kiem tra terminal cua frontend xem co loi khong." -ForegroundColor Red
+    Start-Process "http://localhost:$frontendPort"
+}
 
 Read-Host "Nhan Enter de dong cua so nay (cac server van chay)"

@@ -125,7 +125,7 @@ class TestGetCurrentUser:
             "app.core.dependencies._get_supabase_client",
             return_value=mock_supabase,
         ), patch(
-            "app.core.dependencies._get_supabase_admin_client",
+            "app.core.dependencies.get_supabase_client",
             return_value=mock_admin_client,
         ):
             user = get_current_user(credentials=credentials)
@@ -164,7 +164,7 @@ class TestGetCurrentUser:
             "app.core.dependencies._get_supabase_client",
             return_value=mock_supabase,
         ), patch(
-            "app.core.dependencies._get_supabase_admin_client",
+            "app.core.dependencies.get_supabase_client",
             return_value=mock_admin_client,
         ):
             user = get_current_user(credentials=credentials)

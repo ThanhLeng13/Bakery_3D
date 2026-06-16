@@ -85,6 +85,37 @@ class OrderService:
         """Initialize with a Supabase client instance."""
         self._supabase = supabase_client
 
+    def _check_baker_authorization(self, order_id: str, order: dict, baker: dict, read_only: bool = False) -> None:
+        """
+        Verify that the baker is authorized to access or modify this order.
+        Prevents Broken Object Level Authorization (BOLA) when RLS is bypassed.
+        If read_only is True, bypasses the ownership check.
+        """
+        if baker.get("role") != "baker":
+            return
+            
+        # 1. Branch-level check (if branch_id exists in future schemas)
+        baker_branch = baker.get("branch_id") or (baker.get("user_metadata") or {}).get("branch_id")
+        order_branch = order.get("branch_id")
+        if baker_branch and order_branch and baker_branch != order_branch:
+            raise InsufficientPermissionError("baker", "access orders from another branch")
+            
+        # 2. Explicit ownership check (baker who claimed the order)
+        if not read_only and order.get("status") in ("in_production", "ready"):
+            history = (
+                self._supabase.table("order_status_history")
+                .select("changed_by")
+                .eq("order_id", order_id)
+                .eq("new_status", "in_production")
+                .order("changed_at", desc=True)
+                .limit(1)
+                .execute()
+            )
+            if history.data:
+                claiming_baker = history.data[0].get("changed_by")
+                if claiming_baker and claiming_baker != baker.get("id"):
+                    raise InsufficientPermissionError("baker", "modify an order claimed by another baker")
+
     def _validate_pickup_date(self, pickup_date: datetime, items: list[dict]) -> None:
         """
         Validate pickup date constraints.
@@ -128,7 +159,7 @@ class OrderService:
                     "Please select a later pickup date."
                 )
 
-    async def create_order(self, order_data: dict, customer: dict) -> dict:
+    def create_order(self, order_data: dict, customer: dict) -> dict:
         """
         Create a new order with status 'pending'.
 
@@ -230,7 +261,7 @@ class OrderService:
 
         return order
 
-    async def list_customer_orders(
+    def list_customer_orders(
         self,
         customer_id: str,
         page: int = 1,
@@ -289,7 +320,7 @@ class OrderService:
             "pagination": pagination,
         }
 
-    async def get_order_detail(self, order_id: str, user: dict) -> dict:
+    def get_order_detail(self, order_id: str, user: dict) -> dict:
         """
         Get full order detail by ID.
 
@@ -323,6 +354,9 @@ class OrderService:
         # Check access: customers can only see their own orders
         if user["role"] == "customer" and order["customer_id"] != user["id"]:
             raise OrderNotFoundError(order_id)
+            
+        # Validate baker authorization
+        self._check_baker_authorization(order_id, order, user, read_only=True)
 
         # Fetch order items
         items_result = (
@@ -371,7 +405,7 @@ class OrderService:
             "updated_at": order["updated_at"],
         }
 
-    async def update_order_status(
+    def update_order_status(
         self, order_id: str, new_status: str, user: dict
     ) -> dict:
         """
@@ -424,6 +458,9 @@ class OrderService:
                 user_role, f"{current_status} → {new_status}"
             )
 
+        # Validate baker authorization
+        self._check_baker_authorization(order_id, order, user)
+
         # Perform the update
         update_result = (
             self._supabase.table("orders")
@@ -471,3 +508,41 @@ class OrderService:
                 )
 
         return update_result.data[0]
+
+    def update_baker_notes(self, order_id: str, notes: str, user: dict) -> dict:
+        """Update baker notes for an order."""
+        order_result = (
+            self._supabase.table("orders")
+            .select("*")
+            .eq("id", order_id)
+            .maybe_single()
+            .execute()
+        )
+
+        if order_result is None or order_result.data is None:
+            raise OrderNotFoundError(order_id)
+
+        order = order_result.data
+        if order["status"] not in ("confirmed", "in_production", "ready"):
+            raise OrderServiceError(
+                "Baker notes can only be updated for orders in confirmed, in_production, or ready status",
+                status_code=400
+            )
+
+        self._check_baker_authorization(order_id, order, user)
+
+        update_result = (
+            self._supabase.table("orders")
+            .update({"baker_notes": notes})
+            .eq("id", order_id)
+            .execute()
+        )
+
+        if not update_result.data:
+            raise OrderServiceError("Failed to update baker notes", status_code=500)
+
+        return {
+            "id": order_id,
+            "baker_notes": notes,
+            "message": "Baker notes updated successfully",
+        }

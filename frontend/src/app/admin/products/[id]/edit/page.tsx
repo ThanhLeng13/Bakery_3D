@@ -612,6 +612,7 @@ export default function AdminProductEditPage() {
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
               {existingImages.map((img, index) => (
                 <div key={img.id} className="relative group aspect-square">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={img.url}
                     alt={`Product image ${index + 1}`}
@@ -635,6 +636,7 @@ export default function AdminProductEditPage() {
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
               {newImages.map((img, index) => (
                 <div key={index} className="relative group aspect-square">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={img.preview}
                     alt={`New image ${index + 1}`}

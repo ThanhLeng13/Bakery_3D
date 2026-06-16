@@ -36,8 +36,12 @@ class BakerStatusRequest(BaseModel):
 
 
 def _get_order_service(token: str | None = None) -> OrderService:
-    """Create OrderService with Supabase client."""
-    client = get_supabase_client(token, use_service_role=False)
+    """Create OrderService with service-role Supabase client.
+
+    Authentication is already verified upstream by require_baker (JWT validation).
+    We use the service-role client here to bypass RLS policies.
+    """
+    client = get_supabase_client(token, use_service_role=True)
     return OrderService(client)
 
 
@@ -53,7 +57,7 @@ def list_baker_orders(
     Returns complete order info including customization details and AI summary.
     """
     token = credentials.credentials if credentials else None
-    supabase = get_supabase_client(token, use_service_role=False)
+    supabase = get_supabase_client(token, use_service_role=True)
 
     try:
         result = (
@@ -76,7 +80,7 @@ def list_baker_orders(
 
 
 @router.get("/{order_id}")
-async def get_baker_order_detail(
+def get_baker_order_detail(
     order_id: str,
     baker: dict = Depends(require_baker),
     credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
@@ -91,7 +95,7 @@ async def get_baker_order_detail(
     order_service = _get_order_service(token)
 
     try:
-        result = await order_service.get_order_detail(order_id, baker)
+        result = order_service.get_order_detail(order_id, baker)
 
         # Verify order is in baker-accessible status
         if result["status"] not in ("confirmed", "in_production", "ready"):
@@ -110,7 +114,7 @@ async def get_baker_order_detail(
 
 
 @router.patch("/{order_id}/notes")
-async def update_baker_notes(
+def update_baker_notes(
     order_id: str,
     body: BakerNotesRequest,
     baker: dict = Depends(require_baker),
@@ -122,54 +126,24 @@ async def update_baker_notes(
     Notes max 500 characters. Order must be in confirmed or in_production status.
     """
     token = credentials.credentials if credentials else None
-    supabase = get_supabase_client(token, use_service_role=False)
+    order_service = _get_order_service(token)
 
     try:
-        # Verify order exists and is accessible
-        order_result = (
-            supabase.table("orders")
-            .select("id, status")
-            .eq("id", order_id)
-            .maybe_single()
-            .execute()
-        )
-
-        if order_result is None or order_result.data is None:
-            raise HTTPException(status_code=404, detail="Order not found")
-
-        order = order_result.data
-        if order["status"] not in ("confirmed", "in_production", "ready"):
-            raise HTTPException(
-                status_code=400,
-                detail="Baker notes can only be updated for orders in confirmed, in_production, or ready status",
-            )
-
-        # Update baker notes
-        update_result = (
-            supabase.table("orders")
-            .update({"baker_notes": body.notes})
-            .eq("id", order_id)
-            .execute()
-        )
-
-        if not update_result.data:
-            raise HTTPException(status_code=500, detail="Failed to update baker notes")
-
-        return {
-            "id": order_id,
-            "baker_notes": body.notes,
-            "message": "Baker notes updated successfully",
-        }
-
-    except HTTPException:
-        raise
+        result = order_service.update_baker_notes(order_id, body.notes, baker)
+        return result
+    except OrderNotFoundError:
+        raise HTTPException(status_code=404, detail="Order not found")
+    except InsufficientPermissionError as e:
+        raise HTTPException(status_code=403, detail=e.message)
+    except OrderServiceError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
     except Exception:
         logger.exception("Failed to update baker notes for order %s", order_id)
         raise HTTPException(status_code=500, detail="Failed to update baker notes")
 
 
 @router.patch("/{order_id}/status")
-async def update_baker_order_status(
+def update_baker_order_status(
     order_id: str,
     body: BakerStatusRequest,
     baker: dict = Depends(require_baker),
@@ -196,7 +170,7 @@ async def update_baker_order_status(
         )
 
     try:
-        result = await order_service.update_order_status(order_id, body.status, baker)
+        result = order_service.update_order_status(order_id, body.status, baker)
         return result
     except OrderNotFoundError:
         raise HTTPException(status_code=404, detail="Order not found")

@@ -140,7 +140,7 @@ export function useCakeBuilder(
 
   const toggleTopping = useCallback((toppingType: string) => {
     setDesign((prev) => {
-      const current = prev.zones.top.toppings ?? [];
+      const current = prev.zones?.top?.toppings ?? [];
       const exists = current.includes(toppingType);
       const next = exists
         ? current.filter((t) => t !== toppingType)

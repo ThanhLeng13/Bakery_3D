@@ -30,13 +30,13 @@ router = APIRouter()
 
 
 def _get_order_service(token: str | None = None) -> OrderService:
-    """Create OrderService with Supabase client."""
+    """Create OrderService with standard authenticated Supabase client."""
     client = get_supabase_client(token, use_service_role=False)
     return OrderService(client)
 
 
 @router.post("", status_code=201)
-async def create_order(
+def create_order(
     body: CreateOrderRequest,
     user: dict = Depends(get_current_user),
     credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
@@ -76,7 +76,7 @@ async def create_order(
     }
 
     try:
-        result = await order_service.create_order(order_data, user)
+        result = order_service.create_order(order_data, user)
         return result
     except PickupDateValidationError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
@@ -85,7 +85,7 @@ async def create_order(
 
 
 @router.get("", response_model=OrderListResponse)
-async def list_orders(
+def list_orders(
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(
         default=10, ge=1, le=50, description="Items per page (default 10)"
@@ -103,7 +103,7 @@ async def list_orders(
     order_service = _get_order_service(token)
 
     try:
-        result = await order_service.list_customer_orders(
+        result = order_service.list_customer_orders(
             customer_id=user["id"],
             page=page,
             page_size=page_size,
@@ -114,7 +114,7 @@ async def list_orders(
 
 
 @router.get("/{order_id}", response_model=OrderDetailResponse)
-async def get_order_detail(
+def get_order_detail(
     order_id: str,
     user: dict = Depends(get_current_user),
     credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
@@ -129,7 +129,7 @@ async def get_order_detail(
     order_service = _get_order_service(token)
 
     try:
-        result = await order_service.get_order_detail(order_id, user)
+        result = order_service.get_order_detail(order_id, user)
         return result
     except OrderNotFoundError:
         raise HTTPException(status_code=404, detail="Order not found")
@@ -138,7 +138,7 @@ async def get_order_detail(
 
 
 @router.patch("/{order_id}/status")
-async def update_order_status(
+def update_order_status(
     order_id: str,
     body: UpdateStatusRequest,
     user: dict = Depends(get_current_user),
@@ -160,7 +160,7 @@ async def update_order_status(
     order_service = _get_order_service(token)
 
     try:
-        result = await order_service.update_order_status(order_id, body.status, user)
+        result = order_service.update_order_status(order_id, body.status, user)
         return result
     except OrderNotFoundError:
         raise HTTPException(status_code=404, detail="Order not found")
