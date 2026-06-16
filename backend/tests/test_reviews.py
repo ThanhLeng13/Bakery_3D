@@ -85,9 +85,7 @@ class TestReviewServiceSubmitReview:
         self.mock_supabase = MagicMock()
         self.review_service = ReviewService(self.mock_supabase)
         self.customer = {"id": "cust-1"}
-
-    @pytest.mark.asyncio
-    async def test_submit_review_success_with_order(self):
+    def test_submit_review_success_with_order(self):
         # Mock eligibility (delivered recently)
         self.mock_supabase.table().select().eq().eq().maybe_single().execute.return_value = MagicMock(
             data={"id": "order-1", "customer_id": "cust-1", "status": "delivered", "updated_at": datetime.now(timezone.utc).isoformat()}
@@ -109,7 +107,7 @@ class TestReviewServiceSubmitReview:
             data=[{"id": "rev-1", "product_id": "prod-1", "rating": 5}]
         )
 
-        result = await self.review_service.submit_review(
+        result = self.review_service.submit_review(
             product_id="prod-1",
             order_id="order-1",
             rating=5,
@@ -120,9 +118,7 @@ class TestReviewServiceSubmitReview:
         assert result["id"] == "rev-1"
         self.review_service._check_eligibility.assert_called_once_with("order-1", "cust-1")
         self.review_service._check_duplicate.assert_called_once_with("prod-1", "cust-1", "order-1")
-
-    @pytest.mark.asyncio
-    async def test_submit_review_success_without_order(self):
+    def test_submit_review_success_without_order(self):
         self.review_service._check_eligibility = MagicMock()
         self.review_service._check_duplicate = MagicMock()
 
@@ -136,7 +132,7 @@ class TestReviewServiceSubmitReview:
             data=[{"id": "rev-2", "product_id": "prod-1", "rating": 5}]
         )
 
-        result = await self.review_service.submit_review(
+        result = self.review_service.submit_review(
             product_id="prod-1",
             order_id=None,
             rating=5,
@@ -147,9 +143,7 @@ class TestReviewServiceSubmitReview:
         assert result["id"] == "rev-2"
         self.review_service._check_eligibility.assert_not_called()
         self.review_service._check_duplicate.assert_called_once_with("prod-1", "cust-1", None)
-
-    @pytest.mark.asyncio
-    async def test_submit_review_product_not_found(self):
+    def test_submit_review_product_not_found(self):
         self.review_service._check_eligibility = MagicMock()
         self.review_service._check_duplicate = MagicMock()
         
@@ -157,7 +151,7 @@ class TestReviewServiceSubmitReview:
         self.mock_supabase.table().select().eq().eq().maybe_single().execute.return_value = MagicMock(data=None)
 
         with pytest.raises(ReviewServiceError) as exc:
-            await self.review_service.submit_review("prod-X", "order-1", 5, None, self.customer)
+            self.review_service.submit_review("prod-X", "order-1", 5, None, self.customer)
         assert "Sản phẩm không tồn tại" in exc.value.message
 
 
@@ -165,9 +159,7 @@ class TestReviewServiceGetReviews:
     def setup_method(self):
         self.mock_supabase = MagicMock()
         self.review_service = ReviewService(self.mock_supabase)
-
-    @pytest.mark.asyncio
-    async def test_get_product_reviews(self):
+    def test_get_product_reviews(self):
         # Mock count
         count_mock = MagicMock()
         count_mock.count = 15
@@ -194,7 +186,7 @@ class TestReviewServiceGetReviews:
             ]
         )
 
-        result = await self.review_service.get_product_reviews("prod-1", page=1, page_size=10)
+        result = self.review_service.get_product_reviews("prod-1", page=1, page_size=10)
 
         assert result["review_count"] == 15
         assert result["average_rating"] == 4.5

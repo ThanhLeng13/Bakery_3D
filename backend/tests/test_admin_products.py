@@ -23,45 +23,37 @@ class TestProductServiceCreate:
             "sizes": [{"name": "Nhỏ", "price": 0}],
             "flavors": ["Dâu"],
         }
-
-    @pytest.mark.asyncio
-    async def test_create_product_success(self):
+    def test_create_product_success(self):
         self.mock_supabase.table().insert().execute.return_value = MagicMock(
             data=[{"id": "prod-1", "name": "Bánh Ngọt"}]
         )
         
-        result = await self.product_service.create_product(self.valid_data)
+        result = self.product_service.create_product(self.valid_data)
         assert result["id"] == "prod-1"
         assert result["images"] == []
         
         args = self.mock_supabase.table().insert.call_args[0][0]
         assert args["name"] == "Bánh Ngọt"
         assert args["is_active"] is True
-
-    @pytest.mark.asyncio
-    async def test_create_product_duplicate_name(self):
+    def test_create_product_duplicate_name(self):
         self.mock_supabase.table().insert().execute.side_effect = Exception("duplicate key value violates unique constraint")
         
         with pytest.raises(ProductValidationError) as exc:
-            await self.product_service.create_product(self.valid_data)
+            self.product_service.create_product(self.valid_data)
         assert exc.value.status_code == 422
         assert exc.value.errors[0]["field"] == "name"
-
-    @pytest.mark.asyncio
-    async def test_create_product_general_error(self):
+    def test_create_product_general_error(self):
         self.mock_supabase.table().insert().execute.side_effect = Exception("DB connection lost")
         
         with pytest.raises(ProductServiceError):
-            await self.product_service.create_product(self.valid_data)
+            self.product_service.create_product(self.valid_data)
 
 
 class TestProductServiceUpdate:
     def setup_method(self):
         self.mock_supabase = MagicMock()
         self.product_service = ProductService(self.mock_supabase)
-
-    @pytest.mark.asyncio
-    async def test_update_product_success(self):
+    def test_update_product_success(self):
         # Mock product exists check
         self.mock_supabase.table().select().eq().maybe_single().execute.return_value = MagicMock(
             data={"id": "prod-1"}
@@ -77,28 +69,24 @@ class TestProductServiceUpdate:
             data=[]
         )
         
-        result = await self.product_service.update_product("prod-1", {"name": "New Name"})
+        result = self.product_service.update_product("prod-1", {"name": "New Name"})
         assert result["id"] == "prod-1"
         assert result["images"] == []
         
         args = self.mock_supabase.table().update.call_args[0][0]
         assert args["name"] == "New Name"
-
-    @pytest.mark.asyncio
-    async def test_update_product_not_found(self):
+    def test_update_product_not_found(self):
         self.mock_supabase.table().select().eq().maybe_single().execute.return_value = MagicMock(data=None)
         
         with pytest.raises(ProductNotFoundError):
-            await self.product_service.update_product("prod-1", {"name": "New Name"})
+            self.product_service.update_product("prod-1", {"name": "New Name"})
 
 
 class TestProductServiceToggleStatus:
     def setup_method(self):
         self.mock_supabase = MagicMock()
         self.product_service = ProductService(self.mock_supabase)
-
-    @pytest.mark.asyncio
-    async def test_toggle_status_success(self):
+    def test_toggle_status_success(self):
         # Mock product exists check
         self.mock_supabase.table().select().eq().maybe_single().execute.return_value = MagicMock(
             data={"id": "prod-1"}
@@ -112,7 +100,7 @@ class TestProductServiceToggleStatus:
         # Mock images
         self.mock_supabase.table().select().eq().order().execute.return_value = MagicMock(data=[])
         
-        result = await self.product_service.toggle_status("prod-1", False)
+        result = self.product_service.toggle_status("prod-1", False)
         assert result["id"] == "prod-1"
         
         args = self.mock_supabase.table().update.call_args[0][0]
@@ -123,19 +111,15 @@ class TestProductServiceUploadImage:
     def setup_method(self):
         self.mock_supabase = MagicMock()
         self.product_service = ProductService(self.mock_supabase)
-
-    @pytest.mark.asyncio
-    async def test_upload_image_invalid_type(self):
+    def test_upload_image_invalid_type(self):
         self.mock_supabase.table().select().eq().maybe_single().execute.return_value = MagicMock(
             data={"id": "prod-1"}
         )
         
         with pytest.raises(ProductValidationError) as exc:
-            await self.product_service.upload_image("prod-1", b"fake", "application/pdf", "file.pdf")
+            self.product_service.upload_image("prod-1", b"fake", "application/pdf", "file.pdf")
         assert "Unsupported format" in exc.value.errors[0]["message"]
-
-    @pytest.mark.asyncio
-    async def test_upload_image_too_large(self):
+    def test_upload_image_too_large(self):
         self.mock_supabase.table().select().eq().maybe_single().execute.return_value = MagicMock(
             data={"id": "prod-1"}
         )
@@ -144,5 +128,5 @@ class TestProductServiceUploadImage:
         large_file = b"0" * (6 * 1024 * 1024)
         
         with pytest.raises(ProductValidationError) as exc:
-            await self.product_service.upload_image("prod-1", large_file, "image/jpeg", "file.jpg")
+            self.product_service.upload_image("prod-1", large_file, "image/jpeg", "file.jpg")
         assert "5MB" in exc.value.errors[0]["message"]
