@@ -154,10 +154,8 @@ def delete_order(
         if not check.data:
             raise HTTPException(status_code=404, detail="Order not found")
 
-        # Delete in FK-safe order (children before parent)
-        supabase.table("order_status_history").delete().eq("order_id", order_id).execute()
-        supabase.table("order_customizations").delete().eq("order_id", order_id).execute()
-        supabase.table("order_items").delete().eq("order_id", order_id).execute()
+        # All child tables (order_items, cake_customizations, order_status_history, reviews)
+        # have ON DELETE CASCADE, so deleting the parent row is sufficient.
         supabase.table("orders").delete().eq("id", order_id).execute()
 
         return None  # 204 No Content
