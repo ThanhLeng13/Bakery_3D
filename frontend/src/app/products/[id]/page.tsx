@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { Metadata } from "next";
 import Link from "next/link";
 import ProductDetailClient from "@/components/ProductDetailClient";
@@ -8,7 +9,9 @@ export const revalidate = 60; // ISR cache TTL 60 seconds
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-async function getProduct(id: string): Promise<ProductDetailResponse | null> {
+// cache() ensures generateMetadata and the page component share one fetch
+// result per render — no duplicate network call.
+const getProduct = cache(async (id: string): Promise<ProductDetailResponse | null> => {
   try {
     const res = await fetch(`${API_BASE_URL}/api/v1/products/${id}`, {
       next: { revalidate: 60, tags: [`product-${id}`] },
@@ -18,7 +21,7 @@ async function getProduct(id: string): Promise<ProductDetailResponse | null> {
   } catch {
     return null;
   }
-}
+});
 
 async function getProductStock(id: string): Promise<StockInfo | null> {
   try {
