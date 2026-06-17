@@ -12,7 +12,7 @@
  * Kết quả được ghi vào baker_notes để Admin thấy.
  */
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { apiClient, ApiError } from "@/lib/api";
 
 type IncidentType = "missing_ingredient" | "cannot_fulfill" | "need_contact";
@@ -69,6 +69,17 @@ export default function IncidentReportModal({
   const [success, setSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
+  // Hold the auto-close timer so we can cancel it if the modal unmounts early
+  const autoCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (autoCloseTimerRef.current !== null) {
+        clearTimeout(autoCloseTimerRef.current);
+      }
+    };
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -92,8 +103,9 @@ export default function IncidentReportModal({
       setSuccessMessage(response.message || `Đã báo cáo: ${response.incident_label}`);
       setSuccess(true);
 
-      // Auto-close and refresh after 2 seconds
-      setTimeout(() => {
+      // Auto-close and refresh after 2 seconds; timer ref ensures cleanup on unmount
+      autoCloseTimerRef.current = setTimeout(() => {
+        autoCloseTimerRef.current = null;
         onSuccess();
         onClose();
       }, 2000);

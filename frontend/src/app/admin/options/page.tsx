@@ -8,7 +8,7 @@
  * CRUD: Thêm / Sửa / Xóa / Ẩn-Hiện options
  */
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { apiClient, ApiError } from "@/lib/api";
 
 type OptionType = "size" | "flavor" | "topping" | "color";
@@ -74,18 +74,29 @@ export default function AdminOptionsPage() {
   // Delete confirm
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // Track the latest fetch request to discard stale responses (race condition guard)
+  const fetchRequestId = useRef(0);
+
   const fetchOptions = useCallback(async () => {
     setLoading(true);
     setError(null);
+    const currentId = ++fetchRequestId.current;
     try {
       const data = await apiClient.get<{ options: CakeOption[] }>(
         `/api/v1/admin/options?type=${activeTab}`
       );
-      setOptions(data.options);
+      // Only apply if this is still the latest request
+      if (currentId === fetchRequestId.current) {
+        setOptions(data.options);
+      }
     } catch {
-      setError("Không thể tải danh sách thuộc tính. Vui lòng thử lại.");
+      if (currentId === fetchRequestId.current) {
+        setError("Không thể tải danh sách thuộc tính. Vui lòng thử lại.");
+      }
     } finally {
-      setLoading(false);
+      if (currentId === fetchRequestId.current) {
+        setLoading(false);
+      }
     }
   }, [activeTab]);
 
@@ -95,7 +106,8 @@ export default function AdminOptionsPage() {
 
   function openCreateModal() {
     setEditingOption(null);
-    setFormData({ ...DEFAULT_FORM, sort_order: options.length });
+    const maxSortOrder = options.reduce((max, o) => Math.max(max, o.sort_order), 0);
+    setFormData({ ...DEFAULT_FORM, sort_order: maxSortOrder + 1 });
     setFormError("");
     setShowModal(true);
   }

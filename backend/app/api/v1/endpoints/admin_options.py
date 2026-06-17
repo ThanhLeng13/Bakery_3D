@@ -56,7 +56,10 @@ class ToggleStatusRequest(BaseModel):
 
 @router.get("")
 def list_options(
-    type: Optional[str] = Query(default=None, description="Filter by type: size, flavor, topping, color"),
+    option_type: Optional[str] = Query(
+        default=None, alias="type",
+        description="Filter by type: size, flavor, topping, color"
+    ),
     is_active: Optional[bool] = Query(default=None, description="Filter by active status"),
     current_user: dict = Depends(require_admin),
 ):
@@ -71,13 +74,13 @@ def list_options(
     try:
         query = supabase.table("cake_options").select("*").order("type").order("sort_order")
 
-        if type is not None:
-            if type not in VALID_OPTION_TYPES:
+        if option_type is not None:
+            if option_type not in VALID_OPTION_TYPES:
                 raise HTTPException(
                     status_code=400,
                     detail=f"Invalid type. Must be one of: {', '.join(VALID_OPTION_TYPES)}",
                 )
-            query = query.eq("type", type)
+            query = query.eq("type", option_type)
 
         if is_active is not None:
             query = query.eq("is_active", is_active)

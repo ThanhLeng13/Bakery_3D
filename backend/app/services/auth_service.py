@@ -343,16 +343,18 @@ class AuthService:
                 options={"redirect_to": f"{settings.FRONTEND_URL}/auth/reset-password"},
             )
         except Exception:
-            # Silently ignore errors to prevent email enumeration
-            pass
+            # Silently ignore errors to prevent email enumeration.
+            # Log server-side for operational visibility.
+            logger.warning("forgot_password: failed to send reset email to %s", email, exc_info=True)
         return {"message": "If this email is registered, you will receive a reset link shortly."}
 
-    async def reset_password(self, access_token: str, new_password: str) -> dict:
+    async def reset_password(self, access_token: str, refresh_token: str, new_password: str) -> dict:
         """
-        Reset user password using the token from the reset email.
+        Reset user password using the tokens from the reset email.
 
-        The access_token is extracted from the URL fragment by the frontend
-        after the user clicks the Supabase reset link.
+        The access_token and refresh_token are extracted from the URL fragment
+        by the frontend after the user clicks the Supabase reset link.
+        Both tokens are required to properly establish the session via set_session().
         """
         password_errors = validate_password(new_password)
         if password_errors:
@@ -361,8 +363,8 @@ class AuthService:
             )
 
         try:
-            # Set the session using the token from the email link
-            self._supabase.auth.set_session(access_token, access_token)
+            # Set the session using BOTH tokens from the email link
+            self._supabase.auth.set_session(access_token, refresh_token)
             # Update the password
             self._supabase.auth.update_user({"password": new_password})
             return {"message": "Password has been reset successfully. Please log in with your new password."}

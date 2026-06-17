@@ -34,6 +34,7 @@ export default function ResetPasswordPage() {
 function ResetPasswordContent() {
   const router = useRouter();
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [tokenError, setTokenError] = useState(false);
 
   const [newPassword, setNewPassword] = useState("");
@@ -43,7 +44,7 @@ function ResetPasswordContent() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
 
-  // Extract token from URL fragment (Supabase sends #access_token=...&type=recovery)
+  // Extract token from URL fragment (Supabase sends #access_token=...&refresh_token=...&type=recovery)
   useEffect(() => {
     const hash = window.location.hash;
     if (!hash) {
@@ -52,6 +53,7 @@ function ResetPasswordContent() {
     }
     const params = new URLSearchParams(hash.slice(1)); // remove leading #
     const token = params.get("access_token");
+    const rToken = params.get("refresh_token");
     const type = params.get("type");
 
     if (!token || type !== "recovery") {
@@ -59,6 +61,9 @@ function ResetPasswordContent() {
       return;
     }
     setAccessToken(token);
+    setRefreshToken(rToken);
+    // Clear hash so the sensitive token is not left exposed in the address bar
+    window.location.hash = "";
   }, []);
 
   async function handleSubmit(e: FormEvent) {
@@ -79,6 +84,7 @@ function ResetPasswordContent() {
     try {
       await apiClient.post("/api/v1/auth/reset-password", {
         access_token: accessToken,
+        refresh_token: refreshToken ?? "",
         new_password: newPassword,
       });
       setSuccess(true);

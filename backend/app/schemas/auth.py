@@ -94,6 +94,7 @@ class ResetPasswordRequest(BaseModel):
     """Reset password with token from email."""
 
     access_token: str = Field(..., description="Access token from Supabase reset email")
+    refresh_token: str = Field(..., description="Refresh token from Supabase reset email")
     new_password: str = Field(
         ..., min_length=8, max_length=128, description="New password"
     )

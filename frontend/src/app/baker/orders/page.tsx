@@ -478,8 +478,20 @@ function BakerDashboardContent() {
           orderId={selectedOrder.id}
           orderRef={`#${selectedOrder.id.slice(0, 8).toUpperCase()}`}
           onClose={() => setShowIncidentModal(false)}
-          onSuccess={() => {
-            fetchOrders();
+          onSuccess={async () => {
+            await fetchOrders();
+            // Re-fetch the selected order so baker_notes reflects the new incident
+            if (selectedOrder) {
+              try {
+                const updated = await apiClient.get<BakerOrderDetail>(
+                  `/api/v1/baker/orders/${selectedOrder.id}`
+                );
+                setSelectedOrder(updated);
+                setBakerNotesInput(updated.baker_notes || "");
+              } catch {
+                // Non-critical: list is already refreshed
+              }
+            }
             setShowIncidentModal(false);
           }}
         />

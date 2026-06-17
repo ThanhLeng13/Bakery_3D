@@ -10,9 +10,19 @@ CREATE TABLE IF NOT EXISTS cake_options (
     is_active   BOOLEAN NOT NULL DEFAULT TRUE,
     sort_order  INTEGER NOT NULL DEFAULT 0,
     icon        TEXT,                    -- Emoji or icon string (optional)
-    hex_color   TEXT,                    -- For color type: hex value e.g. "#FFB6C1"
+    hex_color   TEXT
+        CHECK (
+            -- color type: hex_color is required and must be a valid hex
+            (type = 'color' AND hex_color IS NOT NULL AND hex_color ~ '^#[0-9A-Fa-f]{6}$')
+            OR
+            -- non-color types: hex_color must be null
+            (type != 'color' AND hex_color IS NULL)
+        ),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    -- Business-key uniqueness: prevent duplicate (type, name) pairs
+    CONSTRAINT cake_options_type_name_unique UNIQUE (type, name)
 );
 
 -- Index for faster filtering by type
@@ -40,7 +50,7 @@ INSERT INTO cake_options (type, name, label, price_modifier, sort_order) VALUES
     ('size', '8 inch',  '8 inch (8-12 người)', 200000, 3),
     ('size', '10 inch', '10 inch (12+ người)', 350000, 4),
     ('size', '2 tầng',  '2 tầng (đặc biệt)',   500000, 5)
-ON CONFLICT DO NOTHING;
+ON CONFLICT (type, name) DO NOTHING;
 
 -- Flavors
 INSERT INTO cake_options (type, name, label, price_modifier, sort_order) VALUES
@@ -50,7 +60,7 @@ INSERT INTO cake_options (type, name, label, price_modifier, sort_order) VALUES
     ('flavor', 'matcha',     'Matcha',       30000, 4),
     ('flavor', 'tiramisu',   'Tiramisu',     50000, 5),
     ('flavor', 'red_velvet', 'Red Velvet',   50000, 6)
-ON CONFLICT DO NOTHING;
+ON CONFLICT (type, name) DO NOTHING;
 
 -- Toppings
 INSERT INTO cake_options (type, name, label, price_modifier, sort_order, icon) VALUES
@@ -60,9 +70,9 @@ INSERT INTO cake_options (type, name, label, price_modifier, sort_order, icon) V
     ('topping', 'sprinkles',        'Sprinkles',        20000,  4, '✨'),
     ('topping', 'macarons',         'Macarons',         80000,  5, '🧁'),
     ('topping', 'text',             'Chữ viết',         30000,  6, '✍️')
-ON CONFLICT DO NOTHING;
+ON CONFLICT (type, name) DO NOTHING;
 
--- Colors (cream colors)
+-- Colors (cream colors) — hex_color required for type='color'
 INSERT INTO cake_options (type, name, label, price_modifier, sort_order, hex_color) VALUES
     ('color', 'pink',      'Hồng',    0, 1, '#F4A7B9'),
     ('color', 'white',     'Trắng',   0, 2, '#FFFDF5'),
@@ -70,7 +80,7 @@ INSERT INTO cake_options (type, name, label, price_modifier, sort_order, hex_col
     ('color', 'matcha',    'Matcha',  0, 4, '#8DB48E'),
     ('color', 'vanilla',   'Vani',    0, 5, '#F5E6C8'),
     ('color', 'lavender',  'Lavender',0, 6, '#C8B8E8')
-ON CONFLICT DO NOTHING;
+ON CONFLICT (type, name) DO NOTHING;
 
 -- RLS Policies
 ALTER TABLE cake_options ENABLE ROW LEVEL SECURITY;
@@ -79,7 +89,6 @@ ALTER TABLE cake_options ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "cake_options_public_read" ON cake_options
     FOR SELECT USING (is_active = TRUE);
 
--- Service role (admin) can do everything
-CREATE POLICY "cake_options_service_all" ON cake_options
-    FOR ALL USING (TRUE)
-    WITH CHECK (TRUE);
+-- NOTE: The service_role client (used by admin endpoints) bypasses RLS
+-- automatically, so no additional policy is needed. A FOR ALL TO PUBLIC
+-- policy would be a security vulnerability and is intentionally omitted.

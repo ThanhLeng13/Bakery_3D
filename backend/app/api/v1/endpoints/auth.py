@@ -6,11 +6,12 @@ Endpoints:
 - POST /api/v1/auth/oauth/google - Google OAuth2 callback
 - POST /api/v1/auth/refresh - Refresh JWT token
 - POST /api/v1/auth/logout - Logout
+- POST /api/v1/auth/forgot-password - Send password reset email
+- POST /api/v1/auth/reset-password - Reset password with token
 """
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from pydantic import ValidationError as PydanticValidationError
 
 from app.core.dependencies import get_supabase_client
 from app.schemas.auth import (
@@ -179,17 +180,19 @@ async def forgot_password(request: ForgotPasswordRequest):
 @router.post("/reset-password", response_model=MessageResponse)
 async def reset_password(request: ResetPasswordRequest):
     """
-    Reset password using the token from reset email.
+    Reset password using the tokens from the reset email.
 
-    The access_token is extracted from the URL fragment by the frontend
-    (#access_token=...) after user clicks the Supabase-sent email link.
-    Validates password complexity before updating.
+    The access_token and refresh_token are extracted from the URL fragment
+    by the frontend (#access_token=...&refresh_token=...) after user clicks
+    the Supabase-sent email link. Both tokens are required to establish the
+    session properly. Validates password complexity before updating.
     """
     auth_service = _get_auth_service()
 
     try:
         result = await auth_service.reset_password(
             access_token=request.access_token,
+            refresh_token=request.refresh_token,
             new_password=request.new_password,
         )
         return result

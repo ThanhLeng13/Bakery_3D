@@ -18,8 +18,9 @@ router = APIRouter()
 
 @router.get("")
 def list_public_options(
-    type: Optional[str] = Query(
+    option_type: Optional[str] = Query(
         default=None,
+        alias="type",
         description="Filter by type: size, flavor, topping, color"
     ),
 ):
@@ -41,19 +42,19 @@ def list_public_options(
             .order("sort_order")
         )
 
-        if type is not None:
-            if type not in VALID_TYPES:
+        if option_type is not None:
+            if option_type not in VALID_TYPES:
                 raise HTTPException(
                     status_code=400,
                     detail=f"Invalid type. Must be one of: {', '.join(VALID_TYPES)}",
                 )
-            query = query.eq("type", type)
+            query = query.eq("type", option_type)
 
         result = query.execute()
         options = result.data or []
 
         # Group by type if no filter
-        if type is None:
+        if option_type is None:
             grouped: dict = {t: [] for t in VALID_TYPES}
             for opt in options:
                 opt_type = opt.get("type")
