@@ -16,6 +16,7 @@ import type { OrderStatus } from "@/types";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Link from "next/link";
 import CustomizationDetails from "@/components/CustomizationDetails";
+import IncidentReportModal from "@/components/baker/IncidentReportModal";
 
 interface BakerOrder {
   id: string;
@@ -111,6 +112,7 @@ function BakerDashboardContent() {
   const [savingNotes, setSavingNotes] = useState(false);
   const [bakerNotesInput, setBakerNotesInput] = useState("");
   const [actionMsg, setActionMsg] = useState("");
+  const [showIncidentModal, setShowIncidentModal] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -419,6 +421,26 @@ function BakerDashboardContent() {
                   </section>
                 )}
 
+                {/* Incident Report Button - only for active orders */}
+                {["confirmed", "in_production"].includes(selectedOrder.status) && (
+                  <section className="bg-orange-50 border border-orange-100 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-orange-800 text-sm">Gặp vấn đề với đơn này?</h3>
+                        <p className="text-orange-600 text-xs mt-0.5">Báo cáo để Admin hỗ trợ kịp thời</p>
+                      </div>
+                      <button
+                        onClick={() => setShowIncidentModal(true)}
+                        id="report-incident-btn"
+                        className="flex items-center gap-2 px-3 py-2 bg-orange-500 text-white rounded-lg text-xs font-medium hover:bg-orange-600 transition-colors min-h-[44px]"
+                      >
+                        <span>⚠️</span>
+                        Báo sự cố
+                      </button>
+                    </div>
+                  </section>
+                )}
+
                 {/* Baker notes */}
                 <section>
                   <div className="flex items-center justify-between mb-2">
@@ -448,6 +470,19 @@ function BakerDashboardContent() {
             ) : null}
           </div>
         </div>
+      )}
+
+      {/* Incident Report Modal */}
+      {showIncidentModal && selectedOrder && (
+        <IncidentReportModal
+          orderId={selectedOrder.id}
+          orderRef={`#${selectedOrder.id.slice(0, 8).toUpperCase()}`}
+          onClose={() => setShowIncidentModal(false)}
+          onSuccess={() => {
+            fetchOrders();
+            setShowIncidentModal(false);
+          }}
+        />
       )}
     </main>
   );

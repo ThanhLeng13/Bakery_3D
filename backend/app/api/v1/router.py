@@ -3,8 +3,8 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
-    admin_orders, admin_products, auth, baker_orders,
-    branches, catalog, chat, inventory, loyalty, orders, purchases, reviews,
+    admin_options, admin_orders, admin_products, auth, baker_orders,
+    branches, catalog, chat, inventory, loyalty, orders, public_options, purchases, reviews,
 )
 
 router = APIRouter()
@@ -45,3 +45,7 @@ router.include_router(purchases.router, prefix="/purchases", tags=["Purchases"])
 
 # Loyalty — hệ thống tích điểm khách hàng
 router.include_router(loyalty.router, prefix="/loyalty", tags=["Loyalty"])
+
+# Cake Options — public read + admin CRUD
+router.include_router(public_options.router, prefix="/options", tags=["Cake Options"])
+router.include_router(admin_options.router, prefix="/admin/options", tags=["Admin Options"])

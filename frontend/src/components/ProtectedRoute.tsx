@@ -35,7 +35,6 @@ export default function ProtectedRoute({
     [allowedRoles?.join(",")]
   );
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     // Chờ async validate xong mới xử lý
     if (loading) return;
@@ -52,7 +51,7 @@ export default function ProtectedRoute({
         router.replace("/");
       }
     }
-  }, [loading, isAuthenticated, user, allowedRolesKey, router, pathname, searchParams]);
+  }, [loading, isAuthenticated, user, allowedRoles, allowedRolesKey, router, pathname, searchParams]);
 
   // Hiện spinner trong khi đang xác thực token
   if (loading) {

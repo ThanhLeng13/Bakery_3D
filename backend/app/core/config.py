@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
 
+    # Frontend URL (used for password reset redirect)
+    FRONTEND_URL: str = "http://localhost:3000"
+
     # CORS — allow frontend tren cac port thong dung khi dev (3000, 3001, 3002)
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",

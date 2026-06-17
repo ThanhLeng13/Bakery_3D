@@ -86,17 +86,7 @@ function StarPicker({ value, onChange }: StarPickerProps) {
 
 const STAR_LABELS = ["", "Rất tệ", "Tệ", "Bình thường", "Tốt", "Xuất sắc"];
 
-interface RatingDistribution {
-  [key: number]: number;
-}
 
-function computeDistribution(reviews: Review[]): RatingDistribution {
-  const dist: RatingDistribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-  reviews.forEach((r) => {
-    if (r.rating >= 1 && r.rating <= 5) dist[r.rating]++;
-  });
-  return dist;
-}
 
 function ReviewSubmitForm({
   productId,
@@ -128,7 +118,7 @@ function ReviewSubmitForm({
       setShowForm(false);
       onSuccess();
     } catch (err: unknown) {
-      const apiErr = err as { detail?: string | any[] };
+      const apiErr = err as { detail?: string | { msg: string }[] };
       let errorMsg = "Không thể gửi đánh giá. Vui lòng thử lại.";
       if (typeof apiErr?.detail === "string") {
         errorMsg = apiErr.detail;

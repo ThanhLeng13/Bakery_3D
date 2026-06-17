@@ -15,12 +15,14 @@ from pydantic import ValidationError as PydanticValidationError
 from app.core.dependencies import get_supabase_client
 from app.schemas.auth import (
     AuthResponse,
+    ForgotPasswordRequest,
     GoogleOAuthRequest,
     LoginRequest,
     LogoutRequest,
     MessageResponse,
     RefreshTokenRequest,
     RegisterRequest,
+    ResetPasswordRequest,
 )
 from app.services.auth_service import (
     AuthService,
@@ -150,6 +152,45 @@ async def logout(request: LogoutRequest):
     try:
         result = await auth_service.logout(
             access_token=request.access_token,
+        )
+        return result
+    except (ValidationError, RateLimitError, AuthServiceError) as e:
+        return _handle_auth_error(e)
+
+
+@router.post("/forgot-password", response_model=MessageResponse)
+async def forgot_password(request: ForgotPasswordRequest):
+    """
+    Request a password reset email.
+
+    Sends an email with a reset link if the email is registered.
+    Always returns success to prevent email enumeration attacks.
+    Rate limited by Supabase (max 2 emails per hour).
+    """
+    auth_service = _get_auth_service()
+
+    try:
+        result = await auth_service.forgot_password(email=request.email)
+        return result
+    except (ValidationError, RateLimitError, AuthServiceError) as e:
+        return _handle_auth_error(e)
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+async def reset_password(request: ResetPasswordRequest):
+    """
+    Reset password using the token from reset email.
+
+    The access_token is extracted from the URL fragment by the frontend
+    (#access_token=...) after user clicks the Supabase-sent email link.
+    Validates password complexity before updating.
+    """
+    auth_service = _get_auth_service()
+
+    try:
+        result = await auth_service.reset_password(
+            access_token=request.access_token,
+            new_password=request.new_password,
         )
         return result
     except (ValidationError, RateLimitError, AuthServiceError) as e:

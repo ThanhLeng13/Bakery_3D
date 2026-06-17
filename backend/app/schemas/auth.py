@@ -84,6 +84,33 @@ class UserResponse(BaseModel):
     role: str = "customer"
 
 
+class ForgotPasswordRequest(BaseModel):
+    """Forgot password request schema."""
+
+    email: EmailStr = Field(..., description="Email address to send reset link")
+
+
+class ResetPasswordRequest(BaseModel):
+    """Reset password with token from email."""
+
+    access_token: str = Field(..., description="Access token from Supabase reset email")
+    new_password: str = Field(
+        ..., min_length=8, max_length=128, description="New password"
+    )
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password_complexity(cls, v: str) -> str:
+        """Password must contain at least one uppercase, one lowercase, and one digit."""
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not re.search(r"\d", v):
+            raise ValueError("Password must contain at least one digit")
+        return v
+
+
 class MessageResponse(BaseModel):
     """Simple message response."""
 
