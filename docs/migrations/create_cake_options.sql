@@ -38,7 +38,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_cake_options_updated_at
+CREATE OR REPLACE TRIGGER trg_cake_options_updated_at
     BEFORE UPDATE ON cake_options
     FOR EACH ROW EXECUTE FUNCTION update_cake_options_updated_at();
 

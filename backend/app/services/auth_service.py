@@ -3,11 +3,14 @@
 Wraps Supabase Auth calls with validation and rate limiting.
 """
 
+import logging
 from typing import Any, Optional
 
 from app.core.config import settings
 from app.core.rate_limiter import login_rate_limiter
 from app.core.security import validate_password
+
+logger = logging.getLogger(__name__)
 
 
 class AuthServiceError(Exception):
@@ -344,8 +347,8 @@ class AuthService:
             )
         except Exception:
             # Silently ignore errors to prevent email enumeration.
-            # Log server-side for operational visibility.
-            logger.warning("forgot_password: failed to send reset email to %s", email, exc_info=True)
+            # Log server-side for operational visibility (no PII in message).
+            logger.warning("forgot_password: failed to send reset email to recipient", exc_info=True)
         return {"message": "If this email is registered, you will receive a reset link shortly."}
 
     async def reset_password(self, access_token: str, refresh_token: str, new_password: str) -> dict:

@@ -297,7 +297,7 @@ function OrderDetailContent() {
         quantity: item.quantity,
         unit_price: item.unit_price,
       })),
-      customizations: order.customizations.map((c) => c.customization_json),
+      customizations: (order.customizations ?? []).map((c) => c.customization_json),
       customer_name: order.customer_name,
       customer_phone: order.customer_phone,
       customer_email: order.customer_email,

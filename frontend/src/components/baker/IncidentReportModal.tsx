@@ -71,9 +71,13 @@ export default function IncidentReportModal({
 
   // Hold the auto-close timer so we can cancel it if the modal unmounts early
   const autoCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track mount status to prevent state updates after unmount
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
       if (autoCloseTimerRef.current !== null) {
         clearTimeout(autoCloseTimerRef.current);
       }
@@ -100,23 +104,29 @@ export default function IncidentReportModal({
         }
       );
 
+      if (!isMountedRef.current) return;
       setSuccessMessage(response.message || `Đã báo cáo: ${response.incident_label}`);
       setSuccess(true);
 
-      // Auto-close and refresh after 2 seconds; timer ref ensures cleanup on unmount
+      // Auto-close and refresh after 2 seconds; guarded by isMountedRef
       autoCloseTimerRef.current = setTimeout(() => {
         autoCloseTimerRef.current = null;
-        onSuccess();
-        onClose();
+        if (isMountedRef.current) {
+          onSuccess();
+          onClose();
+        }
       }, 2000);
     } catch (err: unknown) {
+      if (!isMountedRef.current) return;
       const apiError = err as ApiError;
       const detail = apiError?.detail;
       setError(
         typeof detail === "string" ? detail : "Gửi báo cáo thất bại. Vui lòng thử lại."
       );
     } finally {
-      setSubmitting(false);
+      if (isMountedRef.current) {
+        setSubmitting(false);
+      }
     }
   }
 
