@@ -130,6 +130,63 @@ def list_admin_products(
 
 
 
+@router.get("/{product_id}")
+def get_product(
+    product_id: str,
+    current_user: dict = Depends(require_admin),
+):
+    """
+    Get a single product by ID for admin editing.
+
+    Returns full product data including images.
+    Requires Admin role.
+    """
+    supabase = get_supabase_client(use_service_role=True)
+    try:
+        result = (
+            supabase.table("products")
+            .select("*, product_images(id, product_id, url, sort_order)")
+            .eq("id", product_id)
+            .single()
+            .execute()
+        )
+        p = result.data
+        if not p:
+            raise HTTPException(status_code=404, detail="Product not found")
+
+        images = p.get("product_images") or []
+        images_sorted = sorted(images, key=lambda x: x.get("sort_order") or 0)
+        formatted_images = [
+            {
+                "id": img["id"],
+                "product_id": img["product_id"],
+                "url": format_image_url(img["url"]),
+                "sort_order": img.get("sort_order") or 0,
+            }
+            for img in images_sorted
+        ]
+
+        return {
+            "id": p["id"],
+            "name": p["name"],
+            "description": p.get("description"),
+            "category": p["category"],
+            "base_price": p["base_price"],
+            "sizes": p.get("sizes") or [],
+            "flavors": p.get("flavors") or [],
+            "is_active": p["is_active"],
+            "images": formatted_images,
+            "created_at": p["created_at"].isoformat() if hasattr(p["created_at"], "isoformat") else str(p["created_at"]),
+            "updated_at": p["updated_at"].isoformat() if hasattr(p["updated_at"], "isoformat") else str(p["updated_at"]),
+        }
+    except HTTPException:
+        raise
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("Failed to fetch product %s", product_id)
+        raise HTTPException(status_code=500, detail="Failed to fetch product")
+
+
 @router.post("", status_code=201)
 def create_product(
     request: CreateProductRequest,
