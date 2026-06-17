@@ -123,6 +123,8 @@ function AdminOrdersContent() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [statusUpdateMsg, setStatusUpdateMsg] = useState("");
+  const [deletingOrder, setDeletingOrder] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -167,6 +169,21 @@ function AdminOrdersContent() {
     }
   }
 
+  async function handleDeleteOrder(orderId: string) {
+    setDeletingOrder(true);
+    setShowDeleteConfirm(false);
+    try {
+      await apiClient.delete(`/api/v1/admin/orders/${orderId}`);
+      setSelectedOrder(null);
+      setStatusUpdateMsg("");
+      fetchOrders();
+    } catch {
+      setStatusUpdateMsg("✗ Xóa đơn hàng thất bại. Vui lòng thử lại.");
+    } finally {
+      setDeletingOrder(false);
+    }
+  }
+
   async function handleStatusUpdate(orderId: string, newStatus: string) {
     setUpdatingStatus(true);
     setStatusUpdateMsg("");
@@ -198,6 +215,7 @@ function AdminOrdersContent() {
     setCustomerName("");
     setCustomerNameInput("");
     setPage(1);
+    setShowDeleteConfirm(false);
   }
 
   return (
@@ -429,15 +447,34 @@ function AdminOrdersContent() {
                   </span>
                 )}
               </h2>
-              <button
-                onClick={() => { setSelectedOrder(null); setStatusUpdateMsg(""); }}
-                className="text-mocha/50 hover:text-mocha transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-                aria-label="Đóng"
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Reject/Delete button */}
+                {selectedOrder && !deletingOrder && (
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-full text-xs font-medium hover:bg-red-100 transition-colors min-h-[36px] flex items-center gap-1"
+                    title="Từ chối và xóa đơn hàng này"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M15 9l-6 6M9 9l6 6" />
+                    </svg>
+                    Từ chối đơn
+                  </button>
+                )}
+                {deletingOrder && (
+                  <span className="text-xs text-red-500 animate-pulse">Đang xóa...</span>
+                )}
+                <button
+                  onClick={() => { setSelectedOrder(null); setStatusUpdateMsg(""); setShowDeleteConfirm(false); }}
+                  className="text-mocha/50 hover:text-mocha transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  aria-label="Đóng"
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             {detailLoading ? (
@@ -565,6 +602,43 @@ function AdminOrdersContent() {
                 )}
               </div>
             ) : null}
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirm Dialog */}
+      {showDeleteConfirm && selectedOrder && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-heading font-bold text-mocha text-base">Từ chối đơn hàng?</h3>
+                <p className="text-xs text-mocha/60 mt-0.5">Mã đơn: #{selectedOrder.id.slice(0, 8).toUpperCase()}</p>
+              </div>
+            </div>
+            <p className="text-sm text-mocha/70 leading-relaxed">
+              Hành động này sẽ <strong className="text-red-600">xóa vĩnh viễn</strong> đơn hàng của{" "}
+              <strong>{selectedOrder.customer_name}</strong> và không thể khôi phục.
+            </p>
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-mocha/20 text-sm font-medium text-mocha hover:bg-cream transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => handleDeleteOrder(selectedOrder.id)}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
+              >
+                Xác nhận xóa
+              </button>
+            </div>
           </div>
         </div>
       )}
