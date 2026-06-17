@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { useAuthContext } from "@/contexts/AuthContext";
+
 import { apiClient } from "@/lib/api";
 
 interface Product {

@@ -117,12 +117,20 @@ function LoginContent() {
 
             {/* Password */}
             <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-mocha mb-1.5 font-body"
-              >
-                Mật khẩu
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-mocha font-body"
+                >
+                  Mật khẩu
+                </label>
+                <Link
+                  href="/auth/forgot-password"
+                  className="text-xs text-pink-pastel hover:text-pink-pastel/80 font-medium transition-colors"
+                >
+                  Quên mật khẩu?
+                </Link>
+              </div>
               <div className="relative">
                 <input
                   id="password"

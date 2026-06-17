@@ -14,6 +14,7 @@ import { useAuthContext } from "@/contexts/AuthContext";
 const navItems = [
   { href: "/admin/products", label: "Sản phẩm", icon: "🧁" },
   { href: "/admin/orders", label: "Đơn hàng", icon: "📦" },
+  { href: "/admin/options", label: "Thuộc tính bánh", icon: "🎨" },
 ];
 
 export default function AdminLayout({

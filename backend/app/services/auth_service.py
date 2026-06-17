@@ -3,11 +3,14 @@
 Wraps Supabase Auth calls with validation and rate limiting.
 """
 
+import logging
 from typing import Any, Optional
 
 from app.core.config import settings
 from app.core.rate_limiter import login_rate_limiter
 from app.core.security import validate_password
+
+logger = logging.getLogger(__name__)
 
 
 class AuthServiceError(Exception):
@@ -327,6 +330,59 @@ class AuthService:
             raise AuthServiceError(
                 "Token refresh failed",
                 status_code=401,
+            )
+
+    async def forgot_password(self, email: str) -> dict:
+        """
+        Send a password reset email via Supabase Auth.
+
+        Supabase will send an email with a magic link that redirects to
+        the frontend reset-password page with access_token in URL fragment.
+        Always returns success to prevent email enumeration attacks.
+        """
+        try:
+            self._supabase.auth.reset_password_for_email(
+                email,
+                options={"redirect_to": f"{settings.FRONTEND_URL}/auth/reset-password"},
+            )
+        except Exception:
+            # Silently ignore errors to prevent email enumeration.
+            # Log server-side for operational visibility (no PII in message).
+            logger.warning("forgot_password: failed to send reset email to recipient", exc_info=True)
+        return {"message": "If this email is registered, you will receive a reset link shortly."}
+
+    async def reset_password(self, access_token: str, refresh_token: str, new_password: str) -> dict:
+        """
+        Reset user password using the tokens from the reset email.
+
+        The access_token and refresh_token are extracted from the URL fragment
+        by the frontend after the user clicks the Supabase reset link.
+        Both tokens are required to properly establish the session via set_session().
+        """
+        password_errors = validate_password(new_password)
+        if password_errors:
+            raise ValidationError(
+                [{"field": "new_password", "message": msg} for msg in password_errors]
+            )
+
+        try:
+            # Set the session using BOTH tokens from the email link
+            self._supabase.auth.set_session(access_token, refresh_token)
+            # Update the password
+            self._supabase.auth.update_user({"password": new_password})
+            return {"message": "Password has been reset successfully. Please log in with your new password."}
+        except AuthServiceError:
+            raise
+        except Exception as e:
+            error_msg = str(e).lower()
+            if "invalid" in error_msg or "expired" in error_msg or "jwt" in error_msg:
+                raise AuthServiceError(
+                    "Reset link is invalid or has expired. Please request a new one.",
+                    status_code=401,
+                )
+            raise AuthServiceError(
+                "Password reset failed. Please try again.",
+                status_code=500,
             )
 
     async def logout(self, access_token: str) -> dict:

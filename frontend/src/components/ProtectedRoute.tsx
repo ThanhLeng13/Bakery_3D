@@ -5,6 +5,13 @@
  * Protected route wrapper component.
  * Redirects to login page if user is not authenticated.
  * Preserves the current URL as redirect parameter.
+ *
+ * allowedRolesKey (a serialised string) is used in the useEffect dependency
+ * array instead of the allowedRoles array prop, because callers often pass
+ * inline literals (e.g. allowedRoles={["baker"]}) which create a new array
+ * reference on every render and would cause an infinite redirect loop.
+ * The role-check inside the effect derives the set from allowedRolesKey so
+ * the exhaustive-deps rule is satisfied without introducing instability.
  */
 
 import { useEffect, useMemo } from "react";
@@ -27,15 +34,14 @@ export default function ProtectedRoute({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // Serialize allowedRoles to a stable string to avoid re-running the effect
-  // every render when the caller passes an inline array literal (new ref each time)
+  // Serialize allowedRoles to a stable string so that inline array literals
+  // (new reference each render) do not trigger the effect unnecessarily.
   const allowedRolesKey = useMemo(
     () => allowedRoles?.join(",") ?? "",
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [allowedRoles?.join(",")]
   );
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     // Chờ async validate xong mới xử lý
     if (loading) return;
@@ -46,9 +52,12 @@ export default function ProtectedRoute({
       return;
     }
 
-    // Kiểm tra role: nếu yêu cầu role cụ thể mà user null hoặc không đủ quyền → về trang chủ
-    if (allowedRoles) {
-      if (!user || !allowedRoles.includes(user.role)) {
+    // Derive the allowed set from the stable string key — avoids referencing
+    // the allowedRoles array prop directly, which would require it in deps and
+    // cause infinite loops when callers pass inline array literals.
+    if (allowedRolesKey) {
+      const roles = allowedRolesKey.split(",") as UserRole[];
+      if (!user || !roles.includes(user.role)) {
         router.replace("/");
       }
     }

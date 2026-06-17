@@ -139,7 +139,7 @@ function ReviewForm({ orderId, items }: { orderId: string; items: OrderItem[] })
       });
       setSubmitted(true);
     } catch (err: unknown) {
-      const apiErr = err as { detail?: string | any[] };
+      const apiErr = err as { detail?: string | { msg: string }[] };
       let errorMsg = "Gửi đánh giá thất bại. Vui lòng thử lại.";
       if (typeof apiErr?.detail === "string") {
         errorMsg = apiErr.detail === "Bạn đã đánh giá sản phẩm này cho đơn hàng này rồi."
@@ -262,6 +262,7 @@ function OrderDetailContent() {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reordering, setReordering] = useState(false);
 
   useEffect(() => {
     async function fetchOrder() {
@@ -283,6 +284,31 @@ function OrderDetailContent() {
       fetchOrder();
     }
   }, [orderId]);
+
+  function handleReorder() {
+    if (!order) return;
+    setReordering(true);
+    const reorderData = {
+      fromOrderId: order.id,
+      items: order.items.map((item) => ({
+        product_id: item.product_id,
+        size: item.size,
+        flavor: item.flavor,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+      })),
+      customizations: (order.customizations ?? []).map((c) => c.customization_json),
+      customer_name: order.customer_name,
+      customer_phone: order.customer_phone,
+      customer_email: order.customer_email,
+    };
+    try {
+      sessionStorage.setItem("reorder_data", JSON.stringify(reorderData));
+    } catch {
+      // sessionStorage might be unavailable in some contexts
+    }
+    router.push("/cake-builder?reorder=1");
+  }
 
   if (loading) {
     return (
@@ -326,24 +352,43 @@ function OrderDetailContent() {
     <main className="min-h-screen bg-cream">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm border-b border-gray-100 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-          <button
-            onClick={() => router.push("/orders")}
-            className="text-mocha hover:text-pink-pastel transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-            aria-label="Quay lại"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-          </button>
-          <div>
-            <h1 className="font-heading text-lg md:text-xl text-mocha font-bold">
-              Chi tiết đơn hàng
-            </h1>
-            <p className="text-xs text-mocha/50 font-mono">
-              #{order.id.slice(0, 8).toUpperCase()}
-            </p>
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/orders")}
+              className="text-mocha hover:text-pink-pastel transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+              aria-label="Quay lại"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+            <div>
+              <h1 className="font-heading text-lg md:text-xl text-mocha font-bold">
+                Chi tiết đơn hàng
+              </h1>
+              <p className="text-xs text-mocha/50 font-mono">
+                #{order.id.slice(0, 8).toUpperCase()}
+              </p>
+            </div>
           </div>
+          {/* Re-order Button */}
+          <button
+            onClick={handleReorder}
+            disabled={reordering}
+            id="reorder-btn"
+            className="flex items-center gap-2 px-4 py-2 bg-pink-pastel text-white rounded-full text-sm font-medium hover:bg-pink-pastel/90 transition-colors disabled:opacity-50 min-h-[44px] flex-shrink-0"
+          >
+            {reordering ? (
+              <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M23 4v6h-6M1 20v-6h6" />
+                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+              </svg>
+            )}
+            <span className="hidden sm:inline">Đặt lại đơn này</span>
+          </button>
         </div>
       </header>
 
