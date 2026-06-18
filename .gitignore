@@ -71,6 +71,17 @@ HUONG_DAN_CHAY_CODE.txt
 # ---- Local Images / Assets ----
 image/
 
-# ---- Start script - local state ----
+# ---- Start script / Temporary / Runtime files ----
+tmp_*/
 .browser_profile/
 .last_port
+.pytest_cache/
+
+# ---- Sensitive / Local Documents ----
+BAO_CAO_THUC_TAP_HOAN_THIEN.docx
+tools/
+
+# ---- IDE / AI Tools ----
+.kiro/
+.qodo/
+
