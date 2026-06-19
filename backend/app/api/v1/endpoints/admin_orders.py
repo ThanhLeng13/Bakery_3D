@@ -150,7 +150,7 @@ def delete_order(
 
     try:
         # Verify order exists first
-        check = supabase.table("orders").select("id").eq("id", order_id).single().execute()
+        check = supabase.table("orders").select("id").eq("id", order_id).maybe_single().execute()
         if not check.data:
             raise HTTPException(status_code=404, detail="Order not found")
 

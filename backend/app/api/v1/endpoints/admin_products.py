@@ -147,7 +147,7 @@ def get_product(
             supabase.table("products")
             .select("*, product_images(id, product_id, url, sort_order)")
             .eq("id", product_id)
-            .single()
+            .maybe_single()
             .execute()
         )
         p = result.data
