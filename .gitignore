@@ -86,6 +86,7 @@ yarn-error.log*
 tmp_*/
 .browser_profile/
 .last_port
+tmp_chrome_cake3d/
 .pytest_cache/
 .codex-docx-work/
 *.tmp

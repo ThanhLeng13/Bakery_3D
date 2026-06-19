@@ -1,8 +1,9 @@
 """Admin order management API endpoints.
 
 Endpoints:
-- GET /api/v1/admin/orders - List all orders with filters (Admin only)
-- GET /api/v1/admin/orders/{id} - Order detail (Admin only)
+- GET    /api/v1/admin/orders        - List all orders with filters (Admin only)
+- GET    /api/v1/admin/orders/{id}   - Order detail (Admin only)
+- DELETE /api/v1/admin/orders/{id}   - Cancel/reject and delete an order (Admin only)
 """
 
 import math
@@ -128,3 +129,40 @@ def get_admin_order_detail(
         raise HTTPException(status_code=404, detail="Order not found")
     except OrderServiceError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
+
+
+@router.delete("/{order_id}", status_code=204)
+def delete_order(
+    order_id: str,
+    admin: dict = Depends(require_admin),
+):
+    """
+    Cancel (reject) and permanently delete an order (Admin only).
+
+    Hard-deletes the order and all related rows:
+    - order_items
+    - order_customizations
+    - order_status_history
+
+    This action is irreversible. Use only for rejected/invalid orders.
+    """
+    supabase = get_supabase_client(use_service_role=True)
+
+    try:
+        # Verify order exists first
+        check = supabase.table("orders").select("id").eq("id", order_id).maybe_single().execute()
+        if not check.data:
+            raise HTTPException(status_code=404, detail="Order not found")
+
+        # All child tables (order_items, cake_customizations, order_status_history, reviews)
+        # have ON DELETE CASCADE, so deleting the parent row is sufficient.
+        supabase.table("orders").delete().eq("id", order_id).execute()
+
+        return None  # 204 No Content
+
+    except HTTPException:
+        raise
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("Failed to delete order %s", order_id)
+        raise HTTPException(status_code=500, detail="Failed to delete order")

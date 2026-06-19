@@ -81,37 +81,31 @@ class CatalogService:
         Returns:
             Dict with products list and pagination metadata
         """
-        # Build base query for counting
-        count_query = (
-            self._supabase.table("products")
-            .select("id", count="exact")
-            .eq("is_active", True)
-        )
-
-        if category:
-            count_query = count_query.eq("category", category)
-
-        count_result = count_query.execute()
-        total_items = count_result.count if count_result.count is not None else 0
-
-        # Calculate pagination
-        total_pages = math.ceil(total_items / page_size) if total_items > 0 else 0
+        # Single query: count + data in one round-trip
         offset = (page - 1) * page_size
 
-        # Build data query — embed product_review_stats view for pre-aggregated ratings
         data_query = (
             self._supabase.table("products")
-            .select("id, name, description, category, product_type, base_price, created_at, product_images(url, sort_order), product_review_stats(review_count, average_rating)")
+            .select(
+                "id, name, description, category, product_type, base_price, created_at,"
+                " product_images(url, sort_order),"
+                " product_review_stats(review_count, average_rating)",
+                count="exact",
+            )
             .eq("is_active", True)
-            .order("created_at", desc=True)
-            .range(offset, offset + page_size - 1)
         )
 
         if category:
             data_query = data_query.eq("category", category)
 
+        data_query = data_query.order("created_at", desc=True).range(offset, offset + page_size - 1)
+
         data_result = data_query.execute()
         products_data = data_result.data or []
+        total_items = data_result.count if data_result.count is not None else 0
+
+        # Calculate pagination
+        total_pages = math.ceil(total_items / page_size) if total_items > 0 else 0
 
         # Build product list with first image and pre-aggregated review stats
         products = []
@@ -184,10 +178,14 @@ class CatalogService:
         Raises:
             ProductNotFoundError: If product not found or inactive
         """
-        # Fetch product
+        # Single query: product + images + review_stats in one round-trip
         product_result = (
             self._supabase.table("products")
-            .select("*")
+            .select(
+                "*,"
+                " product_images(id, url, sort_order),"
+                " product_review_stats(review_count, average_rating)"
+            )
             .eq("id", product_id)
             .eq("is_active", True)
             .maybe_single()
@@ -199,28 +197,19 @@ class CatalogService:
 
         product = product_result.data
 
-        # Fetch all images sorted by sort_order
-        images_result = (
-            self._supabase.table("product_images")
-            .select("id, url, sort_order")
-            .eq("product_id", product_id)
-            .order("sort_order", desc=False)
-            .execute()
+        # Extract and format images (already sorted by DB via PostgREST)
+        raw_images = sorted(
+            product.get("product_images") or [],
+            key=lambda x: x.get("sort_order") or 0,
         )
-        images = images_result.data or []
-        for img in images:
-            if "url" in img:
-                img["url"] = format_image_url(img["url"])
+        images = [
+            {"id": img["id"], "url": format_image_url(img["url"]), "sort_order": img.get("sort_order") or 0}
+            for img in raw_images
+        ]
 
-        # Get pre-aggregated review stats from database view
-        stats_result = (
-            self._supabase.table("product_review_stats")
-            .select("review_count, average_rating")
-            .eq("product_id", product_id)
-            .maybe_single()
-            .execute()
-        )
-        stats = stats_result.data if (stats_result and stats_result.data) else {}
+        # Extract review stats from embedded view
+        stats_list = product.get("product_review_stats") or []
+        stats = (stats_list[0] if isinstance(stats_list, list) and stats_list else stats_list) or {}
         review_count = stats.get("review_count", 0) or 0
         avg_raw = stats.get("average_rating")
         average_rating = float(avg_raw) if avg_raw is not None else None

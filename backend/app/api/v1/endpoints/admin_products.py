@@ -74,8 +74,6 @@ def list_admin_products(
         data_query = (
             supabase.table("products")
             .select("*, product_images(id, product_id, url, sort_order)", count="exact")
-            .order("created_at", desc=True)
-            .range(offset, offset + page_size - 1)
         )
         if search:
             data_query = data_query.ilike("name", f"%{search}%")
@@ -83,6 +81,8 @@ def list_admin_products(
             data_query = data_query.eq("category", category)
         if is_active is not None:
             data_query = data_query.eq("is_active", is_active)
+            
+        data_query = data_query.order("created_at", desc=True).range(offset, offset + page_size - 1)
             
         data_result = data_query.execute()
         products_data = data_result.data or []
@@ -128,6 +128,63 @@ def list_admin_products(
         logging.getLogger(__name__).exception("Failed to fetch products")
         raise HTTPException(status_code=500, detail="Failed to fetch products")
 
+
+
+@router.get("/{product_id}")
+def get_product(
+    product_id: str,
+    current_user: dict = Depends(require_admin),
+):
+    """
+    Get a single product by ID for admin editing.
+
+    Returns full product data including images.
+    Requires Admin role.
+    """
+    supabase = get_supabase_client(use_service_role=True)
+    try:
+        result = (
+            supabase.table("products")
+            .select("*, product_images(id, product_id, url, sort_order)")
+            .eq("id", product_id)
+            .maybe_single()
+            .execute()
+        )
+        p = result.data
+        if not p:
+            raise HTTPException(status_code=404, detail="Product not found")
+
+        images = p.get("product_images") or []
+        images_sorted = sorted(images, key=lambda x: x.get("sort_order") or 0)
+        formatted_images = [
+            {
+                "id": img["id"],
+                "product_id": img["product_id"],
+                "url": format_image_url(img["url"]),
+                "sort_order": img.get("sort_order") or 0,
+            }
+            for img in images_sorted
+        ]
+
+        return {
+            "id": p["id"],
+            "name": p["name"],
+            "description": p.get("description"),
+            "category": p["category"],
+            "base_price": p["base_price"],
+            "sizes": p.get("sizes") or [],
+            "flavors": p.get("flavors") or [],
+            "is_active": p["is_active"],
+            "images": formatted_images,
+            "created_at": p["created_at"].isoformat() if hasattr(p["created_at"], "isoformat") else str(p["created_at"]),
+            "updated_at": p["updated_at"].isoformat() if hasattr(p["updated_at"], "isoformat") else str(p["updated_at"]),
+        }
+    except HTTPException:
+        raise
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("Failed to fetch product %s", product_id)
+        raise HTTPException(status_code=500, detail="Failed to fetch product")
 
 
 @router.post("", status_code=201)

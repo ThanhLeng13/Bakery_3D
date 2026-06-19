@@ -172,7 +172,7 @@ class AuthService:
                 self._supabase.table("users")
                 .select("*")
                 .eq("id", auth_response.user.id)
-                .single()
+                .maybe_single()
                 .execute()
             )
 
