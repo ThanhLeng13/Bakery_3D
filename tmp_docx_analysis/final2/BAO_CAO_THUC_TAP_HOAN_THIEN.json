@@ -1,0 +1,2685 @@
+{
+  "path": "D:\\DE_TAI\\Bakery_3D\\BAO_CAO_THUC_TAP_HOAN_THIEN.docx",
+  "paragraph_count": 417,
+  "nonempty_paragraph_count": 327,
+  "table_count": 20,
+  "inline_shape_count": 12,
+  "sections": [
+    {
+      "page_width": 7560310,
+      "page_height": 10692130,
+      "top_margin": 900430,
+      "bottom_margin": 900430,
+      "left_margin": 1080135,
+      "right_margin": 720090
+    }
+  ],
+  "inline_shapes": [
+    {
+      "width": 1143000,
+      "height": 1143000
+    },
+    {
+      "width": 3435217,
+      "height": 1973801
+    },
+    {
+      "width": 3001707,
+      "height": 3077155
+    },
+    {
+      "width": 3050034,
+      "height": 4141332
+    },
+    {
+      "width": 3721211,
+      "height": 1843171
+    },
+    {
+      "width": 3311737,
+      "height": 2194560
+    },
+    {
+      "width": 1630017,
+      "height": 3458106
+    },
+    {
+      "width": 3466769,
+      "height": 2543036
+    },
+    {
+      "width": 3307743,
+      "height": 2575160
+    },
+    {
+      "width": 3601941,
+      "height": 1782903
+    },
+    {
+      "width": 3792736,
+      "height": 1876508
+    },
+    {
+      "width": 1246777,
+      "height": 1828800
+    }
+  ],
+  "blocks": [
+    {
+      "index": 1,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "TRƯỜNG ĐẠI HỌC KIẾN TRÚC ĐÀ NẴNG"
+    },
+    {
+      "index": 2,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "KHOA CÔNG NGHỆ THÔNG TIN"
+    },
+    {
+      "index": 4,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "BÁO CÁO"
+    },
+    {
+      "index": 5,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "THỰC TẬP TỐT NGHIỆP"
+    },
+    {
+      "index": 7,
+      "type": "table",
+      "rows": [
+        [
+          "Giảng viên hướng dẫn",
+          ": Nguyễn Tất Phú Cường"
+        ],
+        [
+          "Sinh viên thực hiện",
+          ": Lý Thành Long"
+        ],
+        [
+          "Mã số sinh viên",
+          ": 2251220144"
+        ],
+        [
+          "Lớp",
+          ": 22CT3"
+        ],
+        [
+          "Khóa",
+          ": 2022 - 2027"
+        ]
+      ],
+      "row_count": 5,
+      "column_count": 2
+    },
+    {
+      "index": 16,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Đà Nẵng, năm 2026"
+    },
+    {
+      "index": 17,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "BẢN GIẤY GIỚI THIỆU THỰC TẬP"
+    },
+    {
+      "index": 18,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Kẹp bản gốc có dấu xác nhận của đơn vị tại đây"
+    },
+    {
+      "index": 19,
+      "type": "table",
+      "rows": [
+        [
+          "(Đính kèm bản gốc có dấu)"
+        ]
+      ],
+      "row_count": 1,
+      "column_count": 1
+    },
+    {
+      "index": 21,
+      "type": "table",
+      "rows": [
+        [
+          "TRƯỜNG ĐẠI HỌC KIẾN TRÚC ĐÀ NẴNG\nKHOA CÔNG NGHỆ THÔNG TIN",
+          "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\nĐộc lập – Tự do – Hạnh phúc"
+        ]
+      ],
+      "row_count": 1,
+      "column_count": 2
+    },
+    {
+      "index": 23,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "PHIẾU NHẬN XÉT VÀ CHẤM ĐIỂM"
+    },
+    {
+      "index": 24,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "HỌC PHẦN THỰC TẬP TỐT NGHIỆP"
+    },
+    {
+      "index": 25,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "( Dành cho giảng viên hướng dẫn, Rubric B – chiếm 30% tổng điểm học phần)"
+    },
+    {
+      "index": 27,
+      "type": "table",
+      "rows": [
+        [
+          "Họ và tên sinh viên: Lý Thành Long                          MSSV: 2251220144\nLớp: 22CT3        Khóa: DHCQ–K2022   \tNgành: Công nghệ Thông tin\nĐơn vị thực tập: Trung tâm phát triển phần mềm SDC\nThời gian thực tập: Từ ngày 18/05/2026   đến ngày 28/06/2026"
+        ]
+      ],
+      "row_count": 1,
+      "column_count": 1
+    },
+    {
+      "index": 28,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Rubric B gồm 3 tiêu chí đánh giá quá trình thực tập và chất lượng báo cáo:"
+    },
+    {
+      "index": 29,
+      "type": "table",
+      "rows": [
+        [
+          "Tiêu chí đánh giá",
+          "Tỷ lệ (%)",
+          "Không đạt (<4đ)",
+          "Chưa thuyết phục (4,0-5,4đ)",
+          "Đạt (5,5 – 6,9đ)",
+          "Tốt\n(7,0 – 8,4đ)",
+          "Xuất sắc (8,5-10đ)",
+          "Điểm"
+        ],
+        [
+          "Mức độ liên hệ, báo cáo tiến độ và tinh thần chủ động với GVHD",
+          "30%",
+          "Không liên hệ GVHD",
+          "Liên hệ < 1 lần; GVHD phải chủ động liên lạc",
+          "Liên hệ đủ ≥ 2 lần; có báo cáo tiến độ theo yêu cầu",
+          "Chủ động liên hệ thường xuyên; cập nhật tiến độ đúng hạn",
+          "Trao đổi chuyên môn sâu, thường xuyên; luôn chủ động và đúng hạn",
+          ""
+        ],
+        [
+          "Nội dung báo cáo (đầy đủ, chính xác, logic, phản ánh thực tế tại đơn vị)",
+          "50%",
+          "Nội dung sơ sài; < 40% yêu cầu; thiếu nhiều phần",
+          "Đạt 40–60%; có nội dung nhưng thiếu phân tích",
+          "Đạt 60–80%; có phân tích môi trường và công việc thực tế",
+          "Đạt 80–90%; phân tích tương đối sâu, có đề xuất giải pháp",
+          "Nội dung đầy đủ, chính xác; phân tích sâu; đề xuất cụ thể, có tài liệu tham khảo đa dạng",
+          ""
+        ],
+        [
+          "Hình thức trình bày báo cáo (bố cục, định dạng, lỗi chính tả, in ấn)",
+          "20%",
+          "Sai bố cục; không theo mẫu quy định",
+          "Đúng bố cục nhưng trình bày không đúng mẫu",
+          "Đúng bố cục; còn nhiều lỗi chính tả, định dạng",
+          "Trình bày rõ ràng, đẹp; ít lỗi; hình/bảng có caption",
+          "Không lỗi chính tả; in ấn sạch đẹp; hình/bảng đầy đủ, rõ ràng",
+          ""
+        ],
+        [
+          "TỔNG ĐIỂM",
+          "TỔNG ĐIỂM",
+          "TỔNG ĐIỂM",
+          "TỔNG ĐIỂM",
+          "TỔNG ĐIỂM",
+          "TỔNG ĐIỂM",
+          "TỔNG ĐIỂM",
+          ""
+        ]
+      ],
+      "row_count": 5,
+      "column_count": 8
+    },
+    {
+      "index": 30,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Nhận xét bổ sung của GVHD:"
+    },
+    {
+      "index": 35,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "."
+    },
+    {
+      "index": 40,
+      "type": "table",
+      "rows": [
+        [
+          ".",
+          "Đà Nẵng, ngày      tháng      năm 20......\nGIẢNG VIÊN HƯỚNG DẪN\n(Ký và ghi rõ họ tên)\n\n\n............................................."
+        ]
+      ],
+      "row_count": 1,
+      "column_count": 2
+    },
+    {
+      "index": 48,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "* Phiếu này chiếm 30% tổng điểm học phần. Hai thành phần còn lại: Đơn vị thực tập 40%, GV chấm báo cáo 30%."
+    },
+    {
+      "index": 49,
+      "type": "table",
+      "rows": [
+        [
+          "TRƯỜNG ĐẠI HỌC KIẾN TRÚC ĐÀ NẴNG\nKHOA CÔNG NGHỆ THÔNG TIN",
+          "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\nĐộc lập – Tự do – Hạnh phúc"
+        ]
+      ],
+      "row_count": 1,
+      "column_count": 2
+    },
+    {
+      "index": 51,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "PHIẾU NHẬN XÉT VÀ CHẤM ĐIỂM"
+    },
+    {
+      "index": 52,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "HỌC PHẦN THỰC TẬP TỐT NGHIỆP"
+    },
+    {
+      "index": 53,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "( Dành cho đơn vị thực tập, Rubric A – chiếm 40% tổng điểm học phần)"
+    },
+    {
+      "index": 54,
+      "type": "table",
+      "rows": [
+        [
+          "Họ và tên sinh viên: Lý Thành Long                       MSSV: 2251220144\nLớp: 22CT3\t Khoá: DHCQ–K2022\t  Ngành: Công nghệ Thông tin\nCán bộ hướng dẫn thực tập: \t\nBộ phận / Phòng ban: \t\nThời gian thực tập: Từ ngày 18/05/2026 đến ngày 28/06/2026"
+        ]
+      ],
+      "row_count": 1,
+      "column_count": 1
+    },
+    {
+      "index": 56,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Sau thời gian sinh viên thực tập tại đơn vị, chúng tôi có những nhận xét và chấm điểm như sau:"
+    },
+    {
+      "index": 57,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "I. NHẬN XÉT"
+    },
+    {
+      "index": 58,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "1. Về ý thức chấp hành nội quy, tác phong và đạo đức nghề nghiệp:"
+    },
+    {
+      "index": 61,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": ".."
+    },
+    {
+      "index": 62,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "2. Về năng lực chuyên môn và chất lượng công việc được giao:"
+    },
+    {
+      "index": 65,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "3. Về tinh thần trách nhiệm, sáng kiến và đóng góp cho đơn vị:"
+    },
+    {
+      "index": 68,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "4. Nhận xét khác (nếu có):"
+    },
+    {
+      "index": 70,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "II. CHẤM ĐIỂM THEO RUBRIC A"
+    },
+    {
+      "index": 71,
+      "type": "table",
+      "rows": [
+        [
+          "Tiêu chí đánh giá",
+          "Tỷ lệ (%)",
+          "Không đạt (<4đ)",
+          "Chưa thuyết phục (4,0-5,4đ)",
+          "Đạt (5,5 – 6,9đ)",
+          "Tốt\n(7,0 – 8,4đ)",
+          "Xuất sắc (8,5-10đ)",
+          "Điểm"
+        ],
+        [
+          "Ý thức chấp hành nội quy, tác phong và đạo đức nghề nghiệp",
+          "35%",
+          "Vi phạm nội quy nghiêm trọng; không hợp tác",
+          "Hay trễ giờ; thụ động; cần nhắc nhở nhiều lần",
+          "Chấp hành đầy đủ nội quy; đúng giờ; thái độ tích cực",
+          "Chủ động, tích cực; tác phong làm việc chuyên nghiệp",
+          "Gương mẫu; tinh thần trách nhiệm cao; được đồng nghiệp và cấp trên đánh giá tốt",
+          ""
+        ],
+        [
+          "Năng lực chuyên môn và chất lượng công việc được giao",
+          "40%",
+          "Không hoàn thành nhiệm vụ được giao",
+          "Hoàn thành < 50% nhiệm vụ; nhiều sai sót",
+          "Hoàn thành 50–80% nhiệm vụ; chất lượng ở mức chấp nhận được",
+          "Hoàn thành tốt nhiệm vụ; sai sót nhỏ; có thể làm việc tương đối độc lập",
+          "Hoàn thành xuất sắc; chất lượng cao; làm việc độc lập; kết quả đóng góp thực chất",
+          ""
+        ],
+        [
+          "Tinh thần trách nhiệm, sáng kiến và mức độ đóng góp cho đơn vị",
+          "25%",
+          "Không có đóng góp; không chủ động",
+          "Đóng góp rất hạn chế; chờ hướng dẫn hoàn toàn",
+          "Có đóng góp nhỏ; thực hiện theo hướng dẫn",
+          "Có sáng kiến; đóng góp rõ ràng; được ghi nhận trong công việc",
+          "Đóng góp thực sự có giá trị; sáng kiến được áp dụng; được đơn vị đánh giá cao",
+          ""
+        ],
+        [
+          "TỔNG ĐIỂM",
+          "TỔNG ĐIỂM",
+          "TỔNG ĐIỂM",
+          "TỔNG ĐIỂM",
+          "TỔNG ĐIỂM",
+          "TỔNG ĐIỂM",
+          "TỔNG ĐIỂM",
+          ""
+        ]
+      ],
+      "row_count": 5,
+      "column_count": 8
+    },
+    {
+      "index": 73,
+      "type": "table",
+      "rows": [
+        [
+          "Đà Nẵng, ngày      tháng      năm 20......\nĐẠI DIỆN ĐƠN VỊ THỰC TẬP\n(Ký tên, đóng dấu)\n\n.............................................",
+          "Đà Nẵng, ngày      tháng      năm 20......\nCÁN BỘ HƯỚNG DẪN\n(Ký và ghi rõ họ tên)\n\n............................................."
+        ]
+      ],
+      "row_count": 1,
+      "column_count": 2
+    },
+    {
+      "index": 75,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "* Phiếu này chiếm 40% tổng điểm học phần. Đây là đánh giá của đơn vị thực tập – độc lập với đánh giá của Khoa."
+    },
+    {
+      "index": 76,
+      "type": "table",
+      "rows": [
+        [
+          "TRƯỜNG ĐẠI HỌC KIẾN TRÚC ĐÀ NẴNG\nKHOA CÔNG NGHỆ THÔNG TIN",
+          "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\nĐộc lập – Tự do – Hạnh phúc"
+        ]
+      ],
+      "row_count": 1,
+      "column_count": 2
+    },
+    {
+      "index": 78,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "LỊCH THỰC TẬP TỐT NGHIỆP"
+    },
+    {
+      "index": 79,
+      "type": "table",
+      "rows": [
+        [
+          "Họ và tên sinh viên: Lý Thành Long                            MSSV: 2251220144\nLớp: 22CT3         Khoá: DHCQ–K2022   \tNgành: Công nghệ Thông tin\nĐơn vị thực tập: Trung tâm phát triển phần mềm SDC\nThời gian thực tập: Từ ngày 18/05/2026 đến ngày 28/06/2026"
+        ]
+      ],
+      "row_count": 1,
+      "column_count": 1
+    },
+    {
+      "index": 81,
+      "type": "table",
+      "rows": [
+        [
+          "Tuần (1)",
+          "Nội dung công việc được giao (2)",
+          "Tự nhận xét mức độ hoàn thành (3)",
+          "Nhận xét của CBHD tại đơn vị (4)",
+          "Chữ ký CBHD (5)"
+        ],
+        [
+          "Tuần 1\nTừ: 18/05/2026\nđến: 24/05/2026",
+          "Khảo sát nhu cầu đặt bánh online, phân tích quy trình bán qua mạng xã hội",
+          "Tốt",
+          "",
+          ""
+        ],
+        [
+          "Tuần 2\nTừ: 25/05/2026\nđến: 31/05/2026",
+          "Thiết kế kiến trúc hệ thống, phân tích cơ sở dữ liệu, thiết kế quy trình đặt bánh và activity diagram",
+          "Tốt",
+          "",
+          ""
+        ],
+        [
+          "Tuần 3\nTừ: 01/06/2026\nđến: 07/06/2026",
+          "Xây dựng frontend với Next.js, phát triển trang sản phẩm, tìm kiếm/lọc, chi tiết sản phẩm và giao diện",
+          "Tốt",
+          "",
+          ""
+        ],
+        [
+          "Tuần 4\nTừ: 8/06/2026\nđến:\n14/06/2026",
+          "Xây dựng backend FastAPI, phát triển API tài khoản, sản phẩm, đơn hàng, trạng thái đơn và khu vực quản trị.",
+          "Tốt",
+          "",
+          ""
+        ],
+        [
+          "Tuần 5\nTừ: 15/06/2026\nđến: 21/06/2026",
+          "Rà soát tích hợp toàn hệ thống; kiểm thử Backend; kiểm tra TypeScript; hoàn thiện đánh giá sản phẩm, phân quyền, chatbot RAG/SSE và tài liệu kỹ thuật.",
+          "Đang thực hiện tốt",
+          "",
+          ""
+        ],
+        [
+          "Tuần 6\nTừ: 22/06/2026\nđến:\n28/06/2026",
+          "Hoàn thiện báo cáo, bổ sung sơ đồ/ảnh minh họa, kiểm tra cấu hình triển khai, chuẩn bị demo và bàn giao.",
+          "Kế hoạch",
+          "",
+          ""
+        ],
+        [
+          "Nhận xét chung",
+          "Nhận xét chung",
+          "Hoàn thành thực tập: □ Có   □ Không\n\n\nCBHD ký xác nhận: ...............................",
+          "Hoàn thành thực tập: □ Có   □ Không\n\n\nCBHD ký xác nhận: ...............................",
+          "Hoàn thành thực tập: □ Có   □ Không\n\n\nCBHD ký xác nhận: ..............................."
+        ]
+      ],
+      "row_count": 8,
+      "column_count": 5
+    },
+    {
+      "index": 95,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "* Sinh viên điền cột (2) và (3) trước khi mang đến CBHD ký. Lịch này phải hoàn thiện đủ tối thiểu 6 tuần trước khi đóng quyển."
+    },
+    {
+      "index": 96,
+      "type": "paragraph",
+      "style": "Heading 1",
+      "text": "LỜI CẢM ƠN"
+    },
+    {
+      "index": 97,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Em xin chân thành cảm ơn Ban Giám hiệu Trường Đại học Kiến trúc Đà Nẵng cùng toàn thể quý thầy cô trong Khoa Công nghệ Thông tin đã tạo điều kiện thuận lợi nhất cho em trong suốt quá trình học tập và thực tập. Những kiến thức lý thuyết vững chắc cùng môi trường học thuật chuyên nghiệp mà nhà trường mang lại đã là nền tảng quan trọng giúp em hoàn thành tốt kỳ thực tập lần này."
+    },
+    {
+      "index": 98,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Em cũng xin gửi lời cảm ơn sâu sắc đến Ban lãnh đạo cùng các anh chị tại đơn vị thực tập Trung tâm phát triển phần mềm SDC. Đặc biệt, em xin cảm ơn anh/chị Trương Lưu Quân, Đỗ Thị Quỳnh Hoa, Nguyễn Thị Loan đã trực tiếp hướng dẫn, tận tình chỉ bảo, truyền đạt kinh nghiệm thực tế và luôn tạo điều kiện để em được tham gia vào các công việc cụ thể. Nhờ sự hỗ trợ nhiệt tình từ anh/chị và tập thể đơn vị, em mới có thể hoàn thành tốt đề tài thực tập của mình."
+    },
+    {
+      "index": 99,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Em xin bày tỏ lòng biết ơn chân thành đến thầy Nguyễn Tất Phú Cường – giảng viên hướng dẫn tại Khoa Công nghệ Thông tin. Thầy đã dành thời gian theo dõi, góp ý tận tình và định hướng cho em trong suốt quá trình thực hiện báo cáo thực tập. Những góp ý quý báu của thầy đã giúp em khắc phục được nhiều hạn chế và hoàn thiện hơn bài báo cáo này."
+    },
+    {
+      "index": 100,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Qua kỳ thực tập lần này, em đã nhận thức rõ hơn về sự khác biệt giữa lý thuyết và thực tiễn, đồng thời rèn luyện được nhiều kỹ năng chuyên môn cũng như kỹ năng làm việc nhóm. Em xin cam kết sẽ tiếp tục nỗ lực học tập và rèn luyện để không phụ sự giúp đỡ của nhà trường, quý thầy cô và đơn vị thực tập."
+    },
+    {
+      "index": 101,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Một lần nữa, em xin chân thành cảm ơn tất cả!"
+    },
+    {
+      "index": 102,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Đà Nẵng, ngày  24  tháng  06   năm 2026."
+    },
+    {
+      "index": 103,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Sinh viên thực hiện"
+    },
+    {
+      "index": 104,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "(Ký và ghi rõ họ tên)"
+    },
+    {
+      "index": 106,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "......................................................."
+    },
+    {
+      "index": 110,
+      "type": "paragraph",
+      "style": "Heading 1",
+      "text": "DANH MỤC CÁC TỪ VIẾT TẮT"
+    },
+    {
+      "index": 112,
+      "type": "table",
+      "rows": [
+        [
+          "Từ viết tắt",
+          "Nội dung đầy đủ",
+          "Ý nghĩa trong đề tài"
+        ],
+        [
+          "AI",
+          "Artificial Intelligence",
+          "Trí tuệ nhân tạo hỗ trợ tư vấn bánh"
+        ],
+        [
+          "API",
+          "Application Programming Interface",
+          "Giao tiếp giữa Frontend và Backend"
+        ],
+        [
+          "COD",
+          "Cash on Delivery",
+          "Thanh toán khi nhận bánh"
+        ],
+        [
+          "ERD",
+          "Entity Relationship Diagram",
+          "Sơ đồ quan hệ dữ liệu"
+        ],
+        [
+          "JWT",
+          "JSON Web Token",
+          "Token xác thực phiên người dùng"
+        ],
+        [
+          "MVP",
+          "Minimum Viable Product",
+          "Phiên bản sản phẩm khả dụng tối thiểu"
+        ],
+        [
+          "RAG",
+          "Retrieval-Augmented Generation",
+          "Bổ sung dữ liệu catalog vào ngữ cảnh AI"
+        ],
+        [
+          "RBAC",
+          "Role-Based Access Control",
+          "Phân quyền customer/admin/baker"
+        ],
+        [
+          "RLS",
+          "Row Level Security",
+          "Chính sách bảo vệ dữ liệu trên Supabase"
+        ],
+        [
+          "SSE",
+          "Server-Sent Events",
+          "Truyền phản hồi chatbot theo luồng"
+        ],
+        [
+          "SVG",
+          "Scalable Vector Graphics",
+          "Hiển thị bánh tùy chỉnh hiện tại"
+        ],
+        [
+          "UI/UX",
+          "User Interface/User Experience",
+          "Giao diện và trải nghiệm người dùng"
+        ]
+      ],
+      "row_count": 13,
+      "column_count": 3
+    },
+    {
+      "index": 113,
+      "type": "paragraph",
+      "style": "Heading 1",
+      "text": "DANH MỤC HÌNH ẢNH"
+    },
+    {
+      "index": 114,
+      "type": "paragraph",
+      "style": "table of figures",
+      "text": "Hình 1 Đăng nhập\t21"
+    },
+    {
+      "index": 115,
+      "type": "paragraph",
+      "style": "table of figures",
+      "text": "Hình 2 Đăng ký\t22"
+    },
+    {
+      "index": 116,
+      "type": "paragraph",
+      "style": "table of figures",
+      "text": "Hình 3 Giao diện danh mục bánh\t23"
+    },
+    {
+      "index": 117,
+      "type": "paragraph",
+      "style": "table of figures",
+      "text": "Hình 4 Giao diện chi tiết sản phẩm\t24"
+    },
+    {
+      "index": 118,
+      "type": "paragraph",
+      "style": "table of figures",
+      "text": "Hình 5 Giao diện giỏ hàng\t24"
+    },
+    {
+      "index": 119,
+      "type": "paragraph",
+      "style": "table of figures",
+      "text": "Hình 6 Giao diện tùy chỉnh bánh kem trực quan theo vùng\t26"
+    },
+    {
+      "index": 120,
+      "type": "paragraph",
+      "style": "table of figures",
+      "text": "Hình 7 Các tùy chọn thiết kế bánh kem\t27"
+    },
+    {
+      "index": 121,
+      "type": "paragraph",
+      "style": "table of figures",
+      "text": "Hình 8 Giao diện quản lý sản phẩm.\t29"
+    },
+    {
+      "index": 122,
+      "type": "paragraph",
+      "style": "table of figures",
+      "text": "Hình 9 Giao diện quản lý đơn hàng\t30"
+    },
+    {
+      "index": 123,
+      "type": "paragraph",
+      "style": "table of figures",
+      "text": "Hình 10 Giao diện chatbot AI tư vấn bánh kem\t30"
+    },
+    {
+      "index": 125,
+      "type": "paragraph",
+      "style": "TOC Heading",
+      "text": "MỤC LỤC"
+    },
+    {
+      "index": 126,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Mục lục tự động - nhấn Ctrl+A, F9 trong Microsoft Word để cập nhật số trang."
+    },
+    {
+      "index": 127,
+      "type": "paragraph",
+      "style": "Heading 1",
+      "text": "LỜI MỞ ĐẦU"
+    },
+    {
+      "index": 128,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Mục đích thực tập tốt nghiệp"
+    },
+    {
+      "index": 129,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Thực tập tốt nghiệp là cơ hội để sinh viên áp dụng những kiến thức đã học vào"
+    },
+    {
+      "index": 130,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "môi trường làm việc thực tế, đồng thời nâng cao kỹ năng chuyên môn và kinh nghiệm trong lĩnh vực công nghệ thông tin. Thông qua quá trình thực tập tại Trung tâm Phát triển Phần mềm SDC, sinh viên có điều kiện tiếp cận với quy trình làm việc thực tế, học hỏi kinh nghiệm từ người hướng dẫn và rèn luyện tác phong làm việc chuyên nghiệp."
+    },
+    {
+      "index": 131,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Nhiệm vụ thực tập tốt nghiệp"
+    },
+    {
+      "index": 132,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Trong quá trình thực tập, sinh viên được giao nhiệm vụ tham gia phát triển website bán bánh kem tích hợp AI và chức năng thiết kế bánh trực quan theo vùng. Công việc tập trung vào tìm hiểu kiến trúc Frontend/Backend, xây dựng giao diện người dùng bằng Next.js/React, kết nối API Backend FastAPI, làm việc với cơ sở dữ liệu Supabase và chuẩn bị triển khai hệ thống trên Vercel/Docker."
+    },
+    {
+      "index": 133,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Bên cạnh đó, sinh viên tìm hiểu quy trình phát triển ứng dụng web hiện đại, bao gồm quản lý trạng thái giao diện, xác thực người dùng, lưu trữ dữ liệu sản phẩm và đơn hàng, phát triển chức năng giỏ hàng, đặt bánh, tùy chỉnh bánh kem trực quan theo vùng, chatbot AI tư vấn sản phẩm, kiểm thử API, cấu hình biến môi trường và xử lý các vấn đề phát sinh khi triển khai frontend/backend độc lập."
+    },
+    {
+      "index": 134,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Phạm vi thực tập"
+    },
+    {
+      "index": 135,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Thời gian thực tập: Theo kế hoạch thực tập tốt nghiệp của nhà trường."
+    },
+    {
+      "index": 136,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Địa điểm thực tập: Trung tâm phát triển phần mềm SDC"
+    },
+    {
+      "index": 137,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Nội dung thực tập:"
+    },
+    {
+      "index": 138,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Tìm hiểu môi trường làm việc, quy trình phát triển phần mềm và cách tổ chức dự án tại Trung tâm Phát triển Phần mềm SDC."
+    },
+    {
+      "index": 139,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Nghiên cứu kiến trúc hệ thống website bán bánh kem, gồm Frontend sử dụng Next.js/React, Backend sử dụng FastAPI và cơ sở dữ liệu Supabase."
+    },
+    {
+      "index": 140,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Tham gia phát triển và kiểm thử các chức năng chính như xem danh mục sản phẩm, tùy chỉnh bánh kem trực quan theo vùng, thêm sản phẩm vào giỏ hàng, đặt hàng, quản lý đơn hàng, quản lý sản phẩm, đánh giá sản phẩm, khu vực thợ làm bánh và chatbot AI hỗ trợ tư vấn sản phẩm."
+    },
+    {
+      "index": 141,
+      "type": "paragraph",
+      "style": "Heading 1",
+      "text": "CHƯƠNG 1. GIỚI THIỆU VỀ ĐƠN VỊ THỰC TẬP / MÔI TRƯỜNG LÀM VIỆC"
+    },
+    {
+      "index": 142,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "1.1. Thông tin chung về doanh nghiệp"
+    },
+    {
+      "index": 143,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Tên công ty: Trung tâm phát triển phần mềm SDC."
+    },
+    {
+      "index": 144,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Địa chỉ: Tầng 5 Khu C, 41 Lê Duẩn - Hải Châu - Đà Nẵng, Việt Nam."
+    },
+    {
+      "index": 145,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Website: https://sdc.udn.vn/"
+    },
+    {
+      "index": 146,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Trung tâm Phát triển Phần mềm - Đại học Đà Nẵng là một đơn vị trực thuộc Đại học Đà Nẵng do Bộ Giáo dục và Đào tạo thành lập vào năm 2000, chúng tôi được đánh giá cao trong lĩnh vực đào tạo, nghiên cứu, thực hiện dự án và tổ chức khảo thí quốc tế tại khu vực miền Trung - Tây Nguyên."
+    },
+    {
+      "index": 147,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Về Đào tạo: Trung tâm Phát triển Phần mềm với vai trò là partner của tập đoàn Microsoft chúng tôi tự tin đơn vị đi đầu trong lĩnh vực đào tạo phần mềm, đào tạo chuyển đổi số tại khu vực miền Trung - Tây Nguyên. Với đội ngũ giảng viên giàu kinh nghiệm và kiến thức chuyên môn sâu rộng, chúng tôi cung cấp các khóa học đào tạo về các công nghệ thông tin hàng đầu như Microsoft, Oracle, Cisco, Red Hat, VMware và nhiều nền tảng phần mềm khác. Ngoài ra, Trung tâm còn tổ chức các khóa đào tạo tại doanh nghiệp để giúp cải thiện năng lực nhân viên và tăng cường năng suất kinh doanh."
+    },
+    {
+      "index": 148,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Về Nghiên cứu phát triển phần mềm, thực hiện dự án: Trung tâm Phát triển Phần mềm là một đơn vị có uy tín cao trông việc nghiên cứu cũng như thực hiện dự án. Chúng tôi đang thực hiện nhiều dự án nghiên cứu phát triển phần mềm đa dạng trong nhiều lĩnh vực như trí tuệ nhân tạo, big data, blockchain, IoT, an toàn thông tin và nhiều lĩnh vực công nghệ khác. Các dự án này được thực hiện bởi các chuyên gia và kỹ sư phần mềm tại Trung tâm và được phối hợp với các tổ chức đối tác trong và ngoài nước thực hiện."
+    },
+    {
+      "index": 149,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Về Khảo thí quốc tế: Trung tâm Phát triển Phần mềm cũng là một địa điểm khảo thí uy tín của các chứng chỉ quốc tế như Cisco, CCNA, Tester, Autodesk, AWS, Linus và nhiều chứng chỉ khác được uỷ quyền trực tiếp từ Pearson VUE. Chúng tôi có đội ngũ giám thị chuyên nghiệp và nhiều kinh nghiệm, đảm bảo tính chính xác và khách quan của các kỳ thi. Ngoài ra, Trung tâm còn tổ chức các khóa học ôn tập phục vụ công tác khảo thí, giúp học viên nâng cao năng lực"
+    },
+    {
+      "index": 150,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "1.2. Cơ cấu tổ chức"
+    },
+    {
+      "index": 151,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Trong phạm vi thực tập, cơ cấu tác nghiệp liên quan trực tiếp đến sinh viên được mô tả gồm Ban lãnh đạo Trung tâm, bộ phận phát triển phần mềm/chuyển đổi số, nhóm kỹ thuật phụ trách dự án và sinh viên thực tập. Sinh viên nhận nhiệm vụ theo từng tuần, báo cáo tiến độ, tiếp nhận góp ý kỹ thuật và hoàn thiện sản phẩm theo chu kỳ ngắn."
+    },
+    {
+      "index": 152,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "GHI CHÚ CHÈN ẢNH (xóa ghi chú sau khi thay bằng ảnh thật): Chèn sơ đồ tổ chức chính thức của SDC nếu đơn vị cung cấp; nếu không, vẽ sơ đồ tác nghiệp theo mô tả trên; đánh số Hình 11."
+    },
+    {
+      "index": 154,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Sinh viên thực tập tại Phòng Công nghệ thông tin, phối hợp với bộ phận Chuyển đổi số và nhóm phát triển phần mềm của SDC. Phạm vi công việc tập trung vào phân tích yêu cầu, xây dựng ứng dụng web full-stack, kiểm thử và hoàn thiện tài liệu kỹ thuật."
+    },
+    {
+      "index": 155,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Bộ phận phụ trách tại SDC định hướng nghiệp vụ, giao nhiệm vụ và phản hồi kết quả; nhóm kỹ thuật hỗ trợ kiến trúc, cơ sở dữ liệu, API và quy trình triển khai; sinh viên chịu trách nhiệm chủ động nghiên cứu, lập trình, kiểm thử, báo cáo tiến độ và cập nhật tài liệu."
+    },
+    {
+      "index": 156,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "1.3. Lĩnh vực công nghệ và sản phẩm"
+    },
+    {
+      "index": 157,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Môi trường kỹ thuật của đề tài sử dụng Next.js 14/React/TypeScript và Tailwind CSS cho Frontend; FastAPI/Python cho Backend; Supabase cung cấp PostgreSQL, Authentication và Storage; Claude API (Anthropic) hỗ trợ chatbot; Git quản lý mã nguồn; Vercel và Docker được chuẩn bị cho triển khai."
+    },
+    {
+      "index": 158,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Các sản phẩm/dịch vụ chính của công ty"
+    },
+    {
+      "index": 159,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "- Đại học Đà Nẵng\n- Đại học Thủ Dầu Một\n- Trường Đại học Kinh tế, Đại học Đà Nẵng\n- Trường Đại học Ngoại ngữ, Đại học Đà Nẵng\n- Trường Đại học Sư phạm Kỹ thuật, Đại học Đà Nẵng\n- Trường Y dược, Đại học Đà Nẵng\n- Trường Cao đẳng Nghề Đà Nẵng, Cao đẳng Du Lịch Đà Nẵng, Cao đẳng Phương Đông,\n- Học viện Chính trị khu vực 3\n- Các sở Khoa học công nghệ: Quảng Ngãi, KonTum, Gia Lai\n- Phân hiệu Học viện Hành chính và Quản trị công tại Tp. Đà Nẵng\n– Trung tâm GDNN-GDTX số 1; số 2 Tp. Đà Nẵng\n- Công ty TNHH Daiwa Việt Nam\n- Công ty TNHH Murata Manufacturing Việt Nam\n- Công ty Cổ phần Công nghệ giáo dục Tường Nguyên"
+    },
+    {
+      "index": 160,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Quy trình làm việc được tổ chức theo hướng lặp và tăng trưởng, gần với Agile: phân tích yêu cầu, chia nhiệm vụ theo tuần/sprint, phát triển trên nhánh Git, tự kiểm thử, báo cáo tiến độ, nhận phản hồi và điều chỉnh. Mỗi chức năng được tách theo lớp Frontend, API/Service và dữ liệu để thuận tiện kiểm tra và bảo trì."
+    },
+    {
+      "index": 162,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "1.4. Vị trí và nhiệm vụ của sinh viên thực tập"
+    },
+    {
+      "index": 163,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Sinh viên thuộc nhóm thực tập phát triển phần mềm tại Phòng Công nghệ thông tin, làm việc với đề tài website bán bánh kem tích hợp AI. Vai trò thực hiện tương đương lập trình viên full-stack ở mức thực tập: tham gia cả Frontend, Backend, dữ liệu, kiểm thử và tài liệu."
+    },
+    {
+      "index": 164,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Trong quá trình thực tập, sinh viên nhận hỗ trợ chuyên môn từ các anh/chị Trương Lưu Quân, Đỗ Thị Quỳnh Hoa và Nguyễn Thị Loan tại SDC; đồng thời báo cáo học thuật với giảng viên hướng dẫn Nguyễn Tất Phú Cường."
+    },
+    {
+      "index": 165,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Kỳ vọng ban đầu là sinh viên chủ động tuân thủ nội quy, hoàn thành tiến độ từng tuần, xây dựng được một MVP có luồng nghiệp vụ rõ ràng, biết tự kiểm thử và trình bày được quyết định kỹ thuật. Sản phẩm cần có mã nguồn tổ chức hợp lý, giao diện dễ sử dụng, API có kiểm soát truy cập và tài liệu đủ để demo/bàn giao."
+    },
+    {
+      "index": 167,
+      "type": "paragraph",
+      "style": "Heading 1",
+      "text": "CHƯƠNG 2. NỘI DUNG THỰC TẬP"
+    },
+    {
+      "index": 168,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "2.0. Kế hoạch thực tập tổng thể"
+    },
+    {
+      "index": 169,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Trong suốt thời gian 5 tuần thực tập trực tiếp tại Phòng Công nghệ thông tin – Trung tâm Phát triển Phần mềm SDC, dưới sự hướng dẫn chuyên môn của bộ phận Chuyển đổi số, em được giao nghiên cứu và phát triển đề tài thực chiến: “Website bán bánh kem tích hợp AI và thiết kế bánh trực quan theo vùng”. Đây là một sản phẩm phần mềm ở mức khả dụng tối thiểu (MVP), tập trung vào xây dựng hệ thống thương mại điện tử cho tiệm bánh kem, hỗ trợ người dùng xem sản phẩm, tùy chỉnh bánh kem trực quan theo vùng, đặt hàng trực tuyến và nhận tư vấn sản phẩm thông qua chatbot AI."
+    },
+    {
+      "index": 170,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Bảng dưới đây chi tiết hóa các nhiệm vụ, thời gian thực hiện và mục tiêu công việc cụ thể được giao trong quá trình thực tập:"
+    },
+    {
+      "index": 171,
+      "type": "table",
+      "rows": [
+        [
+          "STT",
+          "Chu kỳ thực hiện",
+          "Nhiệm vụ phân công",
+          "Mục tiêu công việc cụ thể cần đạt"
+        ],
+        [
+          "1",
+          "Sprint 1 (Tuần 1)",
+          "Khảo sát nghiệp vụ, Thiết lập hạ tầng & Lập trình phân hệ Xác thực",
+          "Khảo sát quy trình bán bánh kem trực tuyến và nhu cầu đặt bánh của khách hàng.\nSố hóa quy trình thành các User Stories kèm tiêu chí chấp nhận chi tiết.\nThiết lập cơ sở dữ liệu PostgreSQL trên Supabase.\nXây dựng giao diện đăng ký, đăng nhập tương thích tốt trên mobile.\nLập trình Backend FastAPI xử lý xác thực người dùng, bảo vệ API và quản lý phiên đăng nhập.\nThiết lập cơ chế kiểm soát route phía Frontend."
+        ],
+        [
+          "2",
+          "Sprint 2 (Tuần 2)",
+          "Phát triển phân hệ danh mục sản phẩm và giỏ hàng",
+          "Thiết kế giao diện trang chủ, danh mục bánh kem và chi tiết sản phẩm.\nXây dựng chức năng tìm kiếm, xem thông tin sản phẩm, giá bán, hình ảnh và mô tả bánh.\nPhát triển chức năng thêm sản phẩm vào giỏ hàng, cập nhật số lượng và tính tổng giá trị đơn hàng.\nKết nối Frontend với API Backend để lấy dữ liệu sản phẩm từ Supabase."
+        ],
+        [
+          "3",
+          "Sprint 3 (Tuần 3)",
+          "Phát triển phân hệ tùy chỉnh bánh kem 3D và đặt hàng",
+          "Xây dựng giao diện thiết kế bánh kem trực quan, cho phép người dùng chọn kích thước, kiểu bánh, màu sắc và tùy chọn trang trí.\nTích hợp hình minh họa bánh bằng SVG để người dùng xem trước sản phẩm đã tùy chỉnh; mô hình 3D thật là hướng mở rộng.\nLưu thông tin bánh tùy chỉnh vào giỏ hàng và đơn hàng.\nPhát triển quy trình đặt hàng, tạo đơn hàng và lưu dữ liệu đơn hàng vào hệ thống"
+        ],
+        [
+          "4",
+          "Sprint 4 (Tuần 4)",
+          "Phát triển phân hệ quản trị, khu vực thợ làm bánh và chatbot AI",
+          "Xây dựng trang quản trị cho phép quản lý sản phẩm, thêm mới, chỉnh sửa và cập nhật thông tin bánh kem.\nPhát triển chức năng quản lý đơn hàng, theo dõi trạng thái xử lý đơn.\nXây dựng khu vực thợ làm bánh để xem đơn sản xuất, ghi chú và cập nhật trạng thái.\nTích hợp chatbot AI hỗ trợ tư vấn sản phẩm, gợi ý bánh phù hợp với nhu cầu khách hàng."
+        ],
+        [
+          "5",
+          "Sprint 5 (Tuần 5)",
+          "Kiểm thử, tối ưu hóa & triển khai đám mây",
+          "Tiến hành kiểm thử các Endpoint API bằng Postman và bộ kiểm thử Backend.\nKiểm tra tương thích giao diện trên trình duyệt desktop và mobile.\nTối ưu trải nghiệm người dùng, xử lý thông báo trạng thái và lỗi phía Client.\nCấu hình biến môi trường cho Frontend/Backend.\nTriển khai Frontend lên Vercel, Backend bằng Docker/Render và kết nối cơ sở dữ liệu Supabase online. \nTiến hành kiểm thử các Endpoint API bằng Postman và bộ kiểm thử Backend.\nKiểm tra tương thích giao diện trên trình duyệt desktop và mobile.\nTối ưu trải nghiệm người dùng, xử lý thông báo trạng thái và lỗi phía Client.\nCấu hình biến môi trường cho Frontend/Backend.\nTriển khai Frontend lên Vercel, Backend bằng Docker/Render và kết nối cơ sở dữ liệu Supabase online."
+        ]
+      ],
+      "row_count": 6,
+      "column_count": 4
+    },
+    {
+      "index": 173,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "2.1. Báo cáo tuần 1: Xây dựng phân hệ xác thực (Authentication)"
+    },
+    {
+      "index": 174,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.1.1. Công việc được giao"
+    },
+    {
+      "index": 175,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Trong tuần đầu tiên, em được giao nhiệm vụ tìm hiểu quy trình nghiệp vụ của website bán bánh kem trực tuyến, tập trung vào luồng người dùng đăng ký tài khoản, đăng nhập, đặt bánh và quản lý thông tin cá nhân. Trên cơ sở đó, em tham gia xây dựng nền tảng ban đầu cho hệ thống, bao gồm thiết kế dữ liệu người dùng trên Supabase, xây dựng giao diện đăng ký/đăng nhập và kết nối với Backend API để xử lý xác thực."
+    },
+    {
+      "index": 176,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Nhiệm vụ chính của tuần này là hoàn thiện phân hệ xác thực cho khách hàng, giúp người dùng có thể tạo tài khoản, đăng nhập vào hệ thống, sử dụng giỏ hàng, đặt bánh kem, theo dõi đơn hàng và sử dụng các chức năng dành riêng cho tài khoản cá nhân."
+    },
+    {
+      "index": 177,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.1.2. Công cụ sử dụng"
+    },
+    {
+      "index": 178,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Frontend: Next.js, React, TypeScript, Tailwind CSS."
+    },
+    {
+      "index": 179,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Backend: FastAPI, Python."
+    },
+    {
+      "index": 180,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Database và Authentication: Supabase, PostgreSQL, Supabase Auth."
+    },
+    {
+      "index": 181,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Công cụ kiểm thử: Swagger UI, Postman, Pytest."
+    },
+    {
+      "index": 182,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Công cụ quản lý mã nguồn và triển khai: Git, Vercel, Docker."
+    },
+    {
+      "index": 183,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.1.3. Quá trình thực hiện"
+    },
+    {
+      "index": 184,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Phân tích nghiệp vụ và kiến trúc hệ thống:\nEm tìm hiểu quy trình hoạt động của website bán bánh kem, bao gồm các bước người dùng truy cập hệ thống, xem danh mục bánh, đăng ký tài khoản, đăng nhập, thêm sản phẩm vào giỏ hàng và tiến hành đặt bánh. Từ đó, em xác định phân hệ xác thực là chức năng nền tảng, cần được xây dựng trước để phục vụ các chức năng tiếp theo như đặt hàng, quản lý đơn hàng, đánh giá sản phẩm và phân quyền quản trị."
+    },
+    {
+      "index": 185,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Xây dựng giao diện đăng ký và đăng nhập:\nEm xây dựng giao diện đăng ký tài khoản với các trường thông tin như họ tên, email, số điện thoại và mật khẩu. Giao diện được thiết kế theo phong cách của website bánh kem, sử dụng tông màu nhẹ, thân thiện và tương thích với cả desktop lẫn mobile. Ngoài ra, em cũng xây dựng giao diện đăng nhập, xử lý trạng thái loading, hiển thị lỗi khi nhập sai thông tin và điều hướng người dùng sau khi đăng nhập thành công."
+    },
+    {
+      "index": 186,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Kết nối Frontend với Backend API:\nSau khi hoàn thiện giao diện, em thực hiện kết nối Frontend với các API xác thực ở Backend. Khi người dùng đăng ký, dữ liệu được gửi đến API để tạo tài khoản trên Supabase Auth và lưu thông tin người dùng vào bảng users. Khi đăng nhập thành công, hệ thống trả về access token, refresh token và thông tin người dùng để Frontend lưu trạng thái đăng nhập."
+    },
+    {
+      "index": 187,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Thiết lập bảo mật và quản lý phiên đăng nhập:\nHệ thống sử dụng Supabase Auth để xử lý xác thực email và mật khẩu. Backend FastAPI đóng vai trò trung gian, kiểm tra dữ liệu đầu vào, gọi Supabase Auth và trả về token cho phía Client. Token này được sử dụng trong các request cần xác thực, giúp bảo vệ các chức năng như đặt hàng, xem đơn hàng cá nhân và truy cập trang quản trị theo vai trò người dùng."
+    },
+    {
+      "index": 188,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.1.4. Kết quả đạt được"
+    },
+    {
+      "index": 189,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Hoàn thành phân hệ đăng ký và đăng nhập cho người dùng. Hệ thống cho phép khách hàng tạo tài khoản bằng email, mật khẩu, họ tên và số điện thoại; đăng nhập vào website; nhận token xác thực và duy trì trạng thái phiên làm việc trên Frontend."
+    },
+    {
+      "index": 190,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Bên cạnh đó, Backend đã kết nối thành công với Supabase Auth và bảng users, hỗ trợ lưu thông tin người dùng với vai trò mặc định là khách hàng. Giao diện đăng ký/đăng nhập hoạt động ổn định, có kiểm tra dữ liệu đầu vào và hiển thị thông báo lỗi phù hợp."
+    },
+    {
+      "index": 193,
+      "type": "paragraph",
+      "style": "Caption",
+      "text": "Hình 1 Đăng nhập"
+    },
+    {
+      "index": 195,
+      "type": "paragraph",
+      "style": "Caption",
+      "text": "Hình 2 Đăng ký"
+    },
+    {
+      "index": 196,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.1.5. Khó khăn và cách giải quyết"
+    },
+    {
+      "index": 197,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Khó khăn: Ban đầu, việc đồng bộ giữa Supabase Auth và bảng users cần xử lý cẩn thận để vừa tạo tài khoản xác thực, vừa lưu được thông tin bổ sung như họ tên, số điện thoại và vai trò người dùng."
+    },
+    {
+      "index": 198,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Cách giải quyết: Em đã tách rõ luồng xử lý ở Backend: trước tiên tạo tài khoản bằng Supabase Auth, sau đó lấy user_id trả về để lưu thêm thông tin người dùng vào bảng users. Đồng thời, em bổ sung kiểm tra dữ liệu đầu vào ở cả Frontend và Backend nhằm hạn chế lỗi khi đăng ký."
+    },
+    {
+      "index": 199,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Khó khăn: Khi đăng nhập sai nhiều lần, hệ thống cần có cơ chế hạn chế để tránh tình trạng thử mật khẩu liên tục."
+    },
+    {
+      "index": 200,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Cách giải quyết: Backend được bổ sung cơ chế giới hạn số lần đăng nhập sai. Khi vượt quá số lần cho phép, hệ thống tạm khóa đăng nhập trong một khoảng thời gian và trả về thông báo phù hợp cho người dùng."
+    },
+    {
+      "index": 201,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "2.2. Báo cáo tuần 2: Phát triển phân hệ danh mục sản phẩm và giỏ hàng"
+    },
+    {
+      "index": 202,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.2.1. Công việc được giao"
+    },
+    {
+      "index": 203,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Trong tuần thứ hai, em được giao nhiệm vụ phát triển phân hệ danh mục sản phẩm cho website bán bánh kem tích hợp AI và thiết kế bánh trực quan theo vùng. Công việc tập trung vào xây dựng giao diện hiển thị danh sách bánh kem, trang chi tiết sản phẩm, chức năng thêm sản phẩm vào giỏ hàng và cập nhật số lượng sản phẩm trong giỏ. Bên cạnh đó, em thực hiện kết nối Frontend với Backend API để lấy dữ liệu sản phẩm từ Supabase, đảm bảo người dùng có thể xem thông tin bánh kem, giá bán, hình ảnh, mô tả sản phẩm và tiến hành thêm sản phẩm vào giỏ hàng trước khi đặt mua."
+    },
+    {
+      "index": 205,
+      "type": "paragraph",
+      "style": "Caption",
+      "text": "Hình 3 Giao diện danh mục bánh"
+    },
+    {
+      "index": 206,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.2.2. Công cụ sử dụng"
+    },
+    {
+      "index": 207,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Frontend: Next.js, React, TypeScript, Tailwind CSS."
+    },
+    {
+      "index": 208,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Backend: FastAPI, Python."
+    },
+    {
+      "index": 209,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Database: Supabase, PostgreSQL."
+    },
+    {
+      "index": 210,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Công cụ hỗ trợ: Swagger UI, Postman, Git."
+    },
+    {
+      "index": 211,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Thư viện/quản lý trạng thái: React Context, CartContext."
+    },
+    {
+      "index": 212,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.2.3. Quá trình thực hiện"
+    },
+    {
+      "index": 213,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Xây dựng giao diện danh mục sản phẩm: Em thiết kế giao diện hiển thị danh sách bánh kem với các thông tin cơ bản như hình ảnh, tên sản phẩm, giá bán, mô tả ngắn và nút xem chi tiết. Giao diện được xây dựng theo phong cách thân thiện, phù hợp với website tiệm bánh kem, đồng thời đảm bảo khả năng hiển thị tốt trên cả máy tính và thiết bị di động."
+    },
+    {
+      "index": 214,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Phát triển trang chi tiết sản phẩm: Sau khi người dùng chọn một sản phẩm, hệ thống chuyển sang trang chi tiết để hiển thị đầy đủ thông tin về bánh kem, bao gồm tên sản phẩm, hình ảnh, giá, mô tả và các thông tin liên quan. Trang chi tiết giúp khách hàng hiểu rõ hơn về sản phẩm trước khi thêm vào giỏ hàng."
+    },
+    {
+      "index": 216,
+      "type": "paragraph",
+      "style": "Caption",
+      "text": "Hình 4 Giao diện chi tiết sản phẩm"
+    },
+    {
+      "index": 217,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Kết nối API lấy dữ liệu sản phẩm: Em thực hiện kết nối Frontend với Backend API để lấy danh sách sản phẩm từ cơ sở dữ liệu Supabase. Backend FastAPI chịu trách nhiệm xử lý request, truy vấn dữ liệu sản phẩm và trả về cho Frontend theo định dạng phù hợp. Việc tách riêng Frontend và Backend giúp hệ thống dễ mở rộng và thuận tiện cho việc kiểm thử."
+    },
+    {
+      "index": 218,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Xây dựng chức năng giỏ hàng: Em phát triển chức năng thêm sản phẩm vào giỏ hàng, cập nhật số lượng, xóa sản phẩm và tính tổng giá trị đơn hàng. Trạng thái giỏ hàng được quản lý ở phía Frontend để người dùng có thể thao tác nhanh chóng trước khi chuyển sang bước thanh toán hoặc đặt hàng."
+    },
+    {
+      "index": 220,
+      "type": "paragraph",
+      "style": "Caption",
+      "text": "Hình 5 Giao diện giỏ hàng"
+    },
+    {
+      "index": 221,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.2.4. Kết quả đạt được"
+    },
+    {
+      "index": 222,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Hoàn thành giao diện danh mục sản phẩm và trang chi tiết sản phẩm."
+    },
+    {
+      "index": 223,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Kết nối thành công Frontend với Backend API để hiển thị dữ liệu bánh kem từ Supabase."
+    },
+    {
+      "index": 224,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Hoàn thiện chức năng thêm sản phẩm vào giỏ hàng, cập nhật số lượng và tính tổng tiền."
+    },
+    {
+      "index": 225,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Giao diện hoạt động ổn định trên desktop và mobile, hỗ trợ tốt cho luồng đặt bánh ở các tuần tiếp theo."
+    },
+    {
+      "index": 226,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.2.5. Khó khăn và cách giải quyết"
+    },
+    {
+      "index": 227,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Khó khăn:"
+    },
+    {
+      "index": 228,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Ban đầu dữ liệu sản phẩm trả về từ Backend chưa đồng nhất với kiểu dữ liệu mà Frontend cần hiển thị, gây lỗi khi render danh sách sản phẩm."
+    },
+    {
+      "index": 229,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Việc quản lý trạng thái giỏ hàng cần xử lý cẩn thận để tránh mất dữ liệu khi người dùng chuyển trang."
+    },
+    {
+      "index": 230,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Một số hình ảnh sản phẩm hiển thị chưa đúng kích thước, ảnh hưởng đến bố cục giao diện."
+    },
+    {
+      "index": 231,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Cách giải quyết:"
+    },
+    {
+      "index": 232,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Em kiểm tra lại cấu trúc dữ liệu trả về từ API, điều chỉnh kiểu dữ liệu ở Frontend để phù hợp với response từ Backend."
+    },
+    {
+      "index": 233,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Sử dụng cơ chế quản lý trạng thái giỏ hàng bằng Context để các thành phần trong giao diện có thể dùng chung dữ liệu giỏ hàng."
+    },
+    {
+      "index": 234,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Điều chỉnh giao diện thẻ sản phẩm và ảnh sản phẩm bằng Tailwind CSS để bố cục hiển thị đồng đều, đẹp hơn trên nhiều kích thước màn hình.   Em kiểm tra lại cấu trúc dữ liệu trả về từ API, điều chỉnh kiểu dữ liệu ở Frontend để phù hợp với response từ Backend."
+    },
+    {
+      "index": 235,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Sử dụng cơ chế quản lý trạng thái giỏ hàng bằng Context để các thành phần trong giao diện có thể dùng chung dữ liệu giỏ hàng."
+    },
+    {
+      "index": 236,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Điều chỉnh giao diện thẻ sản phẩm và ảnh sản phẩm bằng Tailwind CSS để bố cục hiển thị đồng đều, đẹp hơn trên nhiều kích thước màn hình."
+    },
+    {
+      "index": 239,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "2.3. Báo cáo tuần 3: Phát triển phân hệ tùy chỉnh bánh kem trực quan theo vùng và đặt hàng"
+    },
+    {
+      "index": 240,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.3.1. Công việc được giao"
+    },
+    {
+      "index": 241,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Trong tuần thứ ba, em được giao nhiệm vụ phát triển chức năng tùy chỉnh bánh kem trực quan theo vùng và hoàn thiện luồng đặt hàng cho website bán bánh kem. Mục tiêu là cho phép khách hàng tự thiết kế mẫu bánh theo nhu cầu, xem trước sản phẩm trực quan, thêm bánh tùy chỉnh vào giỏ hàng và tạo đơn hàng trên hệ thống."
+    },
+    {
+      "index": 242,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Phân hệ này đóng vai trò quan trọng trong đề tài vì giúp website không chỉ dừng lại ở việc bán sản phẩm có sẵn, mà còn hỗ trợ khách hàng cá nhân hóa bánh kem theo dịp sinh nhật, kỷ niệm hoặc sự kiện riêng."
+    },
+    {
+      "index": 245,
+      "type": "paragraph",
+      "style": "Caption",
+      "text": "Hình 6 Giao diện tùy chỉnh bánh kem trực quan theo vùng"
+    },
+    {
+      "index": 247,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.3.2. Công cụ sử dụng"
+    },
+    {
+      "index": 248,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Hiển thị tùy chỉnh: React và SVG tương tác; không sử dụng html5-qrcode."
+    },
+    {
+      "index": 249,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Frontend: Next.js, React, TypeScript, Tailwind CSS."
+    },
+    {
+      "index": 250,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Hiển thị hiện tại: component CakeSVG bằng SVG/React. Three.js/React Three Fiber là hướng nâng cấp để tạo mô hình 3D thực sự."
+    },
+    {
+      "index": 251,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Backend: FastAPI, Python."
+    },
+    {
+      "index": 252,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Database: Supabase, PostgreSQL."
+    },
+    {
+      "index": 253,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Quản lý trạng thái: React hooks, Context, local storage."
+    },
+    {
+      "index": 254,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Công cụ kiểm thử: Swagger UI, Postman."
+    },
+    {
+      "index": 255,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.3.3. Quá trình thực hiện"
+    },
+    {
+      "index": 256,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Xây dựng giao diện tùy chỉnh bánh kem: Em xây dựng giao diện cho phép người dùng lựa chọn các thuộc tính của bánh như kích thước, màu sắc, kiểu bánh, phần trang trí và nội dung tùy chỉnh. Các lựa chọn được bố trí trực quan để khách hàng dễ thao tác, đặc biệt trên thiết bị di động."
+    },
+    {
+      "index": 258,
+      "type": "paragraph",
+      "style": "Caption",
+      "text": "Hình 7 Các tùy chọn thiết kế bánh kem"
+    },
+    {
+      "index": 259,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Hiển thị mô hình bánh minh họa bằng SVG: Em phát triển phần xem trước bánh kem bằng SVG và cập nhật theo thời gian thực. Khi người dùng thay đổi tùy chọn, giao diện xem trước được cập nhật tương ứng, giúp khách hàng hình dung rõ hơn sản phẩm trước khi đặt mua. Chức năng này giúp tăng tính trải nghiệm và khác biệt so với website bán bánh thông thường."
+    },
+    {
+      "index": 260,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Tính giá bánh tùy chỉnh: Em xây dựng logic tính giá dựa trên các lựa chọn của khách hàng như kích thước bánh, loại bánh và tùy chọn trang trí. Giá tiền được cập nhật ngay trên giao diện để người dùng có thể theo dõi chi phí trước khi thêm vào giỏ hàng."
+    },
+    {
+      "index": 261,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Lưu bánh tùy chỉnh vào giỏ hàng: Sau khi hoàn tất thiết kế, người dùng có thể thêm mẫu bánh đã tùy chỉnh vào giỏ hàng. Dữ liệu tùy chỉnh được lưu kèm thông tin sản phẩm để đảm bảo khi đặt hàng, hệ thống vẫn ghi nhận đầy đủ yêu cầu của khách hàng."
+    },
+    {
+      "index": 262,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Phát triển luồng đặt hàng: Em kết nối giỏ hàng với API đặt hàng ở Backend. Khi người dùng xác nhận đặt hàng, hệ thống tạo đơn hàng mới, lưu thông tin khách hàng, danh sách sản phẩm, tổng tiền và trạng thái đơn hàng vào cơ sở dữ liệu Supabase."
+    },
+    {
+      "index": 263,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.3.4. Kết quả đạt được"
+    },
+    {
+      "index": 264,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Hoàn thành giao diện tùy chỉnh bánh kem trực quan theo vùng."
+    },
+    {
+      "index": 265,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Người dùng có thể lựa chọn kích thước, màu sắc, kiểu bánh và các tùy chọn trang trí."
+    },
+    {
+      "index": 266,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Mô hình bánh kem được hiển thị trực quan, hỗ trợ xem trước trước khi đặt hàng."
+    },
+    {
+      "index": 267,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Hoàn thiện chức năng tính giá bánh tùy chỉnh."
+    },
+    {
+      "index": 268,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Cho phép thêm bánh tùy chỉnh vào giỏ hàng và tạo đơn hàng trên hệ thống."
+    },
+    {
+      "index": 269,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Dữ liệu đơn hàng được lưu vào Supabase thông qua Backend API."
+    },
+    {
+      "index": 270,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.3.5. Khó khăn và cách giải quyết"
+    },
+    {
+      "index": 271,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Khó khăn:"
+    },
+    {
+      "index": 272,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Việc đồng bộ giữa lựa chọn của người dùng và phần hiển thị CakeSVG cần xử lý cẩn thận để giao diện cập nhật đúng theo từng thao tác."
+    },
+    {
+      "index": 273,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Dữ liệu bánh tùy chỉnh có nhiều thuộc tính hơn sản phẩm thông thường, dễ xảy ra thiếu dữ liệu khi thêm vào giỏ hàng hoặc tạo đơn hàng."
+    },
+    {
+      "index": 274,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Logic tính giá cần rõ ràng để người dùng thấy được giá thay đổi theo từng lựa chọn."
+    },
+    {
+      "index": 275,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Cách giải quyết:"
+    },
+    {
+      "index": 276,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Em tách các lựa chọn của người dùng thành trạng thái riêng, sau đó truyền dữ liệu này vào component CakeSVG để cập nhật giao diện theo thời gian thực."
+    },
+    {
+      "index": 277,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Chuẩn hóa cấu trúc dữ liệu bánh tùy chỉnh trước khi thêm vào giỏ hàng, đảm bảo các thông tin như kích thước, màu sắc, trang trí và giá tiền được lưu đầy đủ."
+    },
+    {
+      "index": 278,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Xây dựng hàm tính giá riêng để dễ kiểm tra, dễ mở rộng và hạn chế sai lệch khi thay đổi tùy chọn thiết kế."
+    },
+    {
+      "index": 280,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "2.4. Báo cáo tuần 4: Phát triển phân hệ quản trị, khu vực thợ làm bánh và chatbot AI"
+    },
+    {
+      "index": 281,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.4.1. Công việc được giao"
+    },
+    {
+      "index": 282,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Trong tuần thứ tư, em được giao nhiệm vụ phát triển các chức năng phục vụ quản trị và vận hành website bán bánh kem. Công việc tập trung vào xây dựng trang quản trị cho phép quản lý sản phẩm, quản lý đơn hàng, theo dõi kho và hỗ trợ nhân viên xử lý đơn đặt bánh của khách hàng."
+    },
+    {
+      "index": 283,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Bên cạnh đó, em tham gia phát triển chatbot AI tư vấn sản phẩm, giúp người dùng có thể hỏi thông tin về bánh kem, lựa chọn sản phẩm phù hợp với nhu cầu và nhận gợi ý nhanh trong quá trình mua hàng."
+    },
+    {
+      "index": 284,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.4.2. Công cụ sử dụng"
+    },
+    {
+      "index": 285,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Frontend: Next.js, React, TypeScript, Tailwind CSS."
+    },
+    {
+      "index": 286,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Backend: FastAPI, Python."
+    },
+    {
+      "index": 287,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Database: Supabase, PostgreSQL."
+    },
+    {
+      "index": 288,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "AI: Claude API/Anthropic, RAG service."
+    },
+    {
+      "index": 289,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Công cụ kiểm thử: Swagger UI, Postman, Pytest."
+    },
+    {
+      "index": 291,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.4.3. Quá trình thực hiện"
+    },
+    {
+      "index": 292,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Xây dựng chức năng quản lý sản phẩm: Backend cung cấp API tạo, chỉnh sửa, ẩn/hiện và tải ảnh JPEG/PNG/WebP lên Supabase Storage. Frontend có trang danh sách, form thêm mới, form chỉnh sửa, xem trước ảnh, kiểm tra dữ liệu và bảo vệ quyền truy cập dành cho admin."
+    },
+    {
+      "index": 294,
+      "type": "paragraph",
+      "style": "Caption",
+      "text": "Hình 8 Giao diện quản lý sản phẩm."
+    },
+    {
+      "index": 295,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Phát triển chức năng quản lý đơn hàng: hệ thống tách màn hình cho khách hàng, admin và thợ làm bánh. Đơn hàng vận hành theo state machine pending → confirmed → in_production → ready → delivered; quyền chuyển trạng thái được kiểm tra ở Backend theo vai trò."
+    },
+    {
+      "index": 297,
+      "type": "paragraph",
+      "style": "Caption",
+      "text": "Hình 9 Giao diện quản lý đơn hàng"
+    },
+    {
+      "index": 298,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Phát triển khu vực thợ làm bánh: baker xem các đơn đã xác nhận/đang sản xuất, xem chi tiết cấu hình bánh, cập nhật ghi chú sản xuất và chuyển trạng thái sang in_production hoặc ready. Phiên bản mã nguồn hiện tại chưa có module tồn kho độc lập."
+    },
+    {
+      "index": 299,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Tích hợp chatbot AI tư vấn sản phẩm: Frontend tạo phiên chat và nhận phản hồi dạng streaming SSE. Backend lấy danh mục sản phẩm đang hoạt động từ Supabase, đưa dữ liệu vào system prompt cho Claude, lưu lịch sử, trích xuất gợi ý sản phẩm và AI_Summary từ nội dung phản hồi."
+    },
+    {
+      "index": 301,
+      "type": "paragraph",
+      "style": "Caption",
+      "text": "Hình 10 Giao diện chatbot AI tư vấn bánh kem"
+    },
+    {
+      "index": 302,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Kiểm thử API và phân quyền truy cập: các dependency FastAPI xác thực Bearer token qua Supabase và kiểm tra vai trò customer/admin/baker; ProtectedRoute kiểm soát điều hướng phía Frontend. Pytest bao phủ xác thực, catalog, phân quyền, đơn hàng, chatbot và health check."
+    },
+    {
+      "index": 303,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.4.4. Kết quả đạt được"
+    },
+    {
+      "index": 304,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Admin có thể quản lý sản phẩm, thêm mới, chỉnh sửa và cập nhật thông tin bánh kem."
+    },
+    {
+      "index": 305,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Hệ thống hỗ trợ theo dõi đơn hàng và trạng thái xử lý đơn."
+    },
+    {
+      "index": 306,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Hoàn thiện khu vực thợ làm bánh và luồng cập nhật trạng thái sản xuất; module tồn kho độc lập được ghi nhận là hạng mục phát triển tiếp theo."
+    },
+    {
+      "index": 307,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Tích hợp chatbot AI giúp tư vấn sản phẩm cho khách hàng."
+    },
+    {
+      "index": 308,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Các API quản trị và chatbot được kiểm thử, đảm bảo hoạt động đúng luồng."
+    },
+    {
+      "index": 310,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.4.5. Khó khăn và cách giải quyết"
+    },
+    {
+      "index": 311,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Dữ liệu quản trị gồm nhiều nhóm khác nhau như sản phẩm, đơn hàng và kho, cần tổ chức giao diện rõ ràng để admin dễ thao tác."
+    },
+    {
+      "index": 312,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Việc tích hợp chatbot AI cần xử lý phản hồi từ Backend sao cho phù hợp với ngữ cảnh website bán bánh kem."
+    },
+    {
+      "index": 313,
+      "type": "paragraph",
+      "style": "List Paragraph",
+      "text": "Một số API quản trị yêu cầu kiểm soát quyền truy cập để tránh người dùng thường truy cập sai chức năng."
+    },
+    {
+      "index": 314,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "2.5. Báo cáo tuần 5: Kiểm thử, rà soát và hoàn thiện hệ thống"
+    },
+    {
+      "index": 315,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.5.1. Công việc được giao"
+    },
+    {
+      "index": 316,
+      "type": "table",
+      "rows": [
+        [
+          "Phần",
+          "Nội dung cần viết"
+        ],
+        [
+          "Công việc được giao",
+          "Mô tả rõ task/feature/module được giao"
+        ],
+        [
+          "Công cụ sử dụng",
+          "Liệt kê tool, framework, thư viện"
+        ],
+        [
+          "Quá trình thực hiện",
+          "Các bước làm, logic xử lý, quyết định kỹ thuật"
+        ],
+        [
+          "Kết quả đạt được",
+          "Screenshot, demo, link, đoạn code minh họa"
+        ],
+        [
+          "Khó khăn & cách giải quyết",
+          "Vấn đề gặp phải và cách đã xử lý"
+        ]
+      ],
+      "row_count": 6,
+      "column_count": 2
+    },
+    {
+      "index": 319,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Trong tuần 5, em tập trung rà soát mã nguồn Frontend/Backend, đối chiếu chức năng với tài liệu, kiểm thử các luồng xác thực, sản phẩm, đơn hàng, phân quyền, đánh giá và chatbot; đồng thời chuẩn hóa cấu hình chạy và hoàn thiện báo cáo."
+    },
+    {
+      "index": 320,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.5.2. Công cụ sử dụng"
+    },
+    {
+      "index": 321,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Pytest và pytest-asyncio cho Backend; TypeScript Compiler cho Frontend; Swagger UI/Postman cho API; Git để kiểm tra lịch sử thay đổi; Docker/Vercel cho cấu hình triển khai; Microsoft Word và LibreOffice cho tài liệu."
+    },
+    {
+      "index": 322,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.5.3. Quá trình thực hiện"
+    },
+    {
+      "index": 323,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Em rà soát từng router, service, schema và dependency của FastAPI; đối chiếu các lời gọi API từ các trang Next.js; kiểm tra state của Cake Builder, dữ liệu localStorage, quy tắc chuyển trạng thái đơn, luồng admin/baker và cơ chế streaming của chatbot."
+    },
+    {
+      "index": 324,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Bộ test Backend được chạy trong môi trường tách khỏi các biến cấu hình thừa trong file .env và đạt 150/150 test. Frontend vượt qua kiểm tra TypeScript với lệnh tsc --noEmit; production build tạo được BUILD_ID, tuy nhiên lệnh chạy trong môi trường kiểm tra bị timeout ở bước in cây route nên cần chạy lại trên CI/Vercel để lưu log triển khai hoàn chỉnh."
+    },
+    {
+      "index": 325,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.5.4. Kết quả đạt được"
+    },
+    {
+      "index": 326,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Hệ thống hiện có các phân hệ hoạt động ở mức mã nguồn: xác thực email/mật khẩu và Google OAuth, refresh token, catalog và đánh giá, Cake Customizer bằng SVG, đặt hàng COD, theo dõi đơn, quản trị sản phẩm/đơn hàng, khu vực thợ làm bánh, chatbot Claude tích hợp RAG theo catalog và phản hồi SSE."
+    },
+    {
+      "index": 327,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.5.5. Khó khăn và cách giải quyết"
+    },
+    {
+      "index": 328,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Khó khăn chính là nội dung báo cáo cũ mô tả một số chức năng theo kế hoạch nhưng chưa có trong code hiện tại. Em giải quyết bằng cách đối chiếu trực tiếp dependency, route, service, bảng dữ liệu và test; phân biệt rõ chức năng đã triển khai, prototype và hướng phát triển để bảo đảm báo cáo phản ánh đúng thực tế."
+    },
+    {
+      "index": 329,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "2.6. Thiết kế kỹ thuật và đánh giá giải pháp"
+    },
+    {
+      "index": 330,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.6.1. Kiến trúc tổng thể"
+    },
+    {
+      "index": 331,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Hệ thống được tổ chức theo mô hình Client-Server tách Frontend và Backend. Next.js 14 App Router đảm nhiệm giao diện, routing và tương tác người dùng. FastAPI cung cấp REST API theo tiền tố /api/v1, xử lý xác thực, nghiệp vụ và phân quyền. Supabase cung cấp PostgreSQL, Auth và Storage. Chatbot gọi Claude API từ Backend; dữ liệu catalog được truy xuất từ Supabase rồi ghép vào system prompt để giới hạn gợi ý theo sản phẩm thực tế."
+    },
+    {
+      "index": 332,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "GHI CHÚ CHÈN ẢNH (xóa ghi chú sau khi thay bằng ảnh thật): Chèn sơ đồ kiến trúc tổng thể: Người dùng → Next.js/TypeScript → FastAPI/Python → Supabase (Auth, PostgreSQL, Storage); FastAPI → Claude API; đánh số Hình 12."
+    },
+    {
+      "index": 333,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.6.2. Thiết kế cơ sở dữ liệu và ERD"
+    },
+    {
+      "index": 334,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Đối chiếu truy vấn trong mã nguồn cho thấy các bảng/đối tượng dữ liệu chính gồm users, products, product_images, orders, order_items, cake_customizations, order_status_history, chat_sessions, chat_messages và reviews; product_review_stats là view tổng hợp điểm đánh giá. Quan hệ chính: một user có nhiều order/chat session/review; một product có nhiều image/order item/review; một order có nhiều order item và status history; một order item có thể có một cake customization; một chat session có nhiều message."
+    },
+    {
+      "index": 335,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "GHI CHÚ CHÈN ẢNH (xóa ghi chú sau khi thay bằng ảnh thật): Chèn ERD Supabase/PostgreSQL thể hiện khóa chính/khóa ngoại của 10 bảng và view product_review_stats; đánh số Hình 13."
+    },
+    {
+      "index": 336,
+      "type": "table",
+      "rows": [
+        [
+          "Nhóm dữ liệu",
+          "Bảng/view",
+          "Vai trò"
+        ],
+        [
+          "Người dùng",
+          "users",
+          "Hồ sơ và vai trò customer/admin/baker"
+        ],
+        [
+          "Sản phẩm",
+          "products, product_images",
+          "Catalog, giá, lựa chọn và ảnh"
+        ],
+        [
+          "Đơn hàng",
+          "orders, order_items, cake_customizations, order_status_history",
+          "Đơn COD, chi tiết bánh và lịch sử trạng thái"
+        ],
+        [
+          "Chatbot",
+          "chat_sessions, chat_messages",
+          "Phiên chat, lịch sử và giới hạn số tin"
+        ],
+        [
+          "Đánh giá",
+          "reviews, product_review_stats",
+          "Điểm, bình luận và số liệu tổng hợp"
+        ]
+      ],
+      "row_count": 6,
+      "column_count": 3
+    },
+    {
+      "index": 337,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.6.3. API, xác thực và phân quyền"
+    },
+    {
+      "index": 338,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Backend tách router, schema và service. Bearer token được Supabase xác minh; dependency require_role áp dụng RBAC ở phía server, còn ProtectedRoute và AuthContext xử lý phiên, refresh token và điều hướng phía client. Đơn hàng dùng state machine để ngăn chuyển trạng thái sai và giới hạn thao tác theo vai trò."
+    },
+    {
+      "index": 339,
+      "type": "table",
+      "rows": [
+        [
+          "Nhóm API",
+          "Endpoint tiêu biểu",
+          "Quyền/chức năng"
+        ],
+        [
+          "Auth",
+          "/auth/register, /login, /oauth/google, /refresh, /logout",
+          "Đăng ký, đăng nhập, OAuth, làm mới phiên"
+        ],
+        [
+          "Catalog",
+          "/products, /products/{id}, /products/{id}/reviews",
+          "Danh sách, chi tiết và đánh giá"
+        ],
+        [
+          "Orders",
+          "/orders, /orders/{id}, /orders/{id}/status",
+          "Tạo, xem và cập nhật đơn"
+        ],
+        [
+          "Admin",
+          "/admin/products/*, /admin/orders/*",
+          "Quản lý sản phẩm và đơn hàng"
+        ],
+        [
+          "Baker",
+          "/baker/orders/*",
+          "Xem đơn sản xuất, ghi chú, cập nhật trạng thái"
+        ],
+        [
+          "Chat",
+          "/chat/sessions, /messages, /history",
+          "Tạo phiên, phản hồi SSE, lịch sử"
+        ]
+      ],
+      "row_count": 7,
+      "column_count": 3
+    },
+    {
+      "index": 340,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "GHI CHÚ CHÈN ẢNH (xóa ghi chú sau khi thay bằng ảnh thật): Chèn ảnh Swagger UI hoặc sơ đồ sequence đăng nhập và gọi API có JWT/RBAC; đánh số Hình 14."
+    },
+    {
+      "index": 341,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.6.4. Cake Customizer và luồng đặt hàng"
+    },
+    {
+      "index": 342,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Cake Builder hiện được triển khai bằng component CakeSVG, cho phép chọn vùng top/body/border, màu kem, trang trí, topping, kích thước, hương vị và ghi chú. Hook useCakeBuilder quản lý trạng thái và tính giá; dữ liệu được lưu tạm trong localStorage rồi gửi đến checkout. Backend lưu JSON tùy chỉnh vào cake_customizations và áp dụng thời gian chuẩn bị tối thiểu 24 giờ, hoặc 48 giờ với bánh hai tầng. Đây là mô phỏng trực quan 2D/giả lập chiều sâu; chưa phải mô hình WebGL 3D bằng Three.js."
+    },
+    {
+      "index": 343,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "GHI CHÚ CHÈN ẢNH (xóa ghi chú sau khi thay bằng ảnh thật): Chèn ảnh toàn màn hình Cake Builder có đủ bánh, bảng tùy chọn, giá và modal xem trước; đánh số Hình 15. Có thể chèn thêm ảnh checkout ở Hình 16."
+    },
+    {
+      "index": 344,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.6.5. Chatbot AI và cơ chế RAG"
+    },
+    {
+      "index": 345,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Mô hình AI mặc định trong cấu hình là Claude 3.5 Sonnet qua Anthropic SDK. RAG của đề tài là quy trình truy xuất catalog đang hoạt động từ bảng products, lọc theo tiêu chí đơn giản, chuyển thành JSON và đưa vào system prompt; hệ thống chưa dùng embedding hoặc vector database. ChatService bổ sung lịch sử hội thoại, gọi Claude, lưu tin nhắn, trích xuất recommendations/AI_Summary và trả phản hồi theo SSE. Cách làm này phù hợp MVP vì dễ kiểm soát giá và tên sản phẩm, nhưng cần giới hạn prompt, xử lý lỗi dịch vụ và theo dõi chi phí token khi triển khai thật."
+    },
+    {
+      "index": 346,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "GHI CHÚ CHÈN ẢNH (xóa ghi chú sau khi thay bằng ảnh thật): Chèn sơ đồ luồng RAG: câu hỏi → lấy catalog Supabase → lọc/JSON → system prompt + history → Claude → SSE → gợi ý/AI_Summary; đánh số Hình 17. Chèn ảnh widget chatbot có thẻ sản phẩm ở Hình 18."
+    },
+    {
+      "index": 347,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.6.6. So sánh và lý do lựa chọn công nghệ"
+    },
+    {
+      "index": 348,
+      "type": "table",
+      "rows": [
+        [
+          "Lựa chọn",
+          "So với phương án khác",
+          "Lý do áp dụng cho đề tài"
+        ],
+        [
+          "Next.js 14",
+          "React SPA thuần",
+          "Có App Router, SSR/ISR, routing và metadata tích hợp; phù hợp catalog cần SEO và tách server/client component."
+        ],
+        [
+          "FastAPI",
+          "Node.js/Express",
+          "Type hint và Pydantic tạo validation/OpenAPI rõ ràng; async tốt; thuận lợi tích hợp dịch vụ AI bằng Python."
+        ],
+        [
+          "Supabase/PostgreSQL",
+          "MySQL hoặc MongoDB tự quản",
+          "Có Auth, PostgreSQL quan hệ, Storage và RLS trong một nền tảng; giảm thời gian dựng hạ tầng MVP."
+        ],
+        [
+          "Claude + catalog RAG",
+          "Chatbot luật hoặc LLM không ngữ cảnh",
+          "Phản hồi tự nhiên nhưng vẫn bám danh mục và giá; có thể lưu lịch sử và xuất tóm tắt cấu trúc."
+        ],
+        [
+          "SVG/React",
+          "Three.js/React Three Fiber",
+          "Nhẹ, dễ thao tác và phù hợp thời gian thực tập; hạn chế là chưa có góc nhìn 3D/WebGL thực sự."
+        ]
+      ],
+      "row_count": 6,
+      "column_count": 3
+    },
+    {
+      "index": 349,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "2.6.7. Kiểm thử, triển khai và các giới hạn còn lại"
+    },
+    {
+      "index": 350,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Bộ test Backend hiện gồm 150 test bao phủ health check, xác thực/validation/rate limit, catalog, dependency phân quyền, state machine đơn hàng và chatbot/RAG. Frontend vượt kiểm tra TypeScript. Dự án có Dockerfile, docker-compose cho Backend và vercel.json cho Frontend; tuy nhiên báo cáo chưa có URL production hoặc log CI/CD để chứng minh triển khai hoàn chỉnh."
+    },
+    {
+      "index": 351,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Các giới hạn cần nêu rõ: chưa có giỏ hàng catalog độc lập; chưa có 3D WebGL; chưa có module tồn kho, tích điểm và thống kê doanh thu; migration trong repository mới có view thống kê đánh giá, chưa bao phủ toàn bộ schema; chưa có test Frontend tự động; token đang lưu localStorage nên cần cân nhắc HttpOnly cookie; cấu hình .env cần chuẩn hóa để tránh biến thừa làm Pydantic từ chối khởi động."
+    },
+    {
+      "index": 352,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "GHI CHÚ CHÈN ẢNH (xóa ghi chú sau khi thay bằng ảnh thật): Chèn ảnh terminal hiển thị '150 passed', ảnh kiểm tra TypeScript và ảnh cấu hình/URL triển khai Vercel-Docker (nếu có); đánh số Hình 19-21."
+    },
+    {
+      "index": 353,
+      "type": "paragraph",
+      "style": "Heading 1",
+      "text": "CHƯƠNG 3 – KỸ NĂNG VÀ KIẾN THỨC ĐÃ ÁP DỤNG"
+    },
+    {
+      "index": 355,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "3.1. Kiến thức chuyên môn đã vận dụng"
+    },
+    {
+      "index": 356,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Trong quá trình thực tập, em nhận thấy nhiều kiến thức được trang bị trên giảng đường đã trở thành nền tảng quan trọng, giúp em tiếp cận công việc thực tế một cách nhanh chóng và hiệu quả. Cụ thể như sau:"
+    },
+    {
+      "index": 357,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "3.1.1. Môn Lập trình Web"
+    },
+    {
+      "index": 358,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Đây là môn học có ảnh hưởng trực tiếp và rõ nét nhất đến công việc thực tập của em. Nhờ kiến thức nền tảng từ môn học này, em đã có thể nhanh chóng làm chủ kiến trúc phát triển ứng dụng Web Full-stack hiện đại được công ty sử dụng, cụ thể là sử dụng thành thạo ReactJS 18 để xây dựng giao diện người dùng động, có khả năng tương tác cao, đồng thời sử dụng NodeJS/Express để xây dựng và xử lý các API ở tầng backend một cách chuyên sâu."
+    },
+    {
+      "index": 359,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "3.1.2. Môn Cơ sở dữ liệu (CSDL)"
+    },
+    {
+      "index": 360,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Kiến thức từ môn CSDL giúp em nâng cao tư duy về quản trị cơ sở dữ liệu quan hệ. Em đã hiểu sâu sắc hơn về cách thức tổ chức các thực thể (entity), thiết lập mối liên kết giữa các bảng dữ liệu, từ đó áp dụng vào việc viết các câu lệnh truy vấn SQL được tối ưu hóa. Kết quả là các API do em xây dựng đảm bảo được tốc độ phản hồi dưới 500ms."
+    },
+    {
+      "index": 361,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "3.1.3. Môn Mạng máy tính / An toàn và Bảo mật thông tin"
+    },
+    {
+      "index": 362,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Những kiến thức nền tảng về bảo mật từ môn học này đã được em vận dụng và mở rộng đáng kể trong môi trường thực tế tại doanh nghiệp, đặc biệt là trong lĩnh vực y tế số - nơi yêu cầu bảo mật dữ liệu ở mức rất cao. Cụ thể, em đã:"
+    },
+    {
+      "index": 363,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Thực thi cơ chế phân quyền RBAC (Role-Based Access Control) kết hợp với JWT (JSON Web Token) để xác thực và phân quyền người dùng theo từng vai trò."
+    },
+    {
+      "index": 364,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Thiết lập chính sách bảo mật cấp hàng dữ liệu RLS (Row-Level Security) trên hệ quản trị cơ sở dữ liệu Supabase, nhằm ngăn chặn triệt để nguy cơ truy cập trái phép, lọt thông tin hồ sơ bệnh án của bệnh nhân."
+    },
+    {
+      "index": 365,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Áp dụng kỹ thuật băm mã hóa một chiều Bcrypt để bảo vệ mật khẩu người dùng."
+    },
+    {
+      "index": 366,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Sử dụng kỹ thuật Parameterized Query trong các câu lệnh truy vấn nhằm chặn đứng nguy cơ tấn công SQL Injection."
+    },
+    {
+      "index": 367,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "3.1.4. Kiến thức về hệ điều hành và lập trình song song"
+    },
+    {
+      "index": 368,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Bên cạnh đó, em cũng vận dụng được kiến thức liên quan đến xử lý đồng thời (concurrency) để giải quyết bài toán xử lý đồng bộ và tranh chấp tài nguyên (resource contention) - một vấn đề thường gặp khi nhiều người dùng cùng truy cập và chỉnh sửa dữ liệu tại một thời điểm. Em đã làm chủ được cơ chế Database Transaction và Row-Level Locking trong PostgreSQL, đảm bảo tính toàn vẹn (integrity) và nhất quán (consistency) của dữ liệu trong các tình huống truy cập đồng thời."
+    },
+    {
+      "index": 370,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "3.2. Kỹ năng mềm và làm việc nhóm"
+    },
+    {
+      "index": 371,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Bên cạnh các kiến thức chuyên môn, quá trình thực tập tại Phòng Công nghệ thông tin - Trung tâm Phát triển Phần mềm SDC cũng giúp em rèn luyện và cải thiện đáng kể các kỹ năng làm việc chuyên nghiệp trong quá trình thực hiện đề tài."
+    },
+    {
+      "index": 372,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "3.2.1. Kỹ năng giao tiếp và báo cáo công việc"
+    },
+    {
+      "index": 373,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Trong quá trình thực tập, em đã học cách giao tiếp hiệu quả với người hướng dẫn khi trao đổi về yêu cầu chức năng, thiết kế giao diện, xử lý lỗi Frontend/Backend và các vấn đề phát sinh trong quá trình phát triển hệ thống. Khi gặp lỗi liên quan đến đăng nhập, kết nối API, hiển thị dữ liệu sản phẩm, giỏ hàng hoặc chatbot AI, em chủ động ghi nhận vấn đề, mô tả lỗi rõ ràng và trao đổi để tìm hướng xử lý phù hợp."
+    },
+    {
+      "index": 374,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Bên cạnh đó, em thường xuyên báo cáo tiến độ công việc theo từng tuần, bao gồm các chức năng đã hoàn thành, khó khăn gặp phải và kế hoạch triển khai tiếp theo. Việc báo cáo định kỳ giúp em hình thành thói quen làm việc có trách nhiệm, minh bạch, biết theo dõi tiến độ cá nhân và chủ động hơn trong quá trình thực hiện nhiệm vụ."
+    },
+    {
+      "index": 375,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "3.2.2. Kỹ năng đọc hiểu tài liệu kỹ thuật bằng tiếng Anh"
+    },
+    {
+      "index": 376,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Phần lớn tài liệu kỹ thuật của các công nghệ sử dụng trong đề tài như Next.js, React, TypeScript, Tailwind CSS, FastAPI, Supabase, PostgreSQL và các dịch vụ AI đều được viết bằng tiếng Anh. Trong quá trình thực tập, em đã rèn luyện khả năng đọc hiểu tài liệu chính thức, tra cứu cách sử dụng thư viện, cấu hình môi trường, kết nối API và xử lý lỗi khi triển khai hệ thống."
+    },
+    {
+      "index": 377,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Kỹ năng này giúp em chủ động hơn trong việc tiếp cận công nghệ mới, hiểu đúng cách sử dụng framework/thư viện và áp dụng vào dự án thực tế. Thay vì chỉ phụ thuộc vào các bài hướng dẫn có sẵn, em dần hình thành thói quen đọc tài liệu gốc, kiểm tra ví dụ chính thức và tự điều chỉnh giải pháp cho phù hợp với hệ thống đang phát triển."
+    },
+    {
+      "index": 378,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "3.3. Quy trình làm việc tại doanh nghiệp"
+    },
+    {
+      "index": 379,
+      "type": "paragraph",
+      "style": "Heading 3",
+      "text": "3.3.1. Quy trình quản lý mã nguồn với Git"
+    },
+    {
+      "index": 380,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Bên cạnh việc thực hiện các nhiệm vụ phát triển hệ thống, em cũng được làm quen và áp dụng quy trình quản lý mã nguồn bằng Git trong quá trình xây dựng đề tài Website bán bánh kem tích hợp AI và thiết kế bánh trực quan theo vùng. Quy trình này giúp việc phát triển các chức năng như xác thực người dùng, danh mục sản phẩm, giỏ hàng, thiết kế bánh trực quan theo vùng, quản lý đơn hàng và chatbot AI được tổ chức rõ ràng hơn."
+    },
+    {
+      "index": 381,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Cụ thể, quy trình làm việc với Git gồm các bước sau:"
+    },
+    {
+      "index": 382,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Branching:\nKhi bắt đầu một chức năng mới, em tạo một nhánh riêng từ nhánh chính như main hoặc develop. Tên nhánh được đặt theo nội dung công việc, ví dụ: feat/auth, feat/product-catalog, feat/cart, feat/cake-builder, feat/admin-orders hoặc fix/login-api. Việc tách nhánh giúp hạn chế ảnh hưởng đến mã nguồn chính trong quá trình phát triển."
+    },
+    {
+      "index": 383,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Commit:\nTrong quá trình lập trình, em thực hiện commit sau khi hoàn thành từng phần công việc cụ thể. Nội dung commit được viết ngắn gọn, rõ ràng để mô tả thay đổi đã thực hiện, ví dụ như thêm giao diện đăng nhập, kết nối API sản phẩm, sửa lỗi giỏ hàng hoặc cập nhật chức năng quản lý đơn hàng. Điều này giúp dễ dàng theo dõi lịch sử thay đổi của dự án."
+    },
+    {
+      "index": 384,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Pull Request (PR):\nSau khi hoàn thành task trên nhánh riêng, em tạo Pull Request để đề xuất gộp code vào nhánh chính. Trong Pull Request, em mô tả các chức năng đã thực hiện, những file hoặc module có thay đổi, kết quả kiểm thử và các vấn đề cần người hướng dẫn xem xét. Quy trình này giúp việc kiểm soát chất lượng mã nguồn được thực hiện trước khi tích hợp vào hệ thống chung."
+    },
+    {
+      "index": 385,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Code Review:\nTrước khi Pull Request được merge, code được người hướng dẫn hoặc các thành viên có kinh nghiệm xem xét lại. Thông qua quá trình review, em nhận được góp ý về cách tổ chức component, cách viết API, xử lý trạng thái giao diện, đặt tên biến/hàm, tối ưu code và xử lý các trường hợp lỗi. Đây là bước quan trọng giúp em cải thiện tư duy lập trình và viết code rõ ràng, dễ bảo trì hơn."
+    },
+    {
+      "index": 386,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Thông qua quy trình quản lý mã nguồn với Git, em hiểu rõ hơn tầm quan trọng của việc làm việc có tổ chức trong một dự án phần mềm. Việc chia nhánh, commit rõ ràng, tạo Pull Request và tiếp nhận Code Review giúp em nâng cao trách nhiệm cá nhân đối với chất lượng sản phẩm, đồng thời phối hợp hiệu quả hơn trong môi trường phát triển phần mềm thực tế."
+    },
+    {
+      "index": 388,
+      "type": "paragraph",
+      "style": "Heading 1",
+      "text": "CHƯƠNG 4 – PHÂN TÍCH VÀ ĐÁNH GIÁ"
+    },
+    {
+      "index": 389,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "4.1. Đánh giá kết quả đạt được"
+    },
+    {
+      "index": 390,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Sau 5 tuần thực tập, em đã hoàn thành phần lớn các nhiệm vụ theo kế hoạch ban đầu của đề tài. Các chức năng chính như đăng ký, đăng nhập, danh mục sản phẩm, chi tiết sản phẩm, giỏ hàng, đặt hàng, thiết kế bánh kem trực quan theo vùng, quản lý sản phẩm, quản lý đơn hàng, khu vực thợ làm bánh và chatbot AI đã được nghiên cứu, xây dựng và kiểm thử ở mức cơ bản."
+    },
+    {
+      "index": 391,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "So với kế hoạch ban đầu, kết quả thực tế đạt được tương đối phù hợp. Các phân hệ nền tảng như xác thực người dùng, kết nối Frontend/Backend, lưu trữ dữ liệu trên Supabase và xử lý đơn hàng đã hoàn thành. Đặc biệt, chức năng thiết kế bánh kem trực quan theo vùng và chatbot AI là hai điểm nổi bật của đề tài, giúp website có tính tương tác và hỗ trợ người dùng tốt hơn so với một website bán hàng thông thường."
+    },
+    {
+      "index": 392,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Tuy nhiên, một số phần vẫn còn có thể tiếp tục hoàn thiện thêm như tối ưu giao diện quản trị, bổ sung thống kê doanh thu, cải thiện khả năng gợi ý sản phẩm của chatbot AI và kiểm thử trên nhiều thiết bị hơn. Nhìn chung, sản phẩm đã đạt được mục tiêu của phiên bản khả dụng tối thiểu (MVP), có thể trình bày được luồng nghiệp vụ chính của một website bán bánh kem trực tuyến."
+    },
+    {
+      "index": 393,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "4.2. Phân tích điểm mạnh – điểm yếu bản thân"
+    },
+    {
+      "index": 394,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Trong quá trình thực tập, em nhận thấy bản thân đã thể hiện được một số năng lực kỹ thuật như xây dựng giao diện bằng Next.js/React, kết nối API với Backend FastAPI, làm việc với Supabase/PostgreSQL, xử lý trạng thái giỏ hàng và tham gia phát triển các chức năng thực tế của hệ thống. Em cũng có khả năng đọc hiểu tài liệu kỹ thuật, tự tìm nguyên nhân lỗi và điều chỉnh code theo góp ý của người hướng dẫn."
+    },
+    {
+      "index": 395,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Điểm mạnh của em là có tinh thần học hỏi, chịu khó tìm hiểu công nghệ mới và có khả năng tiếp cận nhanh với cấu trúc dự án. Khi gặp lỗi liên quan đến API, giao diện hoặc dữ liệu, em biết cách kiểm tra từng phần để xác định nguyên nhân thay vì chỉ sửa theo cảm tính."
+    },
+    {
+      "index": 396,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Bên cạnh đó, em vẫn còn một số hạn chế cần cải thiện. Kinh nghiệm thiết kế kiến trúc hệ thống và tối ưu code trong dự án thực tế còn chưa nhiều. Một số lúc em mất nhiều thời gian để xử lý lỗi do chưa quen với quy trình debug chuyên nghiệp. Ngoài ra, kỹ năng viết test và kiểm thử toàn diện vẫn cần được rèn luyện thêm để đảm bảo sản phẩm ổn định hơn trước khi triển khai."
+    },
+    {
+      "index": 397,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Một kỹ năng em bất ngờ phát hiện và cải thiện trong quá trình thực tập là khả năng đọc tài liệu tiếng Anh và tự học công nghệ mới. Trước đây em thường phụ thuộc nhiều vào hướng dẫn có sẵn, nhưng trong quá trình làm đề tài, em đã chủ động tra cứu tài liệu của Next.js, FastAPI, Supabase và các thư viện liên quan để áp dụng vào dự án."
+    },
+    {
+      "index": 398,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "4.3. Nhận xét về môi trường doanh nghiệp"
+    },
+    {
+      "index": 399,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Môi trường thực tập tại Trung tâm Phát triển Phần mềm SDC giúp em tiếp cận gần hơn với quy trình phát triển phần mềm thực tế. Phong cách làm việc tại đây đề cao tính chủ động, tinh thần trách nhiệm và khả năng phối hợp giữa các thành viên trong nhóm. Khi gặp vấn đề kỹ thuật, em được hướng dẫn cách phân tích lỗi, tìm tài liệu phù hợp và lựa chọn giải pháp hợp lý thay vì chỉ nhận câu trả lời trực tiếp."
+    },
+    {
+      "index": 400,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Về quy trình công nghệ, em nhận thấy việc sử dụng Git, chia task theo từng giai đoạn, kiểm thử API và tách riêng Frontend/Backend là những điểm rất hữu ích. Quy trình này giúp dự án dễ quản lý, dễ mở rộng và giảm rủi ro khi có nhiều người cùng tham gia phát triển. Tuy nhiên, nếu có thêm tài liệu mô tả chi tiết hơn về quy ước đặt tên, cấu trúc thư mục và quy trình review code thì sinh viên mới sẽ tiếp cận dự án nhanh hơn."
+    },
+    {
+      "index": 401,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Qua quá trình thực tập, em nhận thấy có khoảng cách nhất định giữa kiến thức học ở trường và yêu cầu thực tế tại doanh nghiệp. Ở trường, các bài tập thường tập trung vào một chức năng riêng lẻ, trong khi dự án thực tế yêu cầu kết hợp nhiều phần như giao diện, API, cơ sở dữ liệu, xác thực, bảo mật, kiểm thử, triển khai và xử lý lỗi phát sinh. Điều này giúp em hiểu rằng ngoài kiến thức nền tảng, sinh viên cần rèn luyện thêm kỹ năng tự học, đọc tài liệu và làm việc theo quy trình."
+    },
+    {
+      "index": 402,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "4.4. Đề xuất cải tiến (nếu có)"
+    },
+    {
+      "index": 403,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Đối với dự án, em đề xuất có thể phát triển thêm chức năng thống kê doanh thu và báo cáo đơn hàng cho trang quản trị. Chức năng này sẽ giúp chủ tiệm bánh dễ dàng theo dõi số lượng đơn, sản phẩm bán chạy, doanh thu theo ngày/tháng và tình trạng xử lý đơn hàng."
+    },
+    {
+      "index": 404,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Ngoài ra, hệ thống có thể cải thiện chatbot AI theo hướng tư vấn thông minh hơn, ví dụ gợi ý bánh theo dịp sử dụng, độ tuổi, ngân sách, số lượng người ăn hoặc khẩu vị của khách hàng. Điều này giúp chatbot không chỉ trả lời câu hỏi cơ bản mà còn đóng vai trò như một nhân viên tư vấn bán hàng trực tuyến."
+    },
+    {
+      "index": 405,
+      "type": "paragraph",
+      "style": "Normal (Web)",
+      "text": "Về mặt kỹ thuật, em mong muốn thử nghiệm thêm việc lưu lịch sử thiết kế bánh trực quan theo vùng của người dùng, cho phép khách hàng quay lại chỉnh sửa mẫu bánh đã tạo trước đó. Đồng thời, có thể bổ sung hệ thống thông báo trạng thái đơn hàng qua email hoặc giao diện người dùng để nâng cao trải nghiệm mua hàng."
+    },
+    {
+      "index": 407,
+      "type": "paragraph",
+      "style": "Heading 1",
+      "text": "CHƯƠNG 5 – KẾT LUẬN VÀ ĐỊNH HƯỚNG"
+    },
+    {
+      "index": 408,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "5.1. Tổng kết kỳ thực tập"
+    },
+    {
+      "index": 409,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Đợt thực tập tốt nghiệp kéo dài 05 tuần tại Phòng Công nghệ thông tin - Trung tâm Phát triển Phần mềm SDC là một dấu mốc quan trọng trong quá trình học tập và định hướng nghề nghiệp của em. Kỳ thực tập giúp em có cơ hội vận dụng kiến thức đã học tại trường vào một đề tài thực tế"
+    },
+    {
+      "index": 410,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Thông qua quá trình tham gia phát triển hệ thống, em hiểu rõ hơn quy trình xây dựng một ứng dụng web full-stack hiện đại, từ phân tích yêu cầu, thiết kế giao diện, xây dựng API, kết nối cơ sở dữ liệu, kiểm thử chức năng cho đến chuẩn bị triển khai. Sản phẩm không chỉ hướng đến việc hiển thị và bán bánh kem trực tuyến, mà còn tập trung nâng cao trải nghiệm người dùng thông qua chức năng tùy chỉnh bánh kem trực quan theo vùng và chatbot AI hỗ trợ tư vấn sản phẩm. Về kỹ thuật, em đã tích lũy được nhiều kinh nghiệm quan trọng khi làm việc với Next.js/React, TypeScript, Tailwind CSS ở phía Frontend và FastAPI/Python, Supabase/PostgreSQL ở phía Backend. Em đã tham gia xây dựng các phân hệ chính như đăng ký, đăng nhập, danh mục sản phẩm, chi tiết sản phẩm, giỏ hàng, đặt hàng, thiết kế bánh kem trực quan theo vùng, quản lý sản phẩm, quản lý đơn hàng, đánh giá sản phẩm, khu vực thợ làm bánh và chatbot AI. Qua đó, em hiểu rõ hơn cách một hệ thống thương mại điện tử được tổ chức và vận hành. Bên cạnh đó, em cũng được rèn luyện kỹ năng làm việc với API, quản lý trạng thái giao diện, xử lý dữ liệu đơn hàng, cấu hình biến môi trường, kiểm thử API bằng Swagger UI/Postman và làm việc với Git trong quá trình phát triển. Việc tiếp xúc với Supabase giúp em hiểu rõ hơn về cách quản lý dữ liệu người dùng, sản phẩm, đơn hàng và các chức năng liên quan trong một hệ thống thực tế."
+    },
+    {
+      "index": 411,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Về kỹ năng mềm, em đã cải thiện khả năng giao tiếp, báo cáo công việc, tiếp nhận góp ý và chủ động xử lý vấn đề. Khi gặp lỗi trong quá trình phát triển như lỗi kết nối API, sai định dạng dữ liệu, lỗi hiển thị giao diện hoặc vấn đề trong luồng đặt hàng, em đã học cách phân tích nguyên nhân, tra cứu tài liệu và trao đổi với người hướng dẫn để tìm giải pháp phù hợp. Khả năng đọc hiểu tài liệu kỹ thuật tiếng Anh của em cũng được cải thiện đáng kể thông qua việc tìm hiểu tài liệu của Next.js, FastAPI, Supabase và các thư viện liên quan."
+    },
+    {
+      "index": 412,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Nhìn chung, kỳ thực tập đã giúp em có cái nhìn thực tế hơn về công việc phát triển phần mềm. Em nhận ra rằng một sản phẩm hoàn chỉnh không chỉ cần viết code chạy được, mà còn cần giao diện dễ sử dụng, dữ liệu được tổ chức hợp lý, API ổn định, bảo mật cơ bản, khả năng mở rộng và quy trình kiểm thử rõ ràng."
+    },
+    {
+      "index": 413,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "5.2. Định hướng nghề nghiệp sau thực tập"
+    },
+    {
+      "index": 414,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Từ những kinh nghiệm tích lũy được trong kỳ thực tập, em xác định định hướng nghề nghiệp của bản thân là trở thành Fullstack Developer, trong đó tiếp tục củng cố cả kỹ năng Frontend và Backend. Em đặc biệt quan tâm đến phát triển các hệ thống web thương mại điện tử, hệ thống quản trị và các ứng dụng có tích hợp AI nhằm nâng cao trải nghiệm người dùng."
+    },
+    {
+      "index": 415,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Trong thời gian tới, em sẽ tập trung nâng cao kiến thức về Backend, cơ sở dữ liệu và kiến trúc hệ thống. Cụ thể, em mong muốn học sâu hơn về thiết kế API, tối ưu truy vấn PostgreSQL, bảo mật xác thực người dùng, phân quyền, kiểm thử tự động và triển khai hệ thống bằng Docker. Đây là những kỹ năng quan trọng để có thể xây dựng các ứng dụng web ổn định, dễ mở rộng và phù hợp với yêu cầu thực tế của doanh nghiệp."
+    },
+    {
+      "index": 416,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Bên cạnh đó, em cũng định hướng tiếp tục nghiên cứu các công nghệ liên quan đến AI trong thương mại điện tử, chẳng hạn như chatbot tư vấn sản phẩm, gợi ý sản phẩm theo nhu cầu khách hàng và cá nhân hóa trải nghiệm mua sắm. Đối với đề tài website bán bánh kem, em mong muốn phát triển thêm các chức năng như thanh toán trực tuyến, theo dõi trạng thái đơn hàng theo thời gian thực, lưu lịch sử thiết kế bánh trực quan theo vùng và thống kê doanh thu cho trang quản trị."
+    },
+    {
+      "index": 417,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Trong 6-12 tháng tới, em sẽ tiếp tục rèn luyện kỹ năng lập trình thông qua các dự án thực tế, hoàn thiện kiến thức về Next.js, FastAPI, Supabase/PostgreSQL, Docker và kiểm thử phần mềm. Mục tiêu của em là ứng tuyển vào vị trí Junior Fullstack Developer hoặc Junior Backend Developer tại các công ty phát triển phần mềm, nơi em có thể tiếp tục học hỏi, đóng góp vào sản phẩm thực tế và phát triển năng lực chuyên môn lâu dài."
+    },
+    {
+      "index": 418,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "5.3. Kiến nghị với nhà trường"
+    },
+    {
+      "index": 419,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Để nâng cao chất lượng đào tạo và giúp sinh viên thích ứng tốt hơn với môi trường làm việc thực tế, em xin kiến nghị nhà trường cập nhật và bổ sung một số nội dung học tập gắn với nhu cầu của doanh nghiệp hiện nay."
+    },
+    {
+      "index": 420,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Về mặt môn học, nhà trường nên tăng cường các học phần liên quan đến phát triển ứng dụng web hiện đại, đặc biệt là các công nghệ đang được sử dụng phổ biến như React, Next.js, TypeScript, Tailwind CSS và các nền tảng Backend như FastAPI, Node.js/Express. Bên cạnh đó, sinh viên cũng cần được tiếp cận sâu hơn với các hệ quản trị cơ sở dữ liệu hiện đại như PostgreSQL, Supabase, cách thiết kế API, xác thực người dùng, phân quyền và tổ chức dữ liệu cho các hệ thống thương mại điện tử."
+    },
+    {
+      "index": 421,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Ngoài ra, em đề xuất nhà trường bổ sung thêm nội dung về triển khai ứng dụng thực tế, bao gồm cấu hình biến môi trường, triển khai Frontend lên Vercel, triển khai Backend bằng Docker hoặc các nền tảng cloud, cũng như xử lý các lỗi thường gặp khi deploy. Đây là những kỹ năng rất cần thiết vì trong thực tế, một sản phẩm phần mềm không chỉ cần chạy được ở máy cá nhân mà còn phải có khả năng vận hành ổn định trên môi trường trực tuyến."
+    },
+    {
+      "index": 422,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Về kỹ năng thực hành, nhà trường nên tăng cường các bài tập lớn hoặc đồ án theo hướng xây dựng sản phẩm hoàn chỉnh. Các đồ án nên yêu cầu sinh viên thực hiện đầy đủ quy trình từ phân tích yêu cầu, thiết kế giao diện, xây dựng Frontend, phát triển Backend API, kết nối cơ sở dữ liệu, kiểm thử, triển khai và viết tài liệu hướng dẫn sử dụng. Điều này sẽ giúp sinh viên hiểu rõ hơn quy trình phát triển phần mềm thực tế thay vì chỉ làm các bài tập nhỏ, tách rời từng phần."
+    },
+    {
+      "index": 423,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Bên cạnh đó, em kiến nghị nhà trường chú trọng hơn đến quy trình làm việc nhóm chuyên nghiệp như sử dụng Git, GitHub/GitLab, tạo branch, commit, Pull Request, Code Review và xử lý conflict. Đây là những kỹ năng rất quan trọng khi tham gia dự án tại doanh nghiệp, giúp sinh viên làm việc có tổ chức và phối hợp nhóm hiệu quả hơn."
+    },
+    {
+      "index": 424,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "Cuối cùng, nhà trường có thể bổ sung thêm các nội dung mới như tích hợp AI vào ứng dụng web, xây dựng chatbot tư vấn, gợi ý sản phẩm, xử lý dữ liệu người dùng và tối ưu trải nghiệm khách hàng. Những kiến thức này phù hợp với xu hướng phát triển phần mềm hiện nay và giúp sinh viên có thêm lợi thế khi tham gia thị trường lao động."
+    },
+    {
+      "index": 426,
+      "type": "paragraph",
+      "style": "Heading 1",
+      "text": "TÀI LIỆU THAM KHẢO"
+    },
+    {
+      "index": 427,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "[1] Next.js Documentation, https://nextjs.org/docs."
+    },
+    {
+      "index": 428,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "[2] FastAPI Documentation, https://fastapi.tiangolo.com/."
+    },
+    {
+      "index": 429,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "[3] Supabase Documentation, https://supabase.com/docs."
+    },
+    {
+      "index": 430,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "[4] PostgreSQL Documentation, https://www.postgresql.org/docs/."
+    },
+    {
+      "index": 431,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "[5] Anthropic API Documentation, https://docs.anthropic.com/."
+    },
+    {
+      "index": 432,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "[6] React Documentation, https://react.dev/."
+    },
+    {
+      "index": 433,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "[7] Mã nguồn và tài liệu nội bộ đề tài Bakery_3D: README.md, HUONG_DAN_CHAY_CODE.txt, báo cáo tiến độ tuần 1-4 và tài liệu Use Case/Activity Diagram."
+    },
+    {
+      "index": 434,
+      "type": "paragraph",
+      "style": "Heading 1",
+      "text": "PHỤ LỤC"
+    },
+    {
+      "index": 435,
+      "type": "paragraph",
+      "style": "Heading 2",
+      "text": "Phụ lục A. Danh sách ảnh/sơ đồ cần bổ sung trước khi nộp"
+    },
+    {
+      "index": 436,
+      "type": "table",
+      "rows": [
+        [
+          "STT",
+          "Vị trí",
+          "Ảnh/sơ đồ cần chèn",
+          "Caption đề xuất"
+        ],
+        [
+          "1",
+          "Mục 1.2",
+          "Sơ đồ tổ chức hoặc sơ đồ tác nghiệp tại SDC",
+          "Hình 11. Cơ cấu tác nghiệp liên quan đến vị trí thực tập"
+        ],
+        [
+          "2",
+          "Mục 2.6.1",
+          "Kiến trúc Next.js - FastAPI - Supabase - Claude",
+          "Hình 12. Kiến trúc tổng thể hệ thống"
+        ],
+        [
+          "3",
+          "Mục 2.6.2",
+          "ERD từ Supabase",
+          "Hình 13. Sơ đồ quan hệ cơ sở dữ liệu"
+        ],
+        [
+          "4",
+          "Mục 2.6.3",
+          "Swagger UI hoặc sequence JWT/RBAC",
+          "Hình 14. Luồng xác thực và phân quyền API"
+        ],
+        [
+          "5",
+          "Mục 2.6.4",
+          "Cake Builder đầy đủ bảng tùy chọn và giá",
+          "Hình 15. Giao diện Cake Customizer bằng SVG"
+        ],
+        [
+          "6",
+          "Mục 2.6.4",
+          "Trang checkout và xác nhận đơn",
+          "Hình 16. Luồng đặt bánh tùy chỉnh"
+        ],
+        [
+          "7",
+          "Mục 2.6.5",
+          "Sơ đồ RAG",
+          "Hình 17. Luồng xử lý chatbot RAG"
+        ],
+        [
+          "8",
+          "Mục 2.6.5",
+          "Widget chatbot có gợi ý sản phẩm",
+          "Hình 18. Chatbot AI phản hồi dạng streaming"
+        ],
+        [
+          "9",
+          "Mục 2.6.7",
+          "Terminal hiển thị 150 passed",
+          "Hình 19. Kết quả kiểm thử Backend"
+        ],
+        [
+          "10",
+          "Mục 2.6.7",
+          "URL/dashboard Vercel và log Docker",
+          "Hình 20. Kết quả triển khai hệ thống"
+        ]
+      ],
+      "row_count": 11,
+      "column_count": 4
+    }
+  ]
+}

@@ -1,0 +1,282 @@
+{
+  "path": "D:\\DE_TAI\\Bao_Cao_Tien_Do_Thuc_Tap_Tuan_4_Ly_Thanh_Long.docx",
+  "paragraph_count": 43,
+  "nonempty_paragraph_count": 39,
+  "table_count": 1,
+  "inline_shape_count": 0,
+  "sections": [
+    {
+      "page_width": 7560310,
+      "page_height": 10692130,
+      "top_margin": 720090,
+      "bottom_margin": 720090,
+      "left_margin": 1080135,
+      "right_margin": 720090
+    }
+  ],
+  "inline_shapes": [],
+  "blocks": [
+    {
+      "index": 1,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "TRƯỜNG ĐẠI HỌC KIẾN TRÚC ĐÀ NẴNG"
+    },
+    {
+      "index": 2,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "KHOA CÔNG NGHỆ THÔNG TIN"
+    },
+    {
+      "index": 4,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "BÁO CÁO TIẾN ĐỘ THỰC TẬP TUẦN 4"
+    },
+    {
+      "index": 6,
+      "type": "table",
+      "rows": [
+        [
+          "Sinh viên thực hiện",
+          "Lý Thành Long"
+        ],
+        [
+          "Mã sinh viên",
+          "2251220144"
+        ],
+        [
+          "Giáo viên hướng dẫn",
+          "Nguyễn Tất Phú Cường"
+        ],
+        [
+          "Đề tài",
+          "Xây dựng Web bán bánh kem tích hợp AI"
+        ],
+        [
+          "Tuần báo cáo",
+          "Tuần 4: 08/06/2026 - 14/06/2026"
+        ]
+      ],
+      "row_count": 5,
+      "column_count": 2
+    },
+    {
+      "index": 8,
+      "type": "paragraph",
+      "style": "Heading 1",
+      "text": "1. Công việc đã thực hiện trong tuần"
+    },
+    {
+      "index": 9,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Bắt đầu chuyển từ prototype giao diện sang triển khai ứng dụng full-stack bằng Next.js, Tailwind CSS và FastAPI."
+    },
+    {
+      "index": 10,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Xây dựng các màn hình frontend chính: trang chủ, danh sách sản phẩm, chi tiết sản phẩm, giỏ hàng, thanh toán, lịch sử đơn hàng, chi tiết đơn hàng, đăng nhập/đăng ký, quản lý sản phẩm, quản lý đơn hàng và khu vực thợ làm bánh."
+    },
+    {
+      "index": 11,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Hoàn thiện luồng Cake Builder 3D bằng Three.js/React Three Fiber, cho phép khách chọn kích thước, hương vị, loại kem, màu kem, topping, trang trí từng vùng bánh và ghi chú đặc biệt."
+    },
+    {
+      "index": 12,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Tích hợp Cake Builder với trang thanh toán: lưu cấu hình bánh vào localStorage, tạo đơn bánh kem theo yêu cầu và lưu customization_json để admin/thợ làm bánh xem lại chi tiết."
+    },
+    {
+      "index": 13,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Triển khai backend FastAPI cho các nhóm chức năng: xác thực, danh mục sản phẩm, quản lý sản phẩm admin, đơn hàng, trạng thái đơn, quản lý đơn cho admin, quản lý đơn cho thợ làm bánh, kho bánh ngọt, mua bánh ngọt, đánh giá sản phẩm và chatbot AI."
+    },
+    {
+      "index": 14,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Bổ sung phân quyền theo vai trò customer, admin và baker; xây dựng ProtectedRoute ở frontend và dependency kiểm tra role ở backend."
+    },
+    {
+      "index": 15,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Xây dựng luồng đơn hàng có state machine: pending, confirmed, in_production, ready và delivered; giới hạn quyền cập nhật trạng thái theo vai trò admin hoặc baker."
+    },
+    {
+      "index": 16,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Triển khai quản lý tồn kho bánh ngọt theo lô và theo chi nhánh, hỗ trợ thêm lô mới, thêm hàng loạt cho nhiều chi nhánh, ẩn/hiện lô và xem tồn kho công khai theo sản phẩm."
+    },
+    {
+      "index": 17,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Tích hợp chatbot AI dạng streaming SSE, có phiên chat, lịch sử chat, ngữ cảnh RAG từ danh mục sản phẩm, gợi ý sản phẩm và tóm tắt yêu cầu đặt bánh."
+    },
+    {
+      "index": 18,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Rà soát và sửa các lỗi tích hợp: tự tạo profile khi user Supabase/OAuth thiếu bản ghi trong bảng users, dùng service-role client cho các thao tác cần vượt RLS, xử lý bánh tự thiết kế không có product_id thật, và hiển thị đầy đủ thông tin tùy chỉnh bánh trong màn hình admin/baker."
+    },
+    {
+      "index": 19,
+      "type": "paragraph",
+      "style": "Heading 1",
+      "text": "2. Kết quả đạt được"
+    },
+    {
+      "index": 20,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Ứng dụng đã có cấu trúc frontend/backend rõ ràng, có thể chạy theo mô hình Next.js gọi API FastAPI."
+    },
+    {
+      "index": 21,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Hoàn thành luồng khách hàng cơ bản: xem sản phẩm, chọn bánh ngọt vào giỏ, thiết kế bánh kem 3D, thanh toán/đặt hàng và theo dõi trạng thái đơn."
+    },
+    {
+      "index": 22,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Hoàn thành luồng admin: xem danh sách đơn, lọc đơn, xem chi tiết, xác nhận đơn, cập nhật trạng thái delivered và xem đầy đủ yêu cầu tùy chỉnh bánh."
+    },
+    {
+      "index": 23,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Hoàn thành luồng thợ làm bánh: xem đơn cần sản xuất, xem chi tiết thiết kế bánh, ghi chú sản xuất và chuyển trạng thái confirmed."
+    },
+    {
+      "index": 24,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Hoàn thành bước đầu luồng kho bánh ngọt: quản lý lô hàng theo ngày sản xuất, hạn sử dụng, chi nhánh và số lượng còn lại; frontend có màn hình quản lý kho riêng cho baker/admin."
+    },
+    {
+      "index": 25,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Cake đã có mô hình 3D, tính giá và chuyển sang checkout."
+    },
+    {
+      "index": 26,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Chatbot AI đã có API phiên chat, gửi tin nhắn streaming, lưu lịch sử, lấy dữ liệu sản phẩm làm ngữ cảnh và trích xuất gợi ý/tóm tắt đơn hàng."
+    },
+    {
+      "index": 27,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Các phần bảo mật và ổn định đã được cải thiện: API client tự gắn JWT, xử lý 401, auth context tự refresh token, backend có request_id logging và CORS cho lỗi 500."
+    },
+    {
+      "index": 28,
+      "type": "paragraph",
+      "style": "Heading 1",
+      "text": "3. Khó khăn/vướng mắc"
+    },
+    {
+      "index": 29,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Khối lượng chức năng tuần 4 lớn vì phải kết nối đồng thời frontend, backend, cơ sở dữ liệu Supabase, phân quyền và luồng nghiệp vụ đặt bánh."
+    },
+    {
+      "index": 30,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Cake Builder có dữ liệu tùy chỉnh phức tạp theo từng vùng bánh nên cần thống nhất cách lưu JSON, cách tính giá và cách hiển thị lại cho admin/thợ làm bánh."
+    },
+    {
+      "index": 31,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Cake Buider chưa chỉnh được phần trang trí/topping/trang trí."
+    },
+    {
+      "index": 32,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Đơn bánh tự thiết kế không phải sản phẩm có sẵn trong catalog nên cần xử lý product_id rỗng/placeholder để tránh lỗi ràng buộc khóa ngoại."
+    },
+    {
+      "index": 33,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Một số thao tác backend cần service-role client để vượt RLS sau khi người dùng đã được xác thực, nếu dùng anon client sẽ dễ gặp lỗi truy cập dữ liệu."
+    },
+    {
+      "index": 34,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Môi trường kiểm thử cần chạy bằng virtualenv của backend; Python hệ thống còn thiếu một số dependency như python-jose và pydantic-settings."
+    },
+    {
+      "index": 35,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Bộ test backend còn 1 test liên quan nội dung prompt RAG chưa khớp với system prompt hiện tại, cần cập nhật lại test hoặc nội dung prompt cho thống nhất."
+    },
+    {
+      "index": 36,
+      "type": "paragraph",
+      "style": "Heading 1",
+      "text": "4. Kế hoạch thực hiện tuần tiếp theo"
+    },
+    {
+      "index": 37,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Sửa test chat còn lỗi và xử lý cảnh báo quyền ghi .pytest_cache để bộ test backend chạy sạch."
+    },
+    {
+      "index": 38,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Tiếp tục kiểm thử luồng end-to-end từ khách hàng đặt bánh, admin xác nhận, thợ làm bánh sản xuất đến khi admin giao hàng."
+    },
+    {
+      "index": 39,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Hoàn thiện giao diện responsive cho các màn hình admin, baker, checkout, order detail và Cake Builder để sử dụng tốt trên mobile."
+    },
+    {
+      "index": 40,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Rà soát dữ liệu Supabase, chính sách RLS, khóa ngoại và migration để đảm bảo các luồng sản phẩm, đơn hàng, kho và đánh giá hoạt động ổn định."
+    },
+    {
+      "index": 41,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Tối ưu chatbot AI: chỉnh prompt, cải thiện gợi ý sản phẩm, chuẩn hóa AI_Summary và xử lý fallback khi dịch vụ AI lỗi."
+    },
+    {
+      "index": 42,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Chuẩn bị cấu hình triển khai: frontend trên Vercel, backend bằng Docker, kiểm tra biến môi trường và cập nhật hướng dẫn chạy/nộp báo cáo."
+    },
+    {
+      "index": 43,
+      "type": "paragraph",
+      "style": "List Bullet",
+      "text": "Bổ sung ảnh chụp màn hình, mô tả API và tài liệu hướng dẫn sử dụng cho khách hàng, admin và thợ làm bánh."
+    }
+  ]
+}
