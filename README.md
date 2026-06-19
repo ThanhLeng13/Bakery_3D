@@ -9,7 +9,7 @@ Hệ thống thương mại điện tử chuyên biệt cho tiệm bánh kem t�
 | Frontend | Next.js 14 (App Router), TypeScript, Tailwind CSS |
 | Backend | FastAPI, Python 3.11 |
 | Database | Supabase (PostgreSQL + Auth + Storage) |
-| AI | Claude API (Anthropic) with RAG architecture |
+| AI | Groq API with model Llama 3.3 70B |
 | Deployment | Vercel (frontend), Docker (backend) |
 
 ## Project Structure
@@ -28,7 +28,7 @@ Bakery_3D/
 - Python 3.11+
 - Docker and Docker Compose
 - Supabase account (or local Supabase CLI)
-- Anthropic API key (for AI chatbot)
+- Groq API key (for AI chatbot — free tier available at [console.groq.com](https://console.groq.com))
 
 ## Getting Started
 
@@ -85,7 +85,8 @@ cp .env.example .env
 # - SUPABASE_URL: Your Supabase project URL
 # - SUPABASE_KEY: Your Supabase anon key
 # - SUPABASE_SERVICE_ROLE_KEY: Your Supabase service role key
-# - ANTHROPIC_API_KEY: Your Anthropic API key
+# - GROQ_API_KEY: Your Groq API key (free at console.groq.com)
+# - GROQ_MODEL: Model name (default: llama-3.3-70b-versatile)
 # - JWT_SECRET_KEY: A secure random string for JWT signing
 
 # Start development server
@@ -144,8 +145,8 @@ supabase db push
 | `SUPABASE_URL` | Supabase project URL | Yes |
 | `SUPABASE_KEY` | Supabase anonymous key | Yes |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key | Yes |
-| `ANTHROPIC_API_KEY` | Anthropic API key for Claude | Yes |
-| `ANTHROPIC_MODEL` | Claude model name | No |
+| `GROQ_API_KEY` | Groq API key cho chatbot AI | Yes |
+| `GROQ_MODEL` | Groq model (mặc định: `llama-3.3-70b-versatile`) | No |
 | `JWT_SECRET_KEY` | Secret key for JWT signing | Yes |
 | `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | JWT token expiry in minutes | No |
 
