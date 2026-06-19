@@ -74,3 +74,4 @@ image/
 # ---- Start script - local state ----
 .browser_profile/
 .last_port
+tmp_chrome_cake3d/

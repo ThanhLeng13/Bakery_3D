@@ -74,8 +74,6 @@ def list_admin_products(
         data_query = (
             supabase.table("products")
             .select("*, product_images(id, product_id, url, sort_order)", count="exact")
-            .order("created_at", desc=True)
-            .range(offset, offset + page_size - 1)
         )
         if search:
             data_query = data_query.ilike("name", f"%{search}%")
@@ -83,6 +81,8 @@ def list_admin_products(
             data_query = data_query.eq("category", category)
         if is_active is not None:
             data_query = data_query.eq("is_active", is_active)
+            
+        data_query = data_query.order("created_at", desc=True).range(offset, offset + page_size - 1)
             
         data_result = data_query.execute()
         products_data = data_result.data or []

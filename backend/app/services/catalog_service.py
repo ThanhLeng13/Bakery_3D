@@ -93,12 +93,12 @@ class CatalogService:
                 count="exact",
             )
             .eq("is_active", True)
-            .order("created_at", desc=True)
-            .range(offset, offset + page_size - 1)
         )
 
         if category:
             data_query = data_query.eq("category", category)
+
+        data_query = data_query.order("created_at", desc=True).range(offset, offset + page_size - 1)
 
         data_result = data_query.execute()
         products_data = data_result.data or []
