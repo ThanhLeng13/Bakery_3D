@@ -1,6 +1,6 @@
 # Cake Shop AI - Web Bán Bánh Kem Tích Hợp AI
 
-Hệ thống thương mại điện tử chuyên biệt cho tiệm bánh kem tại TP.HCM, tích hợp AI chatbot tư vấn và công cụ thiết kế bánh kem trực quan.
+Hệ thống thương mại điện tử chuyên biệt cho tiệm bánh kem tại Đà Nẵng, tích hợp AI chatbot tư vấn và công cụ thiết kế bánh kem trực quan.
 
 ## Tech Stack
 
