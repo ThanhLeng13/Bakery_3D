@@ -78,7 +78,8 @@ tmp_*/
 .pytest_cache/
 
 # ---- Sensitive / Local Documents ----
-BAO_CAO_THUC_TAP_HOAN_THIEN.docx
+*.docx
+docs/
 tools/
 
 # ---- IDE / AI Tools ----
