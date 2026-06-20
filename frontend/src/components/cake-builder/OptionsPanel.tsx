@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect } from "react";
 import type { CakeZone } from "./CakeSVG";
 import { CREAM_COLORS } from "./CakeSVG";
 import type { ZoneCustomization } from "@/types";
@@ -66,16 +66,16 @@ export default function OptionsPanel({
   onOptionSelect,
   onClose,
 }: OptionsPanelProps) {
-  const panelRef = useRef<HTMLDivElement>(null);
-
   // Close panel when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       // Guard: not an Element (e.g. Text node)
       if (!(event.target instanceof Element)) return;
       const target = event.target;
-      // Don't close if click is inside the panel itself
-      if (panelRef.current && panelRef.current.contains(target)) return;
+      // Desktop and mobile render separate responsive panel instances. Ignore
+      // interactions inside either instance so the hidden one cannot close the
+      // visible panel and let the click fall through to controls underneath.
+      if (target.closest("[data-options-panel]")) return;
       // Don't close when clicking on 3D canvas / zone selector
       if (target.closest("[data-cake3d]")) return;
       if (target.closest("canvas")) return;
@@ -349,7 +349,7 @@ export default function OptionsPanel({
     <>
       {/* Desktop: Side panel */}
       <div
-        ref={panelRef}
+        data-options-panel="true"
         className={`
           fixed md:relative
           bottom-0 left-0 right-0 md:bottom-auto md:left-auto md:right-auto
