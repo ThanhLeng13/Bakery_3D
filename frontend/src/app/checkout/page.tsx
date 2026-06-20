@@ -17,6 +17,7 @@ import Image from "next/image";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
+import { useLoyaltyContext } from "@/contexts/LoyaltyContext";
 import { apiClient } from "@/lib/api";
 import type { CakeDesign, CakeSize } from "@/types";
 
@@ -29,6 +30,7 @@ interface OrderConfirmation {
   created_at?: string;       // only for sweet purchases
   status: string;
   message?: string;          // only for sweet purchases
+  points_earned?: number;    // only for completed sweet purchases
 }
 
 interface FormErrors {
@@ -90,6 +92,7 @@ function CheckoutContent() {
   const router = useRouter();
   const { user } = useAuthContext();
   const { items: cartItems, clearCart, selectedBranchId, selectedBranchName } = useCart();
+  const { refresh: refreshLoyalty } = useLoyaltyContext();
 
   // Builder mode: load from localStorage
   const [cakeDesign, setCakeDesign] = useState<CakeDesign | null>(null);
@@ -225,6 +228,9 @@ function CheckoutContent() {
         setSubmittedBranchName(selectedBranchName ?? null);
         setConfirmation(response);
         clearCart();
+        refreshLoyalty().catch((refreshError) => {
+          console.warn("[Checkout] Loyalty refresh failed:", refreshError);
+        });
 
       } else {
         // ====== CAKE ORDER MODE ======
@@ -283,7 +289,7 @@ function CheckoutContent() {
   }
 
   // No items at all (cart empty + no builder design)
-  if (!isCartMode && !cakeDesign) {
+  if (!confirmation && !isCartMode && !cakeDesign) {
     return (
       <main className="min-h-screen bg-cream flex items-center justify-center px-4">
         <div className="text-center max-w-md">
@@ -351,6 +357,14 @@ function CheckoutContent() {
                 <span className="text-mocha/70 text-sm">Tổng tiền</span>
                 <span className="font-bold text-pink-pastel text-lg">
                   {formatPrice(confirmation.total_price)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center gap-4">
+                <span className="text-mocha/70 text-sm">Điểm thưởng</span>
+                <span className="font-semibold text-green-700 text-sm text-right">
+                  {submittedIsCartMode
+                    ? `+${confirmation.points_earned ?? 0} điểm đã được cộng`
+                    : `+${Math.floor(confirmation.total_price / 1000 * 1.5)} điểm khi đơn được giao`}
                 </span>
               </div>
               {confirmation.pickup_date ? (

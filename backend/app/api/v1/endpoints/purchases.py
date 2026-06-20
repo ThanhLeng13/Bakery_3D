@@ -265,10 +265,11 @@ def create_purchase(
         # Update purchase status to "completed" only after successfully decrementing stock and inserting all items
         db.table("purchases").update({"status": "completed"}).eq("id", purchase_id).execute()
 
-        # Cộng điểm tích lũy cho khách hàng (fire-and-forget — lỗi không ảnh hưởng đơn hàng)
+        # Cộng điểm tích lũy cho khách hàng (lỗi không ảnh hưởng đơn hàng)
+        points_earned = 0
         try:
             loyalty_svc = LoyaltyService(db)
-            loyalty_svc.award_points(
+            points_earned = loyalty_svc.award_points(
                 user_id=customer["id"],
                 amount_vnd=int(total_price),
                 source_type="purchase",
@@ -309,6 +310,7 @@ def create_purchase(
         "customer_phone": body.customer_phone,
         "items": receipt_items,
         "total_price": int(total_price),
+        "points_earned": points_earned,
         "status": "completed",
         "message": "Mua hàng thành công! Vui lòng đến quán thanh toán và nhận bánh.",
         "created_at": purchase["created_at"],
