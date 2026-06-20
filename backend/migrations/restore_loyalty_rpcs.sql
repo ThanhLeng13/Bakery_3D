@@ -105,6 +105,7 @@ SELECT public.increment_loyalty_points(
 )
 FROM public.purchases AS p
 WHERE p.status = 'completed'
+  AND p.customer_id IS NOT NULL
   AND p.created_at >= timestamptz '2026-06-12 00:00:00+00'
   AND NOT EXISTS (
       SELECT 1
@@ -123,6 +124,7 @@ SELECT public.increment_loyalty_points(
 )
 FROM public.orders AS o
 WHERE o.status = 'delivered'
+  AND o.customer_id IS NOT NULL
   AND o.updated_at >= timestamptz '2026-06-12 00:00:00+00'
   AND NOT EXISTS (
       SELECT 1
