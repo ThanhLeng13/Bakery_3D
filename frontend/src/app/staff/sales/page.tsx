@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiClient, type ApiError } from "@/lib/api";
 import type { OrderStatus } from "@/types";
 
@@ -85,16 +85,40 @@ export default function StaffSalesPage() {
     loadQueue();
   }, [loadQueue]);
 
+  // Guards against out-of-order detail responses. Staff can tap order A then
+  // order B before A resolves; without this, A's late response would overwrite
+  // the newer selection and a subsequent completeStep would target the wrong
+  // order. Each request takes a ticket and only the newest one may write state.
+  const detailRequestRef = useRef(0);
+
   async function openDetail(orderId: string) {
+    const requestId = ++detailRequestRef.current;
+    // Clear the previous order immediately so the panel never shows stale data
+    // while the new one loads.
+    setSelected(null);
     setDetailLoading(true);
     setError("");
     try {
-      setSelected(await apiClient.get<SalesOrderDetail>(`/api/v1/staff/orders/${orderId}`));
+      const detail = await apiClient.get<SalesOrderDetail>(
+        `/api/v1/staff/orders/${orderId}`,
+      );
+      if (requestId !== detailRequestRef.current) return; // superseded
+      setSelected(detail);
     } catch (err) {
+      if (requestId !== detailRequestRef.current) return; // superseded
       setError(errorMessage(err));
     } finally {
-      setDetailLoading(false);
+      if (requestId === detailRequestRef.current) {
+        setDetailLoading(false);
+      }
     }
+  }
+
+  /** Close the detail panel and invalidate any in-flight request. */
+  function closeDetail() {
+    detailRequestRef.current += 1;
+    setSelected(null);
+    setDetailLoading(false);
   }
 
   async function completeStep(order: SalesOrderDetail) {
@@ -105,7 +129,7 @@ export default function StaffSalesPage() {
       await apiClient.patch(`/api/v1/staff/orders/${order.id}/status`, {
         status: nextStatus,
       });
-      setSelected(null);
+      closeDetail();
       await loadQueue();
     } catch (err) {
       setError(errorMessage(err));
@@ -168,7 +192,7 @@ export default function StaffSalesPage() {
             <div className="flex items-center justify-between border-b border-line p-5">
               <h3 className="font-heading text-lg font-bold text-ink">Chi tiết bán hàng</h3>
               <button
-                onClick={() => setSelected(null)}
+                onClick={closeDetail}
                 className="min-h-[40px] min-w-[40px] rounded-full text-xl text-muted hover:bg-surface"
                 aria-label="Đóng"
               >

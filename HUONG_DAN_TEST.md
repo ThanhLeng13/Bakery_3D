@@ -87,9 +87,21 @@ Cần **2 cửa sổ terminal**.
 
 **Terminal 1 — Backend:**
 
+Chọn **một** khối lệnh dưới đây theo hệ điều hành của bạn:
+
+*Windows:*
+
 ```bash
 cd backend
 venv\Scripts\activate
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+*macOS / Linux:*
+
+```bash
+cd backend
+source venv/bin/activate
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 

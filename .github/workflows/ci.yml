@@ -8,6 +8,12 @@ on:
   pull_request:
     branches: [main]
 
+# Read-only by default. This workflow only checks out and builds code, so it
+# never needs a write token; granting one would let a compromised dependency
+# step push to the repository.
+permissions:
+  contents: read
+
 jobs:
   backend:
     name: Backend tests (pytest)
@@ -18,6 +24,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -56,6 +64,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Node
         uses: actions/setup-node@v4

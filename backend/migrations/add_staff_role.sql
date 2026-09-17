@@ -30,12 +30,28 @@ BEGIN
 
     -- A failed version of this migration may have left the old constraint in
     -- place, so remove role-specific CHECK constraints in either schema form.
+    --
+    -- Identified by constraint key rather than by matching the constraint
+    -- definition text: a text match on '%role%' would also catch unrelated
+    -- CHECK constraints that merely mention the word (for example one on
+    -- another column, or a constraint whose name contains "role"), and would
+    -- drop them. conkey lists the columns a CHECK constraint actually covers,
+    -- so requiring it to be exactly the users.role column targets only the
+    -- constraint this migration is responsible for.
     FOR role_constraint IN
-        SELECT conname
-        FROM pg_constraint
-        WHERE conrelid = 'public.users'::regclass
-          AND contype = 'c'
-          AND pg_get_constraintdef(oid) ILIKE '%role%'
+        SELECT con.conname
+        FROM pg_constraint con
+        WHERE con.conrelid = 'public.users'::regclass
+          AND con.contype = 'c'
+          AND con.conkey IS NOT NULL
+          AND array_length(con.conkey, 1) = 1
+          AND con.conkey[1] = (
+              SELECT att.attnum
+              FROM pg_attribute att
+              WHERE att.attrelid = 'public.users'::regclass
+                AND att.attname = 'role'
+                AND NOT att.attisdropped
+          )
     LOOP
         EXECUTE format(
             'ALTER TABLE public.users DROP CONSTRAINT %I',

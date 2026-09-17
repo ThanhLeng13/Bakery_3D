@@ -88,20 +88,26 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
   const roleRef = useRef<string | undefined>(user?.role);
   roleRef.current = user?.role;
 
-  // Coalesces concurrent calls: a second request while one is in flight is
-  // ignored instead of stacking another round-trip.
-  const inFlightRef = useRef(false);
+  // Coalesces concurrent calls, keyed by the auth token that started them.
+  // A plain boolean was wrong: if the user signed out and another signed in
+  // while a request was still open, the stale flag blocked the new user's
+  // request, and the previous user's response could still land in state.
+  // Holding the token lets a new identity start a fresh request and lets a
+  // late response be discarded when it no longer matches the active token.
+  const inFlightTokenRef = useRef<string | null>(null);
 
   const fetchLoyalty = useCallback(async () => {
     const token = getStoredToken();
+
     if (!token || roleRef.current !== "customer") {
+      inFlightTokenRef.current = null;
       setData(null);
       setLoading(false);
       return;
     }
 
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
+    if (inFlightTokenRef.current === token) return;
+    inFlightTokenRef.current = token;
 
     try {
       setLoading(true);
@@ -110,19 +116,27 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
         headers: { Authorization: `Bearer ${token}` },
       });
 
+      // The user may have switched accounts while this was open; drop a
+      // response that no longer belongs to the active session.
+      if (inFlightTokenRef.current !== token) return;
+
       if (!res.ok) {
         throw new Error(`Lỗi ${res.status}: ${res.statusText}`);
       }
 
       const json = await res.json();
+      if (inFlightTokenRef.current !== token) return;
       setData(json);
     } catch (err) {
+      if (inFlightTokenRef.current !== token) return;
       setError(
         err instanceof Error ? err.message : "Không thể tải thông tin điểm."
       );
     } finally {
-      inFlightRef.current = false;
-      setLoading(false);
+      if (inFlightTokenRef.current === token) {
+        inFlightTokenRef.current = null;
+        setLoading(false);
+      }
     }
   }, []);
 

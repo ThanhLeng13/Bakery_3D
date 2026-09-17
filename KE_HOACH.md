@@ -51,7 +51,7 @@ function calling / tool use, agent loop, draft order.
 | `products` | 22 | Catalog. Cột: `id, name, description, category, base_price, sizes, flavors, is_active, product_type` |
 | `product_images` | có | **Ảnh thật trên Supabase Storage → nguyên liệu để sinh CLIP embedding** |
 | `orders` | 9 | Đơn hàng |
-| `users` | 11 | Vai trò: `customer` / `baker` / `admin` |
+| `users` | 11 | Vai trò **trước migration** `add_staff_role.sql`: `customer` / `baker` / `admin`. **Sau migration**: thêm `staff` |
 | `purchases` | 10 | Bán tại quầy |
 | `loyalty_points` / `loyalty_transactions` | 8 tx | Tích điểm |
 | `cake_options` | 5 size | `price_modifier`: 4inch=0, 6inch=+100k, 8inch=+200k, 10inch=+350k, 2tầng=+500k → **agent tính giá được** |
@@ -94,6 +94,17 @@ print(urllib.request.urlopen(req, context=ssl.create_default_context(), timeout=
 
 Key hiện có: `SUPABASE_KEY` (anon, `sb_publishable_…`) và `SUPABASE_SERVICE_ROLE_KEY` (`sb_secret_…`).
 **Cả hai đều KHÔNG chạy được DDL.**
+
+### 2.4 Checklist migration — chạy THEO THỨ TỰ trước khi dùng tính năng
+
+| # | File migration | Tạo ra | Phải chạy trước khi |
+|---|----------------|--------|---------------------|
+| 1 | `backend/migrations/add_loyalty_system.sql` | Bảng `vouchers`, hàm `increment_loyalty_points`, `rpc_redeem_points` | Bấm "Đổi điểm" ở `/loyalty` |
+| 2 | `backend/migrations/add_staff_role.sql` | Thêm giá trị `staff` vào vai trò người dùng | **Gán vai trò `staff` cho bất kỳ user nào** |
+
+⚠️ **Thứ tự bắt buộc:** phải chạy migration số 2 **trước khi** gán vai trò `staff`.
+Nếu gán `staff` khi enum chưa có giá trị này, database sẽ từ chối và tài khoản
+đó không đăng nhập được vào `/staff/sales`.
 
 ---
 
@@ -178,7 +189,7 @@ Màu **trang trí** (avatar nhiều màu, gradient hồng) thì **BỎ**.
 
 ### GIAI ĐOẠN 2 — CLIP image search (13/10 → 02/11) ⭐ ƯU TIÊN NẾU THIẾU THỜI GIAN
 
-**Trụ cột số 1 của đề tài — hoàn toàn chưa có.**
+**Trụ cột số 2 của đề tài — hoàn toàn chưa có.**
 
 - [ ] Bật extension `vector` (pgvector) trên Supabase
 - [ ] Bảng `cake_embeddings`: `id, cake_id, source_image_url, embedding vector(512)`
@@ -199,7 +210,7 @@ Chuẩn hóa ảnh đầu vào về RGB 224×224 trước khi embed, và **dùng
 
 ### GIAI ĐOẠN 3 — Agent đặt hàng (03/11 → 23/11)
 
-**Trụ cột số 2 — nâng chatbot regex lên agent thật.**
+**Trụ cột số 3 — nâng chatbot regex lên agent thật.**
 
 Định nghĩa 5 tool cho LLM:
 

@@ -52,7 +52,7 @@ const STEP_HOTSPOTS: Array<{
   {
     id: "body",
     step: "body",
-    zone: "border",
+    zone: "body",
     label: "Hoa văn",
     left: "33%",
     top: "54%",
@@ -60,7 +60,7 @@ const STEP_HOTSPOTS: Array<{
   {
     id: "decoration",
     step: "border",
-    zone: "body",
+    zone: "border",
     label: "Trang trí",
     left: "66%",
     top: "52%",
@@ -281,6 +281,7 @@ export default function CakeBuilderPage() {
                 type="button"
                 onClick={() => setAutoRotate((current) => !current)}
                 aria-pressed={autoRotate}
+                aria-label={`Tự động xoay bánh: ${autoRotate ? "Bật" : "Tắt"}`}
                 className="flex min-h-[36px] items-center gap-1.5 rounded-full px-2 text-[9px] font-medium uppercase tracking-[0.08em] text-muted transition-colors hover:text-ink xl:min-h-[44px] xl:text-[11px] 2xl:min-h-[48px] 2xl:text-xs"
               >
                 <span
@@ -295,7 +296,10 @@ export default function CakeBuilderPage() {
                     }`}
                   />
                 </span>
-                {autoRotate ? "Bật" : "Tắt"}
+                {/* Visible label names the feature; the switch state follows it,
+                    so sighted users get the same context screen readers do. */}
+                <span aria-hidden="true">Tự động xoay</span>
+                <span aria-hidden="true">{autoRotate ? "Bật" : "Tắt"}</span>
               </button>
             </div>
           </section>

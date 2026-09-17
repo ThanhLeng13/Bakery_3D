@@ -31,7 +31,15 @@ export function resolveLoginDestination(
   role: UserRole,
   requestedPath: string | null,
 ): string {
-  if (requestedPath && requestedPath.startsWith("/") && isPathAllowedForRole(role, requestedPath)) {
+  // A protocol-relative URL ("//evil.example") also starts with "/", so a bare
+  // startsWith("/") check would accept it and send the user off-site after
+  // login. Require a single leading slash and reject the "//" form.
+  const isInternalPath =
+    !!requestedPath &&
+    requestedPath.startsWith("/") &&
+    !requestedPath.startsWith("//");
+
+  if (isInternalPath && isPathAllowedForRole(role, requestedPath)) {
     return requestedPath;
   }
   return getRoleHome(role);
