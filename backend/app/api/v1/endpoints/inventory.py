@@ -1,6 +1,6 @@
 """Inventory API endpoints.
 
-Baker endpoints (require_baker):
+Manager endpoints (require_admin):
     POST   /api/v1/baker/batches              — Thêm lô mới
     GET    /api/v1/baker/batches              — Liệt kê lô (tất cả hoặc theo sản phẩm)
     PATCH  /api/v1/baker/batches/{batch_id}   — Cập nhật lô
@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, model_validator
 
 from app.core.config import settings
-from app.core.dependencies import require_baker, get_supabase_client
+from app.core.dependencies import require_admin, get_supabase_client
 from app.services.inventory_service import (
     BatchNotFoundError,
     InsufficientStockError,
@@ -88,9 +88,9 @@ class BulkAddBatchRequest(BaseModel):
 @baker_router.post("/batches", status_code=201)
 def add_batch(
     body: AddBatchRequest,
-    baker: dict = Depends(require_baker),
+    manager: dict = Depends(require_admin),
 ):
-    """Thêm lô bánh ngọt mới (Baker only)."""
+    """Thêm lô bánh ngọt mới (Manager only)."""
     svc = _get_inventory_service()
     try:
         result = svc.add_batch(
@@ -100,7 +100,7 @@ def add_batch(
             expires_at=body.expires_at.isoformat(),
             notes=body.notes,
             branch_id=body.branch_id,
-            baker=baker,
+            baker=manager,
         )
         return result
     except InventoryServiceError as e:
@@ -110,7 +110,7 @@ def add_batch(
 @baker_router.post("/batches/bulk", status_code=201)
 def add_batch_bulk(
     body: BulkAddBatchRequest,
-    baker: dict = Depends(require_baker),
+    manager: dict = Depends(require_admin),
 ):
     """Tạo lô bánh ngọt cho nhiều chi nhánh trong một request.
 
@@ -140,7 +140,7 @@ def add_batch_bulk(
                 expires_at=body.expires_at.isoformat(),
                 notes=body.notes,
                 branch_id=branch_id,
-                baker=baker,
+                baker=manager,
             )
             results.append(result)
             succeeded_branch_ids.append(branch_id)
@@ -167,9 +167,9 @@ def add_batch_bulk(
 def list_batches(
     product_id: str | None = Query(default=None, description="Lọc theo sản phẩm"),
     branch_id: str | None = Query(default=None, description="Lọc theo chi nhánh"),
-    baker: dict = Depends(require_baker),
+    manager: dict = Depends(require_admin),
 ):
-    """Liệt kê lô hàng bánh ngọt (Baker only). Lọc tùy chọn theo product_id và branch_id."""
+    """Liệt kê lô hàng bánh ngọt (Manager only). Lọc tùy chọn theo product_id và branch_id."""
     svc = _get_inventory_service()
     try:
         batches = svc.get_batches(product_id=product_id, branch_id=branch_id)
@@ -182,15 +182,15 @@ def list_batches(
 def update_batch(
     batch_id: str,
     body: UpdateBatchRequest,
-    baker: dict = Depends(require_baker),
+    manager: dict = Depends(require_admin),
 ):
-    """Cập nhật lô hàng (Baker only). Có thể đổi số lượng, ghi chú, ẩn/hiện."""
+    """Cập nhật lô hàng (Manager only). Có thể đổi số lượng, ghi chú, ẩn/hiện."""
     svc = _get_inventory_service()
     updates = body.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(status_code=400, detail="Không có trường nào được cập nhật.")
     try:
-        result = svc.update_batch(batch_id=batch_id, updates=updates, baker=baker)
+        result = svc.update_batch(batch_id=batch_id, updates=updates, baker=manager)
         return result
     except BatchNotFoundError as e:
         raise HTTPException(status_code=404, detail=e.message) from e

@@ -20,12 +20,12 @@ export function PriceDisplay({ priceBreakdown }: PriceDisplayProps) {
     priceBreakdown;
 
   return (
-    <div className="rounded-lg border border-pink-pastel/20 bg-cream p-4">
-      <h3 className="mb-3 font-heading text-lg font-semibold text-mocha">
+    <div className="rounded-lg border border-line bg-surface p-4">
+      <h3 className="mb-3 font-heading text-lg font-semibold text-ink">
         Chi tiết giá
       </h3>
 
-      <div className="space-y-2 text-sm font-body text-mocha/80">
+      <div className="space-y-2 text-sm font-body text-ink">
         {/* Base price */}
         <div className="flex items-center justify-between">
           <span>Giá cơ bản</span>
@@ -55,12 +55,12 @@ export function PriceDisplay({ priceBreakdown }: PriceDisplayProps) {
         )}
 
         {/* Divider */}
-        <div className="border-t border-mocha/10 pt-2" />
+        <div className="border-t border-line pt-2" />
 
         {/* Total price */}
         <div className="flex items-center justify-between">
-          <span className="text-base font-semibold text-mocha">Tổng cộng</span>
-          <span className="text-lg font-bold text-pink-pastel transition-all duration-200 ease-in-out">
+          <span className="text-base font-semibold text-ink">Tổng cộng</span>
+          <span className="text-lg font-bold text-ink transition-all duration-200 ease-in-out">
             {formatPriceVND(totalPrice)}
           </span>
         </div>

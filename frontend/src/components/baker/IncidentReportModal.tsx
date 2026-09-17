@@ -31,7 +31,7 @@ const INCIDENT_OPTIONS: IncidentOption[] = [
     label: "Thiếu nguyên liệu",
     description: "Không đủ nguyên liệu để làm bánh theo yêu cầu",
     icon: "🧪",
-    color: "border-orange-200 bg-orange-50 text-orange-800",
+    color: "border-line bg-subtle text-ink",
   },
   {
     type: "cannot_fulfill",
@@ -132,7 +132,7 @@ export default function IncidentReportModal({
 
   return (
     <div
-      className="fixed inset-0 bg-mocha/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-ink/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="incident-modal-title"
@@ -143,15 +143,15 @@ export default function IncidentReportModal({
           <div>
             <h2
               id="incident-modal-title"
-              className="font-heading text-lg font-bold text-mocha"
+              className="font-heading text-lg font-bold text-ink"
             >
               Báo cáo sự cố
             </h2>
-            <p className="text-xs text-mocha/50 mt-0.5">Đơn hàng {orderRef}</p>
+            <p className="text-xs text-muted mt-0.5">Đơn hàng {orderRef}</p>
           </div>
           <button
             onClick={onClose}
-            className="text-mocha/50 hover:text-mocha transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+            className="text-muted hover:text-ink transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
             aria-label="Đóng"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -176,14 +176,14 @@ export default function IncidentReportModal({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-mocha mb-2">Đã gửi báo cáo!</h3>
-              <p className="text-mocha/60 text-sm">{successMessage}</p>
-              <p className="text-mocha/40 text-xs mt-2">Admin sẽ xem xét và liên hệ bạn sớm.</p>
+              <h3 className="text-lg font-semibold text-ink mb-2">Đã gửi báo cáo!</h3>
+              <p className="text-muted text-sm">{successMessage}</p>
+              <p className="text-muted text-xs mt-2">Admin sẽ xem xét và liên hệ bạn sớm.</p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Warning hint */}
-              <div className="flex gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl text-xs text-amber-700">
+              <div className="flex gap-2 p-3 bg-subtle border border-line rounded-xl text-xs text-ink">
                 <span>ℹ️</span>
                 <p>
                   Báo cáo sự cố sẽ được ghi vào đơn hàng và Admin sẽ thấy ngay.
@@ -200,7 +200,7 @@ export default function IncidentReportModal({
 
               {/* Incident type selection */}
               <div>
-                <p className="text-sm font-medium text-mocha mb-2">
+                <p className="text-sm font-medium text-ink mb-2">
                   Loại sự cố <span className="text-red-500">*</span>
                 </p>
                 <div className="space-y-2">
@@ -241,11 +241,11 @@ export default function IncidentReportModal({
                 <div className="flex justify-between items-center mb-1">
                   <label
                     htmlFor="incident-description"
-                    className="text-sm font-medium text-mocha"
+                    className="text-sm font-medium text-ink"
                   >
-                    Chi tiết <span className="text-mocha/40 font-normal">(không bắt buộc)</span>
+                    Chi tiết <span className="text-muted font-normal">(không bắt buộc)</span>
                   </label>
-                  <span className={`text-xs ${description.length > 450 ? "text-red-500" : "text-mocha/40"}`}>
+                  <span className={`text-xs ${description.length > 450 ? "text-red-500" : "text-muted"}`}>
                     {description.length}/500
                   </span>
                 </div>
@@ -256,7 +256,7 @@ export default function IncidentReportModal({
                   maxLength={500}
                   rows={3}
                   placeholder="Mô tả thêm về sự cố (vd: thiếu dâu tây, không có hộp 8 inch...)"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm text-mocha placeholder:text-mocha/40 focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-300 resize-none"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-subtle/50 focus:border-line resize-none"
                 />
               </div>
 
@@ -265,7 +265,7 @@ export default function IncidentReportModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 py-3 border border-gray-200 text-mocha rounded-xl text-sm font-medium hover:bg-cream transition-colors"
+                  className="flex-1 py-3 border border-gray-200 text-ink rounded-xl text-sm font-medium hover:bg-surface transition-colors"
                 >
                   Hủy
                 </button>
@@ -273,7 +273,7 @@ export default function IncidentReportModal({
                   type="submit"
                   id="submit-incident-btn"
                   disabled={submitting || !selectedType}
-                  className="flex-1 py-3 bg-orange-500 text-white rounded-xl text-sm font-medium hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 py-3 bg-action text-white rounded-xl text-sm font-medium hover:bg-action transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submitting ? "Đang gửi..." : "Gửi báo cáo"}
                 </button>

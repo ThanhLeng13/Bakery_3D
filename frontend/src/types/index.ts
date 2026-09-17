@@ -2,7 +2,7 @@
  * Core type definitions for Cake Shop AI Web
  */
 
-export type UserRole = "customer" | "admin" | "baker";
+export type UserRole = "customer" | "staff" | "admin" | "baker";
 
 export type OrderStatus =
   | "pending"

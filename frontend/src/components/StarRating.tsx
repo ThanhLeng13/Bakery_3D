@@ -38,7 +38,7 @@ export default function StarRating({
         {Array.from({ length: fullStars }).map((_, i) => (
           <svg
             key={`full-${i}`}
-            className={`${starClass} text-yellow-400`}
+            className={`${starClass} text-ink`}
             fill="currentColor"
             viewBox="0 0 20 20"
             aria-hidden="true"
@@ -48,7 +48,7 @@ export default function StarRating({
         ))}
         {hasHalfStar && (
           <svg
-            className={`${starClass} text-yellow-400`}
+            className={`${starClass} text-ink`}
             fill="currentColor"
             viewBox="0 0 20 20"
             aria-hidden="true"
@@ -78,7 +78,7 @@ export default function StarRating({
         ))}
       </div>
       {showCount && (
-        <span className={`${textSizeClasses[size]} text-mocha/60`}>
+        <span className={`${textSizeClasses[size]} text-muted`}>
           {rating !== null ? `${displayRating.toFixed(1)}` : "—"}{" "}
           ({reviewCount})
         </span>

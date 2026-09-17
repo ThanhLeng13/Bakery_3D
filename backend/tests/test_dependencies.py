@@ -3,7 +3,7 @@
 Tests cover:
 - get_current_user: token extraction and validation
 - require_role: role-based access control checks
-- require_admin, require_baker, require_customer shortcuts
+- require_admin, require_baker, require_customer, require_staff shortcuts
 - Error handling: 401 for missing/invalid tokens, 403 for unauthorized roles
 """
 
@@ -19,6 +19,7 @@ from app.core.dependencies import (
     require_admin,
     require_baker,
     require_customer,
+    require_staff,
 )
 
 
@@ -228,7 +229,7 @@ class TestRequireRole:
 
 
 class TestRoleShortcuts:
-    """Tests for require_admin, require_baker, require_customer shortcuts."""
+    """Tests for the role-specific dependency shortcuts."""
 
     def test_require_admin_allows_admin(self):
         user = {"id": "1", "email": "a@b.com", "full_name": "A", "phone": None, "role": "admin"}
@@ -267,4 +268,15 @@ class TestRoleShortcuts:
         user = {"id": "1", "email": "a@b.com", "full_name": "A", "phone": None, "role": "admin"}
         with pytest.raises(HTTPException) as exc_info:
             require_customer(current_user=user)
+        assert exc_info.value.status_code == 403
+
+    def test_require_staff_allows_staff(self):
+        user = {"id": "1", "email": "s@b.com", "full_name": "S", "phone": None, "role": "staff"}
+        result = require_staff(current_user=user)
+        assert result["role"] == "staff"
+
+    def test_require_staff_denies_admin(self):
+        user = {"id": "1", "email": "a@b.com", "full_name": "A", "phone": None, "role": "admin"}
+        with pytest.raises(HTTPException) as exc_info:
+            require_staff(current_user=user)
         assert exc_info.value.status_code == 403

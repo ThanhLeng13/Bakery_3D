@@ -32,7 +32,7 @@ const SIZE_OPTIONS: SizeOption[] = [
 export function SizeSelector({ selectedSize, onSizeChange }: SizeSelectorProps) {
   return (
     <div>
-      <h3 className="mb-3 font-heading text-lg font-semibold text-mocha">
+      <h3 className="mb-3 font-heading text-lg font-semibold text-ink">
         Kích thước
       </h3>
 
@@ -49,11 +49,11 @@ export function SizeSelector({ selectedSize, onSizeChange }: SizeSelectorProps) 
               className={`
                 min-h-[44px] min-w-[44px] rounded-lg border-2 p-3
                 text-center transition-all duration-150 ease-in-out
-                focus:outline-none focus:ring-2 focus:ring-pink-pastel/50
+                focus:outline-none focus:ring-2 focus:ring-action/50
                 ${
                   isSelected
-                    ? "border-pink-pastel bg-pink-pastel/10 shadow-sm"
-                    : "border-mocha/20 bg-white hover:border-pink-pastel/50 hover:bg-cream"
+                    ? "border-brand bg-subtle shadow-sm"
+                    : "border-line bg-white hover:border-line hover:bg-surface"
                 }
               `}
               aria-pressed={isSelected}
@@ -61,17 +61,17 @@ export function SizeSelector({ selectedSize, onSizeChange }: SizeSelectorProps) 
             >
               <div
                 className={`font-heading text-base font-bold ${
-                  isSelected ? "text-pink-pastel" : "text-mocha"
+                  isSelected ? "text-ink" : "text-ink"
                 }`}
               >
                 {option.label}
               </div>
-              <div className="mt-1 font-body text-xs text-mocha/60">
+              <div className="mt-1 font-body text-xs text-muted">
                 {option.description}
               </div>
               <div
                 className={`mt-1 font-body text-sm font-medium ${
-                  isSelected ? "text-pink-pastel" : "text-mocha/80"
+                  isSelected ? "text-ink" : "text-ink"
                 }`}
               >
                 {formatPriceVND(price)}

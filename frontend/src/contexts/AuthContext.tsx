@@ -15,6 +15,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useMemo,
   ReactNode,
 } from "react";
 import {
@@ -36,7 +37,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
   isAuthenticated: boolean;
-  login: (data: LoginData) => Promise<void>;
+  login: (data: LoginData) => Promise<AuthUser>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -153,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const response = await authLogin(data);
     setUser(response.user);
     startAutoRefresh();
+    return response.user;
   }, []);
 
   const register = useCallback(async (data: RegisterData) => {
@@ -170,19 +172,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Memoised so consumers only re-render when auth state actually changes.
+  // Without this the provider hands out a fresh object on every render of the
+  // provider itself, which re-renders every consumer in the tree (Header,
+  // RoleBoundary, ProtectedRoute, ...) even when nothing auth-related changed.
+  const contextValue = useMemo(
+    () => ({
+      user,
+      loading,
+      isAuthenticated: !!user,
+      login,
+      register,
+      logout,
+    }),
+    [user, loading, login, register, logout]
+  );
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        isAuthenticated: !!user,
-        login,
-        register,
-        logout,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 }
 

@@ -10,7 +10,7 @@ Endpoints:
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import HTTPAuthorizationCredentials
 
-from app.core.dependencies import get_current_user, security_scheme, get_supabase_client
+from app.core.dependencies import get_current_user, require_customer, security_scheme, get_supabase_client
 from app.schemas.orders import (
     CreateOrderRequest,
     OrderDetailResponse,
@@ -38,7 +38,7 @@ def _get_order_service(token: str | None = None) -> OrderService:
 @router.post("", status_code=201)
 def create_order(
     body: CreateOrderRequest,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_customer),
     credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ):
     """
@@ -90,7 +90,7 @@ def list_orders(
     page_size: int = Query(
         default=10, ge=1, le=50, description="Items per page (default 10)"
     ),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_customer),
     credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ):
     """
@@ -116,7 +116,7 @@ def list_orders(
 @router.get("/{order_id}", response_model=OrderDetailResponse)
 def get_order_detail(
     order_id: str,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_customer),
     credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ):
     """
@@ -145,13 +145,13 @@ def update_order_status(
     credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ):
     """
-    Update order status (Admin/Baker only).
+    Update order status (Staff/Baker only).
 
     Valid transitions:
-    - pending → confirmed (Admin only)
+    - pending → confirmed (Staff only)
     - confirmed → in_production (Baker only)
     - in_production → ready (Baker only)
-    - ready → delivered (Admin only)
+    - ready → delivered (Staff only)
 
     Invalid transitions return 400 with valid next statuses.
     Insufficient role returns 403.

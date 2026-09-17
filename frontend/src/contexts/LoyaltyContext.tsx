@@ -20,6 +20,8 @@ import {
   useState,
   useEffect,
   useCallback,
+  useMemo,
+  useRef,
   ReactNode,
 } from "react";
 import { getStoredToken } from "@/lib/auth";
@@ -72,19 +74,40 @@ interface LoyaltyContextValue {
 const LoyaltyContext = createContext<LoyaltyContextValue | null>(null);
 
 export function LoyaltyProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuthContext();
+  const { isAuthenticated, user } = useAuthContext();
 
   const [data, setData] = useState<LoyaltyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // fetchLoyalty depends on isAuthenticated so its closure is always current.
+  // The role is read through a ref so `fetchLoyalty` keeps a stable identity.
+  // Previously it closed over `user?.role`, so every time AuthContext produced a
+  // new user object the callback changed, the effect below re-ran, and the same
+  // balance was fetched again. The ref keeps the value current without making
+  // it a dependency.
+  const roleRef = useRef<string | undefined>(user?.role);
+  roleRef.current = user?.role;
+
+  // Coalesces concurrent calls, keyed by the auth token that started them.
+  // A plain boolean was wrong: if the user signed out and another signed in
+  // while a request was still open, the stale flag blocked the new user's
+  // request, and the previous user's response could still land in state.
+  // Holding the token lets a new identity start a fresh request and lets a
+  // late response be discarded when it no longer matches the active token.
+  const inFlightTokenRef = useRef<string | null>(null);
+
   const fetchLoyalty = useCallback(async () => {
     const token = getStoredToken();
-    if (!token) {
+
+    if (!token || roleRef.current !== "customer") {
+      inFlightTokenRef.current = null;
+      setData(null);
       setLoading(false);
       return;
     }
+
+    if (inFlightTokenRef.current === token) return;
+    inFlightTokenRef.current = token;
 
     try {
       setLoading(true);
@@ -93,33 +116,42 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
         headers: { Authorization: `Bearer ${token}` },
       });
 
+      // The user may have switched accounts while this was open; drop a
+      // response that no longer belongs to the active session.
+      if (inFlightTokenRef.current !== token) return;
+
       if (!res.ok) {
         throw new Error(`Lỗi ${res.status}: ${res.statusText}`);
       }
 
       const json = await res.json();
+      if (inFlightTokenRef.current !== token) return;
       setData(json);
     } catch (err) {
+      if (inFlightTokenRef.current !== token) return;
       setError(
         err instanceof Error ? err.message : "Không thể tải thông tin điểm."
       );
     } finally {
-      setLoading(false);
+      if (inFlightTokenRef.current === token) {
+        inFlightTokenRef.current = null;
+        setLoading(false);
+      }
     }
-  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Re-run whenever authentication state changes:
   //   login  → isAuthenticated becomes true  → fetch loyalty data
   //   logout → isAuthenticated becomes false → clear stale data
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && user?.role === "customer") {
       fetchLoyalty();
     } else {
       setData(null);
       setLoading(false);
       setError(null);
     }
-  }, [isAuthenticated, fetchLoyalty]);
+  }, [isAuthenticated, user?.role, fetchLoyalty]);
 
   const redeemPoints = useCallback(
     async (voucherCount: number): Promise<RedeemResult> => {
@@ -150,10 +182,21 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
     [fetchLoyalty]
   );
 
+  // Memoised so Header and LoyaltyPage do not re-render when the provider
+  // re-renders for unrelated reasons (e.g. AuthProvider state changing above).
+  const contextValue = useMemo(
+    () => ({
+      data,
+      loading,
+      error,
+      refresh: fetchLoyalty,
+      redeemPoints,
+    }),
+    [data, loading, error, fetchLoyalty, redeemPoints]
+  );
+
   return (
-    <LoyaltyContext.Provider
-      value={{ data, loading, error, refresh: fetchLoyalty, redeemPoints }}
-    >
+    <LoyaltyContext.Provider value={contextValue}>
       {children}
     </LoyaltyContext.Provider>
   );

@@ -835,7 +835,7 @@ export default function LoyaltyPage() {
                 fontSize: "0.9rem",
               }}
             >
-              🌿 Tích thêm{" "}
+              🎂 Tích thêm{" "}
               <strong>{pointsToNext > 0 ? pointsToNext : pointsPerVoucher}</strong> điểm nữa để mở khóa voucher đầu tiên!
             </div>
           )}

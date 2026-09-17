@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { LoyaltyProvider } from "@/contexts/LoyaltyContext";
+import RoleBoundary from "@/components/RoleBoundary";
 import "./globals.css";
 
 // ---- Fonts ----
@@ -55,7 +56,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5, // Allow user zoom (accessibility)
-  themeColor: "#e8837a",
+  themeColor: "#2B2B2A",
 };
 
 export default function RootLayout({
@@ -74,9 +75,11 @@ export default function RootLayout({
         <AuthProvider>
           <CartProvider>
             <LoyaltyProvider>
-              {children}
-              {/* ChatWidget loaded dynamically to not block initial paint */}
-              <ChatWidget />
+              <RoleBoundary>
+                {children}
+                {/* ChatWidget loaded dynamically to not block initial paint */}
+                <ChatWidget />
+              </RoleBoundary>
             </LoyaltyProvider>
           </CartProvider>
         </AuthProvider>

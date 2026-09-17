@@ -10,13 +10,14 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiClient } from "@/lib/api";
 import { AuthResponse } from "@/lib/auth";
+import { resolveLoginDestination } from "@/lib/roles";
 
 export default function AuthCallbackPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-cream">
-          <div className="w-12 h-12 rounded-full border-4 border-pink-pastel border-t-transparent animate-spin" />
+        <div className="min-h-screen flex items-center justify-center bg-surface">
+          <div className="w-12 h-12 rounded-full border-4 border-brand border-t-transparent animate-spin" />
         </div>
       }
     >
@@ -53,7 +54,7 @@ function CallbackContent() {
         localStorage.setItem("auth_user", JSON.stringify(response.user));
 
         // Redirect to intended page
-        router.replace(redirectUrl);
+        router.replace(resolveLoginDestination(response.user.role, redirectUrl));
       } catch {
         setError("Đăng nhập bằng Google thất bại. Vui lòng thử lại.");
       }
@@ -64,14 +65,14 @@ function CallbackContent() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-cream px-4">
+      <div className="min-h-screen flex items-center justify-center bg-surface px-4">
         <div className="text-center">
           <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 font-body">
             {error}
           </div>
           <a
             href="/auth/login"
-            className="text-pink-pastel hover:text-pink-pastel/80 font-medium font-body transition-colors"
+            className="text-ink hover:text-ink font-medium font-body transition-colors"
           >
             Quay lại trang đăng nhập
           </a>
@@ -81,10 +82,10 @@ function CallbackContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-cream">
+    <div className="min-h-screen flex items-center justify-center bg-surface">
       <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 rounded-full border-4 border-pink-pastel border-t-transparent animate-spin" />
-        <p className="text-mocha/70 font-body">Đang xác thực...</p>
+        <div className="w-12 h-12 rounded-full border-4 border-brand border-t-transparent animate-spin" />
+        <p className="text-muted font-body">Đang xác thực...</p>
       </div>
     </div>
   );

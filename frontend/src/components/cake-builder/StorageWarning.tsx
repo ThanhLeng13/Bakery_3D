@@ -23,9 +23,9 @@ export default function StorageWarning({ message }: StorageWarningProps) {
     <div
       role="alert"
       aria-live="polite"
-      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between gap-3 bg-amber-50 border-b border-amber-200 px-4 py-3 shadow-sm"
+      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between gap-3 bg-subtle border-b border-line px-4 py-3 shadow-sm"
     >
-      <div className="flex items-center gap-2 text-sm text-amber-800">
+      <div className="flex items-center gap-2 text-sm text-ink">
         <svg
           width="20"
           height="20"
@@ -52,7 +52,7 @@ export default function StorageWarning({ message }: StorageWarningProps) {
       <button
         type="button"
         onClick={() => setDismissed(true)}
-        className="flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md text-amber-600 hover:text-amber-800 hover:bg-amber-100 transition-colors"
+        className="flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md text-ink hover:text-ink hover:bg-subtle transition-colors"
         aria-label="Đóng cảnh báo"
       >
         <svg

@@ -1,0 +1,23 @@
+feat(roles): add staff role and inline options panel variant
+
+These changes existed only in the working tree; committing them so the branch
+builds from a clean checkout. CI on a fresh clone failed with:
+
+    src/lib/roles.ts(7,10): error TS2678: Type '"staff"' is not comparable to type 'UserRole'
+    src/app/staff/layout.tsx(10,38): error TS2322: Type '"staff"' is not assignable to type 'UserRole'
+    src/components/cake-builder/ConfiguratorRail.tsx(337,13): error TS2322:
+        Property 'variant' does not exist on type 'OptionsPanelProps'
+    src/app/admin/users/page.tsx(18,3): error TS2353:
+        'staff' does not exist in type 'Record<UserRole, string>'
+
+The committed code already referenced both a `staff` role and an inline options
+panel variant, but the definitions lived only locally:
+
+- types/index.ts: UserRole gains "staff"
+- OptionsPanel: accepts variant "sheet" | "inline"; the outside-click handler is
+  skipped for the inline variant so the embedded rail does not close itself
+- supporting updates across the cake builder, admin layout, order endpoints and
+  their tests
+
+No behaviour is changed here: this is the working tree state that the existing
+code was already written against.

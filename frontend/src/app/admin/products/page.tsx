@@ -261,10 +261,10 @@ export default function AdminProductsPage() {
                         <button
                           onClick={() => handleToggleStatus(product)}
                           disabled={togglingId === product.id}
-                          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-pink-pastel/30 disabled:opacity-50"
+                          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:opacity-50"
                           style={{
                             backgroundColor: product.is_active
-                              ? "#E8837A"
+                              ? "#2B2B2A"
                               : "#d1d5db",
                           }}
                           aria-label={
@@ -327,10 +327,10 @@ export default function AdminProductsPage() {
                     <button
                       onClick={() => handleToggleStatus(product)}
                       disabled={togglingId === product.id}
-                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-pink-pastel/30 disabled:opacity-50"
+                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:opacity-50"
                       style={{
                         backgroundColor: product.is_active
-                          ? "#E8837A"
+                          ? "#2B2B2A"
                           : "#d1d5db",
                       }}
                       aria-label={

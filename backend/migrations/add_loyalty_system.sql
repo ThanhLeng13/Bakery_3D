@@ -41,9 +41,20 @@ CREATE TABLE IF NOT EXISTS vouchers (
 );
 
 -- ─── 4. Indexes & Constraints ──────────────────────────────────────────────────
--- Ràng buộc tránh cộng điểm 2 lần cho cùng 1 giao dịch
-ALTER TABLE loyalty_transactions 
-    ADD CONSTRAINT unique_user_type_ref UNIQUE (user_id, type, ref_id);
+-- Ràng buộc tránh cộng điểm 2 lần cho cùng 1 giao dịch.
+-- Bọc trong DO block vì ADD CONSTRAINT không có IF NOT EXISTS, và constraint
+-- này có thể đã tồn tại nếu migration từng chạy một phần.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'unique_user_type_ref'
+          AND conrelid = 'public.loyalty_transactions'::regclass
+    ) THEN
+        ALTER TABLE public.loyalty_transactions
+            ADD CONSTRAINT unique_user_type_ref UNIQUE (user_id, type, ref_id);
+    END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_loyalty_transactions_user_id
     ON loyalty_transactions(user_id, created_at DESC);
@@ -59,15 +70,21 @@ ALTER TABLE loyalty_points       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE loyalty_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vouchers             ENABLE ROW LEVEL SECURITY;
 
--- Khách hàng chỉ đọc dữ liệu của chính mình
+-- Khách hàng chỉ đọc dữ liệu của chính mình.
+-- DROP trước CREATE: CREATE POLICY không hỗ trợ IF NOT EXISTS, nên chạy lại
+-- migration sẽ lỗi "policy already exists" và dừng giữa chừng — đúng lỗi đã
+-- khiến migration này chưa bao giờ hoàn tất. DROP IF EXISTS làm nó idempotent.
+DROP POLICY IF EXISTS "Customer can view own loyalty_points" ON loyalty_points;
 CREATE POLICY "Customer can view own loyalty_points"
     ON loyalty_points FOR SELECT
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Customer can view own loyalty_transactions" ON loyalty_transactions;
 CREATE POLICY "Customer can view own loyalty_transactions"
     ON loyalty_transactions FOR SELECT
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Customer can view own vouchers" ON vouchers;
 CREATE POLICY "Customer can view own vouchers"
     ON vouchers FOR SELECT
     USING (auth.uid() = user_id);

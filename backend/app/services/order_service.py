@@ -59,10 +59,10 @@ class PickupDateValidationError(OrderServiceError):
 
 # Valid status transitions and required roles
 VALID_TRANSITIONS: dict[str, dict[str, list[str]]] = {
-    "pending": {"confirmed": ["admin"]},
+    "pending": {"confirmed": ["staff"]},
     "confirmed": {"in_production": ["baker"]},
     "in_production": {"ready": ["baker"]},
-    "ready": {"delivered": ["admin"]},
+    "ready": {"delivered": ["staff"]},
 }
 
 
@@ -325,7 +325,7 @@ class OrderService:
         Get full order detail by ID.
 
         Customers can only view their own orders.
-        Admin and Baker can view any order.
+        Admin, Staff and Baker can view orders exposed by their dedicated APIs.
 
         Args:
             order_id: UUID string of the order
@@ -412,10 +412,10 @@ class OrderService:
         Update order status with state machine validation and role enforcement.
 
         Valid transitions:
-        - pending → confirmed (Admin only)
+        - pending → confirmed (Staff only)
         - confirmed → in_production (Baker only)
         - in_production → ready (Baker only)
-        - ready → delivered (Admin only)
+        - ready → delivered (Staff only)
 
         Args:
             order_id: UUID string of the order

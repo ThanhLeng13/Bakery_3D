@@ -18,6 +18,7 @@ import { useEffect, useMemo } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { UserRole } from "@/types";
+import { getRoleHome } from "@/lib/roles";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -58,7 +59,7 @@ export default function ProtectedRoute({
     if (allowedRolesKey) {
       const roles = allowedRolesKey.split(",") as UserRole[];
       if (!user || !roles.includes(user.role)) {
-        router.replace("/");
+        router.replace(user ? getRoleHome(user.role) : "/");
       }
     }
   }, [loading, isAuthenticated, user, allowedRolesKey, router, pathname, searchParams]);
@@ -66,10 +67,10 @@ export default function ProtectedRoute({
   // Hiện spinner trong khi đang xác thực token
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-cream">
+      <div className="min-h-screen flex items-center justify-center bg-surface">
         <div className="animate-pulse flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-pink-pastel/30" />
-          <p className="text-mocha/60 font-body">Đang kiểm tra phiên đăng nhập...</p>
+          <div className="w-12 h-12 rounded-full bg-subtle" />
+          <p className="text-muted font-body">Đang kiểm tra phiên đăng nhập...</p>
         </div>
       </div>
     );
