@@ -199,9 +199,10 @@
     color: white;
   }
 
-  /* Hover: deepen to brand grey while keeping white text.
-     #8F8F8E with white text = 4.1:1, so we dim the surface instead and
-     keep AA-compliant contrast for all CTA sizes. */
+  /* Hover: deepen the surface instead of lightening it.
+     #8F8F8E against white text is only ~3.5:1, below the WCAG AA 4.5:1
+     threshold for body-sized text, so hovering to brand would have made the
+     label harder to read. #6B6B6A against white is ~5.7:1. */
   .btn-primary:hover {
     background: #6b6b6a;
     color: white;

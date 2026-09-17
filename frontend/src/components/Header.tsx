@@ -36,7 +36,7 @@ export default function Header() {
     { href: "/products", label: "Menu" },
     { href: "/cake-builder", label: "Thiết kế bánh" },
     { href: "/orders", label: "Đơn hàng" },
-    { href: "/loyalty", label: "🌿 Tích điểm" },
+    { href: "/loyalty", label: "Tích điểm" },
   ];
 
   return (
@@ -106,18 +106,16 @@ export default function Header() {
                   <span className="text-sm font-medium text-ink hidden sm:block max-w-[120px] truncate">
                     {user.full_name}
                   </span>
-                  {/* Points badge */}
+                  {/* Points badge — neutral ink pill, matching the logo palette.
+                      Previously an inline avocado-green gradient (#3d6b35 →
+                      #8cbd6e) that the Tailwind aliases could not catch because
+                      inline styles bypass the theme. */}
                   {loyaltyData && loyaltyData.points > 0 && (
                     <span
-                      className="hidden sm:flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold"
-                      style={{
-                        background: "linear-gradient(135deg, #3d6b35 0%, #8cbd6e 100%)",
-                        color: "white",
-                        boxShadow: "0 2px 6px rgba(61,107,53,0.3)",
-                        minHeight: "unset",
-                      }}
+                      className="hidden sm:flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-ink text-white"
+                      style={{ minHeight: "unset" }}
                     >
-                      🌿 {loyaltyData.points.toLocaleString("vi-VN")}
+                      🎂 {loyaltyData.points.toLocaleString("vi-VN")}
                     </span>
                   )}
                   <svg
@@ -167,15 +165,11 @@ export default function Header() {
                           className="flex items-center gap-2 px-4 py-2 text-sm text-ink hover:bg-surface transition-colors"
                           onClick={() => setUserMenuOpen(false)}
                         >
-                          <span>🌿 Điểm tích lũy</span>
+                          <span>🎂 Điểm tích lũy</span>
                           {loyaltyData && loyaltyData.points > 0 && (
                             <span
-                              className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold"
-                              style={{
-                                background: "linear-gradient(135deg, #3d6b35, #8cbd6e)",
-                                color: "white",
-                                minHeight: "unset",
-                              }}
+                              className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-ink text-white"
+                              style={{ minHeight: "unset" }}
                             >
                               {loyaltyData.points.toLocaleString("vi-VN")}
                             </span>
