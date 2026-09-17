@@ -6,6 +6,7 @@ Provides:
 - require_admin: Shortcut for require_role(["admin"])
 - require_baker: Shortcut for require_role(["baker"])
 - require_customer: Shortcut for require_role(["customer"])
+- require_staff: Shortcut for require_role(["staff"])
 """
 
 import logging
@@ -257,3 +258,4 @@ def require_role(roles: list[str]) -> Callable:
 require_admin = require_role(["admin"])
 require_baker = require_role(["baker"])
 require_customer = require_role(["customer"])
+require_staff = require_role(["staff"])

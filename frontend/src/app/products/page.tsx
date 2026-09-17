@@ -60,9 +60,9 @@ export default async function ProductCatalogPage({ searchParams }: PageProps) {
     return (
       <>
         <Header />
-        <main className="min-h-screen bg-cream flex items-center justify-center">
+        <main className="min-h-screen bg-surface flex items-center justify-center">
           <div className="text-center px-4">
-            <p className="text-mocha/70 text-lg mb-4">
+            <p className="text-muted text-lg mb-4">
               Không thể tải danh mục sản phẩm. Vui lòng thử lại sau.
             </p>
           </div>

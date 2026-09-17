@@ -60,8 +60,8 @@ class TestStatusStateMachine:
     def test_unknown_status_has_no_valid_next(self):
         assert get_valid_next_statuses("unknown") == []
 
-    def test_pending_to_confirmed_requires_admin(self):
-        assert get_allowed_roles_for_transition("pending", "confirmed") == ["admin"]
+    def test_pending_to_confirmed_requires_staff(self):
+        assert get_allowed_roles_for_transition("pending", "confirmed") == ["staff"]
 
     def test_confirmed_to_in_production_requires_baker(self):
         assert get_allowed_roles_for_transition("confirmed", "in_production") == ["baker"]
@@ -69,8 +69,8 @@ class TestStatusStateMachine:
     def test_in_production_to_ready_requires_baker(self):
         assert get_allowed_roles_for_transition("in_production", "ready") == ["baker"]
 
-    def test_ready_to_delivered_requires_admin(self):
-        assert get_allowed_roles_for_transition("ready", "delivered") == ["admin"]
+    def test_ready_to_delivered_requires_staff(self):
+        assert get_allowed_roles_for_transition("ready", "delivered") == ["staff"]
 
     def test_invalid_transition_returns_empty_roles(self):
         assert get_allowed_roles_for_transition("pending", "delivered") == []
@@ -354,13 +354,13 @@ class TestUpdateOrderStatus:
 
         return mock_table
 
-    def test_valid_transition_pending_to_confirmed_by_admin(self):
-        """Admin can transition pending → confirmed."""
+    def test_valid_transition_pending_to_confirmed_by_staff(self):
+        """Sales staff can transition pending → confirmed."""
         order_id = str(uuid4())
         self._setup_order_fetch(order_id, "pending")
 
-        admin = {"id": str(uuid4()), "role": "admin"}
-        result = self.service.update_order_status(order_id, "confirmed", admin)
+        staff = {"id": str(uuid4()), "role": "staff"}
+        result = self.service.update_order_status(order_id, "confirmed", staff)
         assert result is not None
 
     def test_invalid_transition_pending_to_delivered(self):
@@ -384,7 +384,7 @@ class TestUpdateOrderStatus:
         assert "in_production" in exc_info.value.message
 
     def test_baker_cannot_confirm_order(self):
-        """Baker cannot perform pending → confirmed (Admin only)."""
+        """Baker cannot perform pending → confirmed (Staff only)."""
         order_id = str(uuid4())
         self._setup_order_fetch(order_id, "pending")
 
@@ -402,6 +402,15 @@ class TestUpdateOrderStatus:
         with pytest.raises(InsufficientPermissionError) as exc_info:
             self.service.update_order_status(order_id, "in_production", admin)
         assert "admin" in exc_info.value.message
+
+    def test_admin_cannot_confirm_order(self):
+        """Managers observe orders but sales staff own customer hand-off steps."""
+        order_id = str(uuid4())
+        self._setup_order_fetch(order_id, "pending")
+
+        admin = {"id": str(uuid4()), "role": "admin"}
+        with pytest.raises(InsufficientPermissionError):
+            self.service.update_order_status(order_id, "confirmed", admin)
 
     def test_customer_cannot_update_status(self):
         """Customer cannot perform any status transition."""

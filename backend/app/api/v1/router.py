@@ -3,7 +3,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
-    admin_options, admin_orders, admin_products, auth, baker_orders,
+    admin_options, admin_orders, admin_products, admin_users, auth, baker_orders, staff_orders,
     branches, catalog, chat, inventory, loyalty, orders, public_options, purchases, reviews,
 )
 
@@ -24,8 +24,14 @@ router.include_router(admin_products.router, prefix="/admin/products", tags=["Ad
 # Admin order management
 router.include_router(admin_orders.router, prefix="/admin/orders", tags=["Admin Orders"])
 
+# Manager account and role management
+router.include_router(admin_users.router, prefix="/admin/users", tags=["Admin Users"])
+
 # Baker order management
 router.include_router(baker_orders.router, prefix="/baker/orders", tags=["Baker Orders"])
+
+# Sales staff order queue
+router.include_router(staff_orders.router, prefix="/staff/orders", tags=["Staff Orders"])
 
 # Chat service (AI Chatbot)
 router.include_router(chat.router, prefix="/chat", tags=["Chat"])

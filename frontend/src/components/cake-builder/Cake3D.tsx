@@ -24,6 +24,8 @@ interface Cake3DProps {
   hoveredZone: CakeZone | null;
   onZoneClick: (zone: CakeZone) => void;
   onZoneHover: (zone: CakeZone | null) => void;
+  autoRotate?: boolean;
+  enableControls?: boolean;
 }
 
 // ─── Click detection based on time duration + pointer distance ────────────────
@@ -95,7 +97,6 @@ function ZoneMesh({
     </mesh>
   );
 }
-
 // ─── Note on geometries ──────────────────────────────────────────────────────
 // We use inline JSX geometry tags (e.g. <sphereGeometry args={[...]} />) inside
 // each sub-component instead of module-level THREE.js instances. This ensures:
@@ -610,7 +611,7 @@ function RotatingCake(props: Cake3DProps) {
   const rotating  = useRef(true);
 
   useFrame((_, dt) => {
-    if (rotating.current && groupRef.current) {
+    if (props.autoRotate !== false && rotating.current && groupRef.current) {
       groupRef.current.rotation.y += dt * 0.28;
     }
   });
@@ -621,7 +622,8 @@ function RotatingCake(props: Cake3DProps) {
       <OrbitControls
         makeDefault
         enablePan={false}
-        enableZoom
+        enableRotate={props.enableControls !== false}
+        enableZoom={props.enableControls !== false}
         minDistance={2.2}
         maxDistance={5.5}
         minPolarAngle={Math.PI * 0.10}
@@ -650,100 +652,25 @@ function Scene(props: Cake3DProps) {
   );
 }
 
-// ─── Badge thiết kế ───────────────────────────────────────────────────────────
-const ZONE_LABELS: Record<CakeZone, string> = {
-  top:    "🎂 Mặt trên – Toppings",
-  body:   "✨ Thân bánh – Màu & Hoa văn",
-  border: "🎀 Viền bánh – Trang trí",
-};
-
 // ─── Component chính ──────────────────────────────────────────────────────────
 export default function Cake3D(props: Cake3DProps) {
-  const { hoveredZone, activeZone, design } = props;
-
-
-
-  // Tóm tắt thiết kế hiện tại
-  const summary: string[] = [];
-  const activeToppings = getVisibleToppings(design);
-  if (activeToppings.length > 0) summary.push(`🎂 ${activeToppings.join(", ")}`);
-  if (design.zones?.body?.decoration)   summary.push(`✨ ${design.zones.body.decoration}`);
-  if (design.zones?.border?.decoration) summary.push(`🎀 ${design.zones.border.decoration}`);
-
   return (
     <div
       data-cake3d="true"
+      className="aspect-square max-w-[760px] md:aspect-[16/10] 2xl:aspect-[16/9] 2xl:max-w-[1000px]"
       style={{
         position: "relative",
         width: "100%",
-        maxWidth: 440,
-        aspectRatio: "1 / 1",
         margin: "0 auto",
-        borderRadius: 20,
+        borderRadius: 0,
         overflow: "hidden",
-        background: "linear-gradient(140deg,#FFF5F0 0%,#FDE8E4 55%,#F9D4CE 100%)",
-        boxShadow: "0 12px 48px rgba(232,131,122,0.22), 0 2px 8px rgba(0,0,0,0.07)",
-        cursor: "grab",
+        background: "transparent",
+        cursor: props.enableControls === false ? "default" : "grab",
       }}
     >
-      {/* Hint */}
-      <div style={{
-        position:"absolute", top:8, left:"50%", transform:"translateX(-50%)",
-        fontSize:11, color:"rgba(92,61,46,0.55)", pointerEvents:"none",
-        zIndex:15, whiteSpace:"nowrap",
-        background:"rgba(255,255,255,0.7)", borderRadius:12,
-        padding:"3px 12px", backdropFilter:"blur(8px)",
-      }}>
-        🖱 Kéo xoay · Cuộn zoom · Click vùng để chỉnh
-      </div>
-
-      {/* Active zone label */}
-      {activeZone && (
-        <div style={{
-          position:"absolute", bottom:40, left:"50%", transform:"translateX(-50%)",
-          background:"rgba(232,131,122,0.92)", color:"#fff",
-          padding:"5px 16px", borderRadius:22, fontSize:12, fontWeight:700,
-          backdropFilter:"blur(8px)", pointerEvents:"none", zIndex:15,
-          whiteSpace:"nowrap", boxShadow:"0 3px 12px rgba(232,131,122,0.4)",
-        }}>
-          ✏️ {ZONE_LABELS[activeZone]} – Đang chỉnh
-        </div>
-      )}
-
-      {/* Hover label */}
-      {hoveredZone && !activeZone && (
-        <div style={{
-          position:"absolute", bottom:40, left:"50%", transform:"translateX(-50%)",
-          background:"rgba(92,61,46,0.82)", color:"#fff",
-          padding:"5px 14px", borderRadius:22, fontSize:12, fontWeight:600,
-          backdropFilter:"blur(8px)", pointerEvents:"none", zIndex:15,
-          whiteSpace:"nowrap",
-        }}>
-          {ZONE_LABELS[hoveredZone]} – Click để chỉnh
-        </div>
-      )}
-
-      {/* Design summary badges */}
-      {summary.length > 0 && (
-        <div style={{
-          position:"absolute", top:36, right:8,
-          display:"flex", flexDirection:"column", gap:3,
-          pointerEvents:"none", zIndex:15,
-        }}>
-          {summary.map((s,i) => (
-            <div key={i} style={{
-              background:"rgba(255,255,255,0.88)", color:"#5C3D2E",
-              padding:"2px 8px", borderRadius:10, fontSize:10, fontWeight:700,
-              border:"1px solid rgba(232,131,122,0.3)",
-              backdropFilter:"blur(6px)", whiteSpace:"nowrap",
-            }}>{s}</div>
-          ))}
-        </div>
-      )}
-
       {/* Canvas */}
       <Canvas
-        camera={{ position: [0, 1.2, 3.5], fov: 42 }}
+        camera={{ position: [0, 1.1, 4.2], fov: 30 }}
         gl={{ antialias: true, alpha: true }}
         style={{ width:"100%", height:"100%" }}
       >

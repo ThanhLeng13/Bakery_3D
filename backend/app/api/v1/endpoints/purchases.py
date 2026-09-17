@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 
-from app.core.dependencies import get_current_user, get_supabase_client
+from app.core.dependencies import require_customer, get_supabase_client
 from app.services.inventory_service import (
     InsufficientStockError,
     InventoryService,
@@ -102,7 +102,7 @@ def _rollback_purchase(
 @router.post("", status_code=201)
 def create_purchase(
     body: CreatePurchaseRequest,
-    customer: dict = Depends(get_current_user),
+    customer: dict = Depends(require_customer),
 ):
     """
     Mua bánh ngọt — trừ stock ngay và lưu lịch sử.
@@ -319,7 +319,7 @@ def create_purchase(
 
 @router.get("/history")
 def get_purchase_history(
-    customer: dict = Depends(get_current_user),
+    customer: dict = Depends(require_customer),
 ):
     """Lịch sử mua bánh ngọt của khách hàng hiện tại."""
     db = _get_db()

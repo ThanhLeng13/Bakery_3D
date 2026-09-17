@@ -10,6 +10,7 @@ interface OptionsPanelProps {
   zoneCustomization: ZoneCustomization;
   onOptionSelect: (zone: CakeZone, option: Partial<ZoneCustomization>) => void;
   onClose: () => void;
+  variant?: "sheet" | "inline";
 }
 
 /** Available topping options */
@@ -65,9 +66,12 @@ export default function OptionsPanel({
   zoneCustomization,
   onOptionSelect,
   onClose,
+  variant = "sheet",
 }: OptionsPanelProps) {
   // Close panel when clicking outside
   useEffect(() => {
+    if (variant === "inline") return;
+
     const handleClickOutside = (event: MouseEvent) => {
       // Guard: not an Element (e.g. Text node)
       if (!(event.target instanceof Element)) return;
@@ -87,16 +91,18 @@ export default function OptionsPanel({
     // mousedown fires before click so we still prevent accidental closes from fast drags.
     document.addEventListener("mousedown", handleClickOutside, false);
     return () => document.removeEventListener("mousedown", handleClickOutside, false);
-  }, [onClose]);
+  }, [onClose, variant]);
 
   // Close on Escape key
   useEffect(() => {
+    if (variant === "inline") return;
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [onClose, variant]);
 
   const handleColorSelect = useCallback(
     (color: string) => {
@@ -134,9 +140,9 @@ export default function OptionsPanel({
     <div className="space-y-4">
       {/* Topping selector - multi-select */}
       <div>
-        <h4 className="text-sm font-medium text-mocha mb-1">Toppings</h4>
-        <p className="text-xs text-mocha/50 mb-2">Chọn một hoặc nhiều topping 🎉</p>
-        <div className="grid grid-cols-3 gap-2">
+        <h4 className="text-sm font-medium text-ink mb-1">Toppings</h4>
+        <p className="text-xs text-muted mb-2">Chọn một hoặc nhiều topping 🎉</p>
+        <div className={`grid ${variant === "inline" ? "grid-cols-2 gap-1 xl:grid-cols-3 xl:gap-2" : "grid-cols-3 gap-2"}`}>
           {TOPPING_OPTIONS.map((option) => {
             const selected = (zoneCustomization.toppings ?? []).includes(option.id);
             return (
@@ -151,8 +157,8 @@ export default function OptionsPanel({
                 }}
                 className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all duration-150 min-w-[44px] min-h-[44px] ${
                   selected
-                    ? "border-pink-pastel bg-pink-pastel/10 shadow-sm scale-105 ring-2 ring-pink-pastel/30"
-                    : "border-gray-200 hover:border-pink-pastel/50 hover:bg-cream"
+                    ? "border-brand bg-subtle shadow-sm scale-105 ring-2 ring-subtle"
+                    : "border-gray-200 hover:border-line hover:bg-surface"
                 }`}
                 aria-label={`Topping: ${option.label}`}
                 aria-pressed={selected}
@@ -160,17 +166,17 @@ export default function OptionsPanel({
                 <span className="text-xl relative" role="img" aria-hidden="true">
                   {option.icon}
                   {selected && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-pink-pastel rounded-full flex items-center justify-center text-[9px] text-white font-bold shadow-sm">✓</span>
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-action rounded-full flex items-center justify-center text-[9px] text-white font-bold shadow-sm">✓</span>
                   )}
                 </span>
-                <span className={`text-xs mt-1 font-medium ${ selected ? "text-pink-pastel" : "text-mocha" }`}>{option.label}</span>
+                <span className={`${variant === "inline" ? "text-[9px] xl:text-[10px] 2xl:text-[11px]" : "text-xs"} mt-1 font-medium ${ selected ? "text-ink" : "text-ink" }`}>{option.label}</span>
               </button>
             );
           })}
         </div>
         {/* Selected toppings summary */}
         {(zoneCustomization.toppings ?? []).length > 0 && (
-          <p className="mt-2 text-xs text-pink-pastel font-medium bg-pink-pastel/5 rounded-lg px-3 py-1.5">
+          <p className="mt-2 text-xs text-ink font-medium bg-subtle rounded-lg px-3 py-1.5">
             ✓ Đã chọn: {(zoneCustomization.toppings ?? []).map(getToppingLabel).join(", ")}
           </p>
         )}
@@ -178,7 +184,7 @@ export default function OptionsPanel({
 
       {/* Top zone color */}
       <div>
-        <h4 className="text-sm font-medium text-mocha mb-2">Màu kem mặt trên</h4>
+        <h4 className="text-sm font-medium text-ink mb-2">Màu kem mặt trên</h4>
         <div className="flex flex-wrap gap-2">
           {CREAM_COLOR_ENTRIES.map((color) => (
             <button
@@ -188,8 +194,8 @@ export default function OptionsPanel({
               onClick={(e) => { e.stopPropagation(); handleColorSelect(color.id); }}
               className={`w-9 h-9 rounded-full border-2 transition-all duration-100 min-w-[44px] min-h-[44px] flex items-center justify-center ${
                 zoneCustomization.color === color.id
-                  ? "border-pink-pastel scale-110 shadow-md ring-2 ring-pink-pastel/30"
-                  : "border-gray-300 hover:scale-105 hover:border-pink-pastel/50"
+                  ? "border-brand scale-110 shadow-md ring-2 ring-subtle"
+                  : "border-gray-300 hover:scale-105 hover:border-line"
               }`}
               style={{ backgroundColor: color.id }}
               aria-label={`Màu ${color.label}`}
@@ -197,7 +203,7 @@ export default function OptionsPanel({
               title={color.label}
             >
               {zoneCustomization.color === color.id && (
-                <span className="text-xs font-bold" style={{ color: color.name === "white" || color.name === "vanilla" ? "#5C3D2E" : "#FFF" }}>
+                <span className="text-xs font-bold" style={{ color: color.name === "white" || color.name === "vanilla" ? "#2B2B2A" : "#FFF" }}>
                   ✓
                 </span>
               )}
@@ -212,7 +218,7 @@ export default function OptionsPanel({
     <div className="space-y-4">
       {/* Cream color */}
       <div>
-        <h4 className="text-sm font-medium text-mocha mb-2">Màu kem</h4>
+        <h4 className="text-sm font-medium text-ink mb-2">Màu kem</h4>
         <div className="flex flex-wrap gap-2">
           {CREAM_COLOR_ENTRIES.map((color) => (
             <button
@@ -222,8 +228,8 @@ export default function OptionsPanel({
               onClick={(e) => { e.stopPropagation(); handleColorSelect(color.id); }}
               className={`w-9 h-9 rounded-full border-2 transition-all duration-100 min-w-[44px] min-h-[44px] flex items-center justify-center ${
                 zoneCustomization.color === color.id
-                  ? "border-pink-pastel scale-110 shadow-md ring-2 ring-pink-pastel/30"
-                  : "border-gray-300 hover:scale-105 hover:border-pink-pastel/50"
+                  ? "border-brand scale-110 shadow-md ring-2 ring-subtle"
+                  : "border-gray-300 hover:scale-105 hover:border-line"
               }`}
               style={{ backgroundColor: color.id }}
               aria-label={`Màu ${color.label}`}
@@ -231,7 +237,7 @@ export default function OptionsPanel({
               title={color.label}
             >
               {zoneCustomization.color === color.id && (
-                <span className="text-xs font-bold" style={{ color: color.name === "white" || color.name === "vanilla" ? "#5C3D2E" : "#FFF" }}>
+                <span className="text-xs font-bold" style={{ color: color.name === "white" || color.name === "vanilla" ? "#2B2B2A" : "#FFF" }}>
                   ✓
                 </span>
               )}
@@ -242,8 +248,8 @@ export default function OptionsPanel({
 
       {/* Pattern */}
       <div>
-        <h4 className="text-sm font-medium text-mocha mb-2">Hoa văn</h4>
-        <div className="grid grid-cols-3 gap-2">
+        <h4 className="text-sm font-medium text-ink mb-2">Hoa văn</h4>
+        <div className={`grid ${variant === "inline" ? "grid-cols-2 gap-1 xl:grid-cols-3 xl:gap-2" : "grid-cols-3 gap-2"}`}>
           {BODY_PATTERN_OPTIONS.map((option) => (
             <button
               key={option.id}
@@ -252,19 +258,19 @@ export default function OptionsPanel({
               onClick={(e) => { e.stopPropagation(); handleDecorationSelect(option.id); }}
               className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all duration-150 min-w-[44px] min-h-[44px] ${
                 zoneCustomization.decoration === option.id
-                  ? "border-pink-pastel bg-pink-pastel/10 shadow-sm scale-105 ring-2 ring-pink-pastel/30"
-                  : "border-gray-200 hover:border-pink-pastel/50 hover:bg-cream"
+                  ? "border-brand bg-subtle shadow-sm scale-105 ring-2 ring-subtle"
+                  : "border-gray-200 hover:border-line hover:bg-surface"
               }`}
               aria-label={`Hoa văn: ${option.label}`}
               aria-pressed={zoneCustomization.decoration === option.id}
             >
               <span className={`text-lg ${ zoneCustomization.decoration === option.id ? "scale-110" : "" }`}>{option.icon}</span>
-              <span className={`text-xs mt-1 font-medium ${ zoneCustomization.decoration === option.id ? "text-pink-pastel" : "text-mocha" }`}>{option.label}</span>
+              <span className={`${variant === "inline" ? "text-[9px] xl:text-[10px] 2xl:text-[11px]" : "text-xs"} mt-1 font-medium ${ zoneCustomization.decoration === option.id ? "text-ink" : "text-ink" }`}>{option.label}</span>
             </button>
           ))}
         </div>
         {zoneCustomization.decoration && (
-          <p className="mt-2 text-xs text-pink-pastel font-medium bg-pink-pastel/5 rounded-lg px-3 py-1.5">
+          <p className="mt-2 text-xs text-ink font-medium bg-subtle rounded-lg px-3 py-1.5">
             ✓ Đã chọn: {zoneCustomization.decoration}
           </p>
         )}
@@ -276,8 +282,8 @@ export default function OptionsPanel({
     <div className="space-y-4">
       {/* Border decorations */}
       <div>
-        <h4 className="text-sm font-medium text-mocha mb-2">Viền trang trí</h4>
-        <div className="grid grid-cols-3 gap-2">
+        <h4 className="text-sm font-medium text-ink mb-2">Viền trang trí</h4>
+        <div className={`grid ${variant === "inline" ? "grid-cols-2 gap-1 xl:grid-cols-3 xl:gap-2" : "grid-cols-3 gap-2"}`}>
           {BORDER_OPTIONS.map((option) => (
             <button
               key={option.id}
@@ -286,8 +292,8 @@ export default function OptionsPanel({
               onClick={(e) => { e.stopPropagation(); handleDecorationSelect(option.id); }}
               className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all duration-150 min-w-[44px] min-h-[44px] ${
                 zoneCustomization.decoration === option.id
-                  ? "border-pink-pastel bg-pink-pastel/10 shadow-sm scale-105 ring-2 ring-pink-pastel/30"
-                  : "border-gray-200 hover:border-pink-pastel/50 hover:bg-cream"
+                  ? "border-brand bg-subtle shadow-sm scale-105 ring-2 ring-subtle"
+                  : "border-gray-200 hover:border-line hover:bg-surface"
               }`}
               aria-label={`Viền: ${option.label}`}
               aria-pressed={zoneCustomization.decoration === option.id}
@@ -295,12 +301,12 @@ export default function OptionsPanel({
               <span className="text-xl" role="img" aria-hidden="true">
                 {option.icon}
               </span>
-              <span className={`text-xs mt-1 font-medium ${ zoneCustomization.decoration === option.id ? "text-pink-pastel" : "text-mocha" }`}>{option.label}</span>
+              <span className={`${variant === "inline" ? "text-[9px] xl:text-[10px] 2xl:text-[11px]" : "text-xs"} mt-1 font-medium ${ zoneCustomization.decoration === option.id ? "text-ink" : "text-ink" }`}>{option.label}</span>
             </button>
           ))}
         </div>
         {zoneCustomization.decoration && (
-          <p className="mt-2 text-xs text-pink-pastel font-medium bg-pink-pastel/5 rounded-lg px-3 py-1.5">
+          <p className="mt-2 text-xs text-ink font-medium bg-subtle rounded-lg px-3 py-1.5">
             ✓ Đã chọn: {zoneCustomization.decoration}
           </p>
         )}
@@ -308,7 +314,7 @@ export default function OptionsPanel({
 
       {/* Border color */}
       <div>
-        <h4 className="text-sm font-medium text-mocha mb-2">Màu viền</h4>
+        <h4 className="text-sm font-medium text-ink mb-2">Màu viền</h4>
         <div className="flex flex-wrap gap-2">
           {CREAM_COLOR_ENTRIES.map((color) => (
             <button
@@ -318,8 +324,8 @@ export default function OptionsPanel({
               onClick={(e) => { e.stopPropagation(); handleColorSelect(color.id); }}
               className={`w-9 h-9 rounded-full border-2 transition-all duration-100 min-w-[44px] min-h-[44px] flex items-center justify-center ${
                 zoneCustomization.color === color.id
-                  ? "border-pink-pastel scale-110 shadow-md ring-2 ring-pink-pastel/30"
-                  : "border-gray-300 hover:scale-105 hover:border-pink-pastel/50"
+                  ? "border-brand scale-110 shadow-md ring-2 ring-subtle"
+                  : "border-gray-300 hover:scale-105 hover:border-line"
               }`}
               style={{ backgroundColor: color.id }}
               aria-label={`Màu ${color.label}`}
@@ -327,7 +333,7 @@ export default function OptionsPanel({
               title={color.label}
             >
               {zoneCustomization.color === color.id && (
-                <span className="text-xs font-bold" style={{ color: color.name === "white" || color.name === "vanilla" ? "#5C3D2E" : "#FFF" }}>
+                <span className="text-xs font-bold" style={{ color: color.name === "white" || color.name === "vanilla" ? "#2B2B2A" : "#FFF" }}>
                   ✓
                 </span>
               )}
@@ -350,7 +356,10 @@ export default function OptionsPanel({
       {/* Desktop: Side panel */}
       <div
         data-options-panel="true"
-        className={`
+        className={
+          variant === "inline"
+            ? "relative w-full animate-fade-in"
+            : `
           fixed md:relative
           bottom-0 left-0 right-0 md:bottom-auto md:left-auto md:right-auto
           md:w-[320px] md:min-w-[280px]
@@ -362,42 +371,47 @@ export default function OptionsPanel({
           ${activeZone ? "translate-y-0" : "translate-y-full md:translate-y-0"}
           max-h-[60vh] md:max-h-[80vh]
           overflow-y-auto
-        `}
-        role="dialog"
+        `
+        }
+        role={variant === "inline" ? "group" : "dialog"}
         aria-label={`Tùy chỉnh ${zoneTitle}`}
-        aria-modal="true"
+        aria-modal={variant === "inline" ? undefined : "true"}
       >
-        {/* Mobile drag handle */}
-        <div className="md:hidden flex justify-center pt-2 pb-1">
-          <div className="w-10 h-1 bg-gray-300 rounded-full" />
-        </div>
+        {variant === "sheet" && (
+          <>
+            {/* Mobile drag handle */}
+            <div className="md:hidden flex justify-center pt-2 pb-1">
+              <div className="w-10 h-1 bg-gray-300 rounded-full" />
+            </div>
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-          <h3 className="font-heading text-lg text-mocha font-semibold">
-            {zoneTitle}
-          </h3>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors min-w-[44px] min-h-[44px]"
-            aria-label="Đóng panel tùy chỉnh"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            >
-              <path d="M4 4L12 12M12 4L4 12" />
-            </svg>
-          </button>
-        </div>
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              <h3 className="font-heading text-lg text-ink font-semibold">
+                {zoneTitle}
+              </h3>
+              <button
+                onClick={onClose}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors min-w-[44px] min-h-[44px]"
+                aria-label="Đóng panel tùy chỉnh"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  <path d="M4 4L12 12M12 4L4 12" />
+                </svg>
+              </button>
+            </div>
+          </>
+        )}
 
         {/* Options content */}
-        <div className="p-4">
+        <div className={variant === "inline" ? "p-0" : "p-4"}>
           {activeZone === "top" && renderTopOptions()}
           {activeZone === "body" && renderBodyOptions()}
           {activeZone === "border" && renderBorderOptions()}
@@ -405,7 +419,7 @@ export default function OptionsPanel({
       </div>
 
       {/* Mobile backdrop */}
-      {activeZone && (
+      {variant === "sheet" && activeZone && (
         <div
           className="fixed inset-0 bg-black/20 z-40 md:hidden"
           onClick={onClose}
