@@ -95,16 +95,29 @@ print(urllib.request.urlopen(req, context=ssl.create_default_context(), timeout=
 Key hiện có: `SUPABASE_KEY` (anon, `sb_publishable_…`) và `SUPABASE_SERVICE_ROLE_KEY` (`sb_secret_…`).
 **Cả hai đều KHÔNG chạy được DDL.**
 
-### 2.4 Checklist migration — chạy THEO THỨ TỰ trước khi dùng tính năng
+### 2.4 Checklist migration — ✅ CẢ HAI ĐÃ CHẠY XONG (17/09/2026)
 
-| # | File migration | Tạo ra | Phải chạy trước khi |
-|---|----------------|--------|---------------------|
-| 1 | `backend/migrations/add_loyalty_system.sql` | Bảng `vouchers`, hàm `increment_loyalty_points`, `rpc_redeem_points` | Bấm "Đổi điểm" ở `/loyalty` |
-| 2 | `backend/migrations/add_staff_role.sql` | Thêm giá trị `staff` vào vai trò người dùng | **Gán vai trò `staff` cho bất kỳ user nào** |
+| # | File migration | Tạo ra | Trạng thái |
+|---|----------------|--------|-----------|
+| 1 | `backend/migrations/add_loyalty_system.sql` | Bảng `vouchers`, hàm `increment_loyalty_points`, `rpc_redeem_points` | ✅ **Đã chạy + xác minh** |
+| 2 | `backend/migrations/add_staff_role.sql` | Thêm giá trị `staff` vào enum `user_role` | ✅ **Đã chạy + xác minh** |
 
-⚠️ **Thứ tự bắt buộc:** phải chạy migration số 2 **trước khi** gán vai trò `staff`.
-Nếu gán `staff` khi enum chưa có giá trị này, database sẽ từ chối và tài khoản
-đó không đăng nhập được vào `/staff/sales`.
+**Bằng chứng xác minh (truy vấn database thật):**
+- Bảng `vouchers`: 9 cột, có constraint `unique_user_type_ref` và policy RLS
+- Enum `user_role`: `customer, admin, baker, staff`
+- `increment_loyalty_points`: gọi 2 lần cùng `ref_id` → **không cộng trùng** ✅
+- `rpc_redeem_points`: đổi quá số điểm → lỗi `INSUFFICIENT_POINTS`, **rollback hoàn toàn** (điểm giữ nguyên, không sinh voucher rác) ✅
+
+**Cách chạy lại nếu cần** (migration đã được sửa thành idempotent):
+```bash
+python backend/scripts/apply_migration.py <SUPABASE_PAT> backend/migrations/add_loyalty_system.sql
+```
+Cần Supabase Personal Access Token (https://supabase.com/dashboard/account/tokens),
+vì service-role key **không chạy được DDL**.
+
+> **Bài học:** migration này trước đây **chưa bao giờ chạy xong**. `CREATE POLICY`
+> không có `IF NOT EXISTS`, mà 2 policy đã tồn tại sẵn → script dừng giữa chừng,
+> không bao giờ tới phần tạo bảng `vouchers`. Đã sửa bằng `DROP POLICY IF EXISTS`.
 
 ---
 

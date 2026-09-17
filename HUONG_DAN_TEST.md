@@ -223,9 +223,8 @@ Dấu ✅ xanh = đạt. Dấu ❌ đỏ = có lỗi, bấm vào để xem chi t
 
 - [ ] Cần đăng nhập bằng tài khoản `customer` mới xem được
 - [ ] Hiển thị số điểm, lịch sử giao dịch
-- [ ] **Đã biết lỗi:** bấm "Đổi điểm" sẽ lỗi, do bảng `vouchers` chưa được
-      tạo trong database. Cần chạy `backend/migrations/add_loyalty_system.sql`
-      trong Supabase SQL Editor.
+- [ ] Bấm "Đổi điểm" khi **đủ điểm** → trừ điểm và sinh mã giảm giá
+- [ ] Bấm "Đổi điểm" khi **không đủ điểm** → báo lỗi, **điểm không bị trừ**
 
 ### 6.7 Kiểm tra hiệu năng
 
@@ -251,9 +250,13 @@ Dấu ✅ xanh = đạt. Dấu ❌ đỏ = có lỗi, bấm vào để xem chi t
 
 | Lỗi | Nguyên nhân | Cách khắc phục |
 |-----|-------------|----------------|
-| Bấm "Đổi điểm" báo lỗi | Bảng `vouchers` chưa tồn tại trong database | Chạy `backend/migrations/add_loyalty_system.sql` trong Supabase SQL Editor |
 | Không đăng nhập được tài khoản mới đăng ký | Supabase đang bật xác nhận email | Xác nhận qua email, hoặc tắt trong Supabase → Authentication → Providers |
 | Bo góc không nhất quán | 5 hệ bo góc đang dùng song song | Chưa xử lý, cần thống nhất một hệ |
+| Chưa có tìm kiếm bằng hình ảnh (CLIP) | Chưa triển khai — thuộc giai đoạn tiếp theo | Không phải lỗi |
+
+> **Đã khắc phục:** bảng `vouchers` và các hàm tích điểm/đổi điểm nay **đã tồn tại**
+> trong database. Migration `add_loyalty_system.sql` và `add_staff_role.sql` đã
+> được chạy và xác minh. Chức năng "Đổi điểm" hoạt động.
 
 ---
 
