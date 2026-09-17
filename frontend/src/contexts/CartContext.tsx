@@ -178,25 +178,43 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Memoised so consumers (Header, ProductCard, CartDrawer) do not re-render
+  // merely because the provider re-rendered. All members are already stable
+  // (state values or useCallback-wrapped actions), so this keeps a single
+  // identity until real cart state changes.
+  const contextValue = useMemo(
+    () => ({
+      items,
+      totalItems,
+      totalPrice,
+      isOpen,
+      selectedBranchId,
+      selectedBranchName,
+      openCart,
+      closeCart,
+      addItem,
+      removeItem,
+      updateQuantity,
+      clearCart,
+    }),
+    [
+      items,
+      totalItems,
+      totalPrice,
+      isOpen,
+      selectedBranchId,
+      selectedBranchName,
+      openCart,
+      closeCart,
+      addItem,
+      removeItem,
+      updateQuantity,
+      clearCart,
+    ]
+  );
+
   return (
-    <CartContext.Provider
-      value={{
-        items,
-        totalItems,
-        totalPrice,
-        isOpen,
-        selectedBranchId,
-        selectedBranchName,
-        openCart,
-        closeCart,
-        addItem,
-        removeItem,
-        updateQuantity,
-        clearCart,
-      }}
-    >
-      {children}
-    </CartContext.Provider>
+    <CartContext.Provider value={contextValue}>{children}</CartContext.Provider>
   );
 }
 
