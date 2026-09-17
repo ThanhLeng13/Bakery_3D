@@ -51,7 +51,7 @@ export default function ChatWidget() {
       {/* Floating Chat Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-pink-pastel text-white shadow-lg transition-all hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-pink-pastel focus:ring-offset-2"
+        className="fixed bottom-6 right-6 z-40 flex h-16 w-16 items-center justify-center rounded-full bg-action text-white shadow-lg transition-all hover:bg-brand-soft hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-action focus:ring-offset-2"
         aria-label={isOpen ? "Đóng chat AI" : "Mở chat AI tư vấn"}
       >
         {isOpen ? (
@@ -70,7 +70,7 @@ export default function ChatWidget() {
           aria-label="AI Chat tư vấn bánh kem"
         >
           {/* Header */}
-          <div className="flex items-center justify-between rounded-t-none md:rounded-t-2xl bg-pink-pastel px-4 py-3">
+          <div className="flex items-center justify-between rounded-t-none md:rounded-t-2xl bg-action px-4 py-3">
             <div className="flex items-center gap-2">
               <span className="text-lg">🎂</span>
               <h2 className="font-heading text-lg font-semibold text-white">
@@ -103,7 +103,7 @@ export default function ChatWidget() {
                 {/* Typing Indicator */}
                 {isLoading && (
                   <div className="flex justify-start">
-                    <div className="rounded-2xl rounded-bl-sm bg-white border border-gray-200 px-4 py-3">
+                    <div className="rounded-2xl rounded-bl-sm bg-white border border-line px-4 py-3">
                       <TypingIndicator />
                     </div>
                   </div>
@@ -131,7 +131,7 @@ export default function ChatWidget() {
           {isAuthenticated && (
             <form
               onSubmit={handleSubmit}
-              className="flex items-center gap-2 border-t border-gray-200 px-4 py-3"
+              className="flex items-center gap-2 border-t border-line px-4 py-3"
             >
               <input
                 ref={inputRef}
@@ -140,14 +140,14 @@ export default function ChatWidget() {
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Nhập tin nhắn..."
                 disabled={isLoading}
-                className="flex-1 rounded-full border border-gray-200 px-4 py-2.5 text-sm text-mocha placeholder-gray-400 focus:border-pink-pastel focus:outline-none focus:ring-1 focus:ring-pink-pastel disabled:opacity-50"
+                className="flex-1 rounded-full border border-line px-4 py-2.5 text-sm text-ink placeholder:text-muted focus:border-brand focus:outline-none focus:ring-1 focus:ring-action disabled:opacity-50"
                 aria-label="Nhập tin nhắn chat"
                 maxLength={2000}
               />
               <button
                 type="submit"
                 disabled={isLoading || !input.trim()}
-                className="flex h-11 w-11 min-w-[44px] items-center justify-center rounded-full bg-pink-pastel text-white transition-colors hover:bg-pink-pastel/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex h-11 w-11 min-w-[44px] items-center justify-center rounded-full bg-action text-white transition-colors hover:bg-brand-soft disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Gửi tin nhắn"
               >
                 <SendIcon />
@@ -176,8 +176,8 @@ function MessageBubble({
       <div
         className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
           isUser
-            ? "rounded-br-sm bg-pink-pastel/10 text-mocha"
-            : "rounded-bl-sm bg-white border border-gray-200 text-mocha"
+            ? "rounded-br-sm bg-ink text-white"
+            : "rounded-bl-sm bg-white border border-line text-ink"
         }`}
       >
         <p className="whitespace-pre-wrap">{message.content}</p>
@@ -211,21 +211,21 @@ function RecommendationCard({
     : "/products";
 
   return (
-    <div className="rounded-xl border border-gray-100 bg-cream/50 p-3">
+    <div className="rounded-xl border border-line bg-surface p-3">
       <div className="flex items-start justify-between gap-2">
-        <h4 className="font-medium text-mocha text-sm">
+        <h4 className="font-medium text-ink text-sm">
           {recommendation.product_name}
         </h4>
-        <span className="whitespace-nowrap text-xs font-semibold text-pink-pastel">
+        <span className="whitespace-nowrap text-xs font-semibold text-ink">
           {formatPrice(recommendation.price)}
         </span>
       </div>
       {recommendation.reasoning && (
-        <p className="mt-1 text-xs text-gray-600">{recommendation.reasoning}</p>
+        <p className="mt-1 text-xs text-muted">{recommendation.reasoning}</p>
       )}
       <a
         href={productLink}
-        className="mt-2 inline-block text-xs font-medium text-pink-pastel hover:underline"
+        className="mt-2 inline-block text-xs font-medium text-ink hover:underline"
       >
         Xem chi tiết →
       </a>
@@ -237,15 +237,15 @@ function LoginPrompt() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 text-center">
       <span className="text-4xl mb-3">🔒</span>
-      <p className="text-sm text-mocha font-medium mb-2">
+      <p className="text-sm text-ink font-medium mb-2">
         Đăng nhập để sử dụng AI tư vấn
       </p>
-      <p className="text-xs text-gray-500 mb-4">
+      <p className="text-xs text-muted mb-4">
         Bạn cần đăng nhập để trò chuyện với trợ lý AI của chúng tôi.
       </p>
       <a
         href="/auth/login"
-        className="inline-flex h-11 items-center rounded-full bg-pink-pastel px-6 text-sm font-medium text-white hover:bg-pink-pastel/90 transition-colors"
+        className="inline-flex h-11 items-center rounded-full bg-action px-6 text-sm font-medium text-white hover:bg-brand-soft transition-colors"
       >
         Đăng nhập
       </a>
@@ -256,9 +256,9 @@ function LoginPrompt() {
 function TypingIndicator() {
   return (
     <div className="flex items-center gap-1" aria-label="AI đang trả lời">
-      <span className="h-2 w-2 rounded-full bg-gray-400 animate-bounce [animation-delay:0ms]" />
-      <span className="h-2 w-2 rounded-full bg-gray-400 animate-bounce [animation-delay:150ms]" />
-      <span className="h-2 w-2 rounded-full bg-gray-400 animate-bounce [animation-delay:300ms]" />
+      <span className="h-2 w-2 rounded-full bg-brand animate-bounce [animation-delay:0ms]" />
+      <span className="h-2 w-2 rounded-full bg-brand animate-bounce [animation-delay:150ms]" />
+      <span className="h-2 w-2 rounded-full bg-brand animate-bounce [animation-delay:300ms]" />
     </div>
   );
 }

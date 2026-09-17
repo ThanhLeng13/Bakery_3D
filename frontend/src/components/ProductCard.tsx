@@ -29,10 +29,10 @@ export default function ProductCard({ product }: ProductCardProps) {
   return (
     <Link
       href={`/products/${product.id}`}
-      className="group block rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden focus:outline-none focus:ring-2 focus:ring-pink-pastel focus:ring-offset-2 animate-fade-in"
+      className="group block rounded-2xl bg-white border border-line shadow-sm hover:shadow-md hover:border-brand transition-all overflow-hidden focus:outline-none focus:ring-2 focus:ring-action focus:ring-offset-2 animate-fade-in"
     >
       {/* Image – CLS-safe: explicit aspect ratio + next/image */}
-      <div className="aspect-square relative bg-gray-100 overflow-hidden">
+      <div className="aspect-square relative bg-subtle overflow-hidden">
         {product.image_url && !imgError ? (
           <Image
             src={product.image_url}
@@ -43,17 +43,17 @@ export default function ProductCard({ product }: ProductCardProps) {
             onError={() => setImgError(true)}
             loading="lazy"
             placeholder="blur"
-            blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmZGY2ZWUiLz48L3N2Zz4="
+            blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmNWY1ZjQiLz48L3N2Zz4="
           />
         ) : (
           // Placeholder fallback – maintains same layout, prevents CLS
           <div
-            className="w-full h-full flex items-center justify-center bg-cream"
+            className="w-full h-full flex items-center justify-center bg-surface"
             role="img"
             aria-label={`Hình ảnh chưa có cho ${product.name}`}
           >
             <svg
-              className="w-16 h-16 text-mocha/20"
+              className="w-16 h-16 text-muted"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -71,18 +71,18 @@ export default function ProductCard({ product }: ProductCardProps) {
       </div>
 
       {/* Content */}
-      <div className="p-3 sm:p-4 space-y-1.5">
-        <h3 className="font-heading text-sm sm:text-base font-semibold text-mocha line-clamp-1 group-hover:text-pink-pastel transition-colors">
+      <div className="p-4 sm:p-5 space-y-2">
+        <h3 className="font-heading text-base sm:text-lg font-semibold text-ink line-clamp-1 transition-colors">
           {product.name}
         </h3>
 
         {shortDescription && (
-          <p className="text-xs sm:text-sm text-mocha/70 line-clamp-2 hidden sm:block">
+          <p className="text-sm text-muted line-clamp-2">
             {shortDescription}
           </p>
         )}
 
-        <p className="text-sm sm:text-base font-semibold text-pink-pastel">
+        <p className="text-base sm:text-lg font-semibold text-ink">
           {formatPrice(product.base_price)}
         </p>
 

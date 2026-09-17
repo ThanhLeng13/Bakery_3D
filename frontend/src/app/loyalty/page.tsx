@@ -3,10 +3,12 @@
 /**
  * Trang Tích Điểm — Bơ Nơ Bakery
  *
- * Theme màu lấy từ linh vật avocado:
- *   xanh avocado đậm  #3d6b35
- *   xanh avocado nhạt #8cbd6e
- *   hồng nơ           #f4a0b5
+ * Theme màu trung tính lấy đúng tông logo (#8F8F8E):
+ *   chữ chính   #2b2b2a
+ *   accent      #8f8f8e
+ *   chữ phụ     #6b6b6a
+ *   đường viền  #e5e5e3
+ *   nền         #fafaf9
  */
 
 import { useState } from "react";
@@ -39,15 +41,15 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 const TYPE_COLOR: Record<string, string> = {
-  purchase: "#8cbd6e",
-  order: "#3d6b35",
-  redeem: "#f4a0b5",
+  purchase: "#8f8f8e",
+  order: "#2b2b2a",
+  redeem: "#6b6b6a",
 };
 
 // ─── Transaction Row ──────────────────────────────────────────────────────────
 function TransactionRow({ tx }: { tx: LoyaltyTransaction }) {
   const isPositive = tx.points > 0;
-  const color = TYPE_COLOR[tx.type] || "#8cbd6e";
+  const color = TYPE_COLOR[tx.type] || "#8f8f8e";
 
   return (
     <div
@@ -56,13 +58,12 @@ function TransactionRow({ tx }: { tx: LoyaltyTransaction }) {
         alignItems: "center",
         justifyContent: "space-between",
         padding: "0.85rem 1rem",
-        borderBottom: "1px solid rgba(61,107,53,0.08)",
+        borderBottom: "1px solid #e5e5e3",
         transition: "background 0.15s",
         gap: "1rem",
       }}
       onMouseEnter={(e) =>
-        ((e.currentTarget as HTMLDivElement).style.background =
-          "rgba(140,189,110,0.07)")
+        ((e.currentTarget as HTMLDivElement).style.background = "#f5f5f4")
       }
       onMouseLeave={(e) =>
         ((e.currentTarget as HTMLDivElement).style.background = "transparent")
@@ -77,7 +78,6 @@ function TransactionRow({ tx }: { tx: LoyaltyTransaction }) {
             borderRadius: "50%",
             background: color,
             flexShrink: 0,
-            boxShadow: `0 0 6px ${color}80`,
           }}
         />
         <div style={{ minWidth: 0 }}>
@@ -85,7 +85,7 @@ function TransactionRow({ tx }: { tx: LoyaltyTransaction }) {
             style={{
               fontSize: "0.875rem",
               fontWeight: 600,
-              color: "#3d4a35",
+              color: "#2b2b2a",
               margin: 0,
               whiteSpace: "nowrap",
               overflow: "hidden",
@@ -98,8 +98,7 @@ function TransactionRow({ tx }: { tx: LoyaltyTransaction }) {
             <p
               style={{
                 fontSize: "0.75rem",
-                color: "#5c3d2e",
-                opacity: 0.65,
+                color: "#6b6b6a",
                 margin: 0,
                 marginTop: "0.15rem",
                 whiteSpace: "nowrap",
@@ -118,14 +117,14 @@ function TransactionRow({ tx }: { tx: LoyaltyTransaction }) {
           style={{
             fontWeight: 700,
             fontSize: "0.9rem",
-            color: isPositive ? "#3d6b35" : "#e8837a",
+            color: isPositive ? "#2b2b2a" : "#6b6b6a",
             margin: 0,
           }}
         >
           {isPositive ? "+" : ""}
           {tx.points.toLocaleString("vi-VN")} điểm
         </p>
-        <p style={{ fontSize: "0.7rem", color: "#5c3d2e", opacity: 0.5, margin: 0, marginTop: "0.1rem" }}>
+        <p style={{ fontSize: "0.75rem", color: "#6b6b6a", margin: 0, marginTop: "0.1rem" }}>
           {formatDate(tx.created_at)}
         </p>
       </div>
@@ -160,7 +159,7 @@ function RedeemModal({
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(30,40,20,0.55)",
+        background: "rgba(43,43,42,0.55)",
         backdropFilter: "blur(6px)",
         display: "flex",
         alignItems: "center",
@@ -173,11 +172,12 @@ function RedeemModal({
       <div
         style={{
           background: "#fff",
+          border: "1px solid #e5e5e3",
           borderRadius: "1.5rem",
           padding: "2rem",
           width: "100%",
           maxWidth: "420px",
-          boxShadow: "0 20px 60px rgba(61,107,53,0.25)",
+          boxShadow: "0 20px 60px rgba(43,43,42,0.18)",
           animation: "slideUp 0.25s ease-out",
         }}
       >
@@ -187,13 +187,13 @@ function RedeemModal({
             style={{
               fontSize: "1.3rem",
               fontWeight: 700,
-              color: "#3d6b35",
+              color: "#2b2b2a",
               margin: 0,
             }}
           >
             Đổi Điểm Lấy Voucher
           </h2>
-          <p style={{ color: "#5c3d2e", opacity: 0.7, fontSize: "0.875rem", margin: "0.5rem 0 0" }}>
+          <p style={{ color: "#6b6b6a", fontSize: "0.875rem", margin: "0.5rem 0 0" }}>
             {pointsPerVoucher} điểm = 1 voucher = {formatVND(voucherValue)} giảm giá
           </p>
         </div>
@@ -215,9 +215,9 @@ function RedeemModal({
               width: "44px",
               height: "44px",
               borderRadius: "50%",
-              border: "2px solid #3d6b35",
+              border: "1px solid #8f8f8e",
               background: "white",
-              color: "#3d6b35",
+              color: "#2b2b2a",
               fontSize: "1.25rem",
               fontWeight: 700,
               cursor: count <= 1 ? "not-allowed" : "pointer",
@@ -236,13 +236,13 @@ function RedeemModal({
               style={{
                 fontSize: "2.5rem",
                 fontWeight: 800,
-                color: "#3d6b35",
+                color: "#2b2b2a",
                 lineHeight: 1,
               }}
             >
               {count}
             </div>
-            <div style={{ fontSize: "0.75rem", color: "#5c3d2e", opacity: 0.6 }}>voucher</div>
+            <div style={{ fontSize: "0.75rem", color: "#6b6b6a" }}>voucher</div>
           </div>
 
           <button
@@ -252,8 +252,8 @@ function RedeemModal({
               width: "44px",
               height: "44px",
               borderRadius: "50%",
-              border: "2px solid #3d6b35",
-              background: "#3d6b35",
+              border: "1px solid #2b2b2a",
+              background: "#2b2b2a",
               color: "white",
               fontSize: "1.25rem",
               fontWeight: 700,
@@ -272,17 +272,18 @@ function RedeemModal({
         {/* Summary */}
         <div
           style={{
-            background: "rgba(140,189,110,0.12)",
+            background: "#f5f5f4",
+            border: "1px solid #e5e5e3",
             borderRadius: "1rem",
             padding: "1rem",
             textAlign: "center",
             marginBottom: "1.5rem",
           }}
         >
-          <p style={{ margin: 0, color: "#3d6b35", fontWeight: 600 }}>
+          <p style={{ margin: 0, color: "#6b6b6a", fontWeight: 600 }}>
             Dùng {(count * pointsPerVoucher).toLocaleString("vi-VN")} điểm
           </p>
-          <p style={{ margin: "0.25rem 0 0", color: "#3d6b35", fontSize: "1.1rem", fontWeight: 700 }}>
+          <p style={{ margin: "0.25rem 0 0", color: "#2b2b2a", fontSize: "1.1rem", fontWeight: 700 }}>
             Nhận {formatVND(count * voucherValue)} giảm giá
           </p>
         </div>
@@ -310,9 +311,9 @@ function RedeemModal({
               flex: 1,
               padding: "0.85rem",
               borderRadius: "0.85rem",
-              border: "2px solid rgba(61,107,53,0.25)",
+              border: "1px solid #8f8f8e",
               background: "transparent",
-              color: "#5c3d2e",
+              color: "#2b2b2a",
               fontWeight: 600,
               cursor: "pointer",
               fontSize: "0.9rem",
@@ -331,14 +332,14 @@ function RedeemModal({
               borderRadius: "0.85rem",
               border: "none",
               background: loading
-                ? "#ccc"
-                : "linear-gradient(135deg, #3d6b35 0%, #8cbd6e 100%)",
-              color: "white",
+                ? "#e5e5e3"
+                : "#2b2b2a",
+              color: loading ? "#6b6b6a" : "white",
               fontWeight: 700,
               cursor: loading ? "not-allowed" : "pointer",
               fontSize: "0.9rem",
               transition: "all 0.15s",
-              boxShadow: loading ? "none" : "0 4px 16px rgba(61,107,53,0.35)",
+              boxShadow: loading ? "none" : "0 4px 16px rgba(43,43,42,0.25)",
             }}
           >
             {loading ? "Đang xử lý…" : "✅ Xác nhận đổi điểm"}
@@ -364,7 +365,7 @@ function SuccessModal({
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(30,40,20,0.55)",
+        background: "rgba(43,43,42,0.55)",
         backdropFilter: "blur(6px)",
         display: "flex",
         alignItems: "center",
@@ -376,20 +377,21 @@ function SuccessModal({
       <div
         style={{
           background: "#fff",
+          border: "1px solid #e5e5e3",
           borderRadius: "1.5rem",
           padding: "2rem",
           width: "100%",
           maxWidth: "420px",
-          boxShadow: "0 20px 60px rgba(61,107,53,0.25)",
+          boxShadow: "0 20px 60px rgba(43,43,42,0.18)",
           animation: "slideUp 0.25s ease-out",
           textAlign: "center",
         }}
       >
         <div style={{ fontSize: "3rem", marginBottom: "0.5rem" }}>🎉</div>
-        <h2 style={{ color: "#3d6b35", margin: "0 0 0.5rem", fontSize: "1.3rem" }}>
+        <h2 style={{ color: "#2b2b2a", margin: "0 0 0.5rem", fontSize: "1.3rem" }}>
           Đổi điểm thành công!
         </h2>
-        <p style={{ color: "#5c3d2e", opacity: 0.7, margin: "0 0 1.5rem", fontSize: "0.9rem" }}>
+        <p style={{ color: "#6b6b6a", margin: "0 0 1.5rem", fontSize: "0.9rem" }}>
           Bạn nhận được voucher giảm <strong>{formatVND(discountVnd)}</strong>
         </p>
 
@@ -398,14 +400,14 @@ function SuccessModal({
             <div
               key={code}
               style={{
-                background: "linear-gradient(135deg, rgba(61,107,53,0.08) 0%, rgba(140,189,110,0.12) 100%)",
-                border: "1.5px dashed #8cbd6e",
+                background: "#f5f5f4",
+                border: "1.5px dashed #8f8f8e",
                 borderRadius: "0.75rem",
                 padding: "0.75rem 1rem",
                 fontFamily: "monospace",
                 fontSize: "1rem",
                 fontWeight: 700,
-                color: "#3d6b35",
+                color: "#2b2b2a",
                 letterSpacing: "0.08em",
               }}
             >
@@ -414,7 +416,7 @@ function SuccessModal({
           ))}
         </div>
 
-        <p style={{ color: "#5c3d2e", opacity: 0.55, fontSize: "0.75rem", margin: "0 0 1.5rem" }}>
+        <p style={{ color: "#6b6b6a", fontSize: "0.75rem", margin: "0 0 1.5rem" }}>
           💡 Lưu mã và trình với nhân viên khi đến quán để được giảm giá.
         </p>
 
@@ -426,15 +428,15 @@ function SuccessModal({
             padding: "0.85rem",
             borderRadius: "0.85rem",
             border: "none",
-            background: "linear-gradient(135deg, #3d6b35 0%, #8cbd6e 100%)",
+            background: "#2b2b2a",
             color: "white",
             fontWeight: 700,
             cursor: "pointer",
             fontSize: "0.95rem",
-            boxShadow: "0 4px 16px rgba(61,107,53,0.35)",
+            boxShadow: "0 4px 16px rgba(43,43,42,0.25)",
           }}
         >
-          Tuyệt vời! 🥑
+          Tuyệt vời! 🎂
         </button>
       </div>
     </div>
@@ -471,7 +473,7 @@ export default function LoyaltyPage() {
   // ── Not logged in ─────────────────────────────────────────────────────────
   if (!isAuthenticated) {
     return (
-      <main style={{ minHeight: "100vh", background: "#fdf6ee" }}>
+      <main style={{ minHeight: "100vh", background: "#fafaf9" }}>
         <Header />
         <div
           style={{
@@ -493,16 +495,13 @@ export default function LoyaltyPage() {
             style={{
               fontSize: "1.6rem",
               fontWeight: 700,
-              background: "linear-gradient(135deg, #3d6b35, #8cbd6e)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
+              color: "#2b2b2a",
               marginBottom: "0.75rem",
             }}
           >
             Hệ Thống Tích Điểm
           </h1>
-          <p style={{ color: "#5c3d2e", opacity: 0.7, marginBottom: "2rem" }}>
+          <p style={{ color: "#6b6b6a", marginBottom: "2rem" }}>
             Đăng nhập để xem và tích lũy điểm thưởng từ mỗi đơn hàng!
           </p>
           <Link
@@ -511,11 +510,11 @@ export default function LoyaltyPage() {
               display: "inline-block",
               padding: "0.85rem 2.5rem",
               borderRadius: "9999px",
-              background: "linear-gradient(135deg, #3d6b35 0%, #8cbd6e 100%)",
+              background: "#2b2b2a",
               color: "white",
               fontWeight: 700,
               textDecoration: "none",
-              boxShadow: "0 6px 24px rgba(61,107,53,0.3)",
+              boxShadow: "0 6px 24px rgba(43,43,42,0.25)",
               fontSize: "1rem",
             }}
           >
@@ -529,7 +528,7 @@ export default function LoyaltyPage() {
   // ── Loading ───────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <main style={{ minHeight: "100vh", background: "#fdf6ee" }}>
+      <main style={{ minHeight: "100vh", background: "#fafaf9" }}>
         <Header />
         <div style={{ maxWidth: "700px", margin: "3rem auto", padding: "0 1rem" }}>
           {[1, 2, 3].map((i) => (
@@ -537,7 +536,7 @@ export default function LoyaltyPage() {
               key={i}
               style={{
                 height: i === 1 ? "200px" : "120px",
-                background: "linear-gradient(90deg, #e8f4e2 25%, #d4eccc 50%, #e8f4e2 75%)",
+                background: "linear-gradient(90deg, #f5f5f4 25%, #e5e5e3 50%, #f5f5f4 75%)",
                 backgroundSize: "200% 100%",
                 animation: "shimmer 1.5s infinite",
                 borderRadius: "1.25rem",
@@ -553,10 +552,10 @@ export default function LoyaltyPage() {
   // ── Error ─────────────────────────────────────────────────────────────────
   if (error) {
     return (
-      <main style={{ minHeight: "100vh", background: "#fdf6ee" }}>
+      <main style={{ minHeight: "100vh", background: "#fafaf9" }}>
         <Header />
         <div style={{ maxWidth: "500px", margin: "4rem auto", padding: "0 1rem", textAlign: "center" }}>
-          <p style={{ color: "#e8837a", fontSize: "1rem" }}>⚠️ {error}</p>
+          <p style={{ color: "#d32f2f", fontSize: "1rem" }}>⚠️ {error}</p>
         </div>
       </main>
     );
@@ -590,7 +589,7 @@ export default function LoyaltyPage() {
       <main
         style={{
           minHeight: "100vh",
-          background: "linear-gradient(160deg, #f0f9eb 0%, #fdf6ee 50%, #fff5f7 100%)",
+          background: "#fafaf9",
         }}
       >
         <Header />
@@ -600,13 +599,13 @@ export default function LoyaltyPage() {
           {/* ── HERO CARD ──────────────────────────────────────────────────── */}
           <div
             style={{
-              background: "linear-gradient(135deg, #3d6b35 0%, #5a9447 60%, #8cbd6e 100%)",
+              background: "#2b2b2a",
               borderRadius: "1.75rem",
               padding: "2rem 2rem 2.5rem",
               marginBottom: "1.25rem",
               position: "relative",
               overflow: "hidden",
-              boxShadow: "0 12px 40px rgba(61,107,53,0.35)",
+              boxShadow: "0 12px 40px rgba(43,43,42,0.28)",
             }}
           >
             {/* Background decoration */}
@@ -729,10 +728,9 @@ export default function LoyaltyPage() {
                         ? 100
                         : ((pts % pointsPerVoucher) / pointsPerVoucher) * 100
                     }%`,
-                    background: "rgba(255,255,255,0.85)",
+                    background: "#ffffff",
                     borderRadius: "9999px",
                     transition: "width 1s ease-out",
-                    boxShadow: "0 0 10px rgba(255,255,255,0.6)",
                   }}
                 />
               </div>
@@ -749,9 +747,9 @@ export default function LoyaltyPage() {
             }}
           >
             {[
-              { icon: "🛒", label: "Mua bánh ngọt", value: "1 điểm / 1K VND", color: "#8cbd6e" },
-              { icon: "🎂", label: "Đặt bánh kem", value: "1.5 điểm / 1K VND", color: "#3d6b35" },
-              { icon: "🎁", label: "Đổi điểm", value: `100 điểm = ${(voucherValue / 1000).toFixed(0)}K VND`, color: "#f4a0b5" },
+              { icon: "🛒", label: "Mua bánh ngọt", value: "1 điểm / 1K VND" },
+              { icon: "🎂", label: "Đặt bánh kem", value: "1.5 điểm / 1K VND" },
+              { icon: "🎁", label: "Đổi điểm", value: `100 điểm = ${(voucherValue / 1000).toFixed(0)}K VND` },
             ].map((item) => (
               <div
                 key={item.label}
@@ -759,16 +757,14 @@ export default function LoyaltyPage() {
                   background: "white",
                   borderRadius: "1.1rem",
                   padding: "1.1rem",
-                  boxShadow: "0 2px 12px rgba(61,107,53,0.08)",
-                  border: `1.5px solid ${item.color}22`,
+                  border: "1px solid #e5e5e3",
                 }}
               >
                 <div style={{ fontSize: "1.5rem", marginBottom: "0.4rem" }}>{item.icon}</div>
                 <p
                   style={{
                     fontSize: "0.75rem",
-                    color: "#5c3d2e",
-                    opacity: 0.65,
+                    color: "#6b6b6a",
                     margin: "0 0 0.25rem",
                     fontWeight: 500,
                   }}
@@ -779,7 +775,7 @@ export default function LoyaltyPage() {
                   style={{
                     fontSize: "0.9rem",
                     fontWeight: 700,
-                    color: item.color,
+                    color: "#2b2b2a",
                     margin: 0,
                   }}
                 >
@@ -802,12 +798,12 @@ export default function LoyaltyPage() {
                 padding: "1rem",
                 borderRadius: "1.1rem",
                 border: "none",
-                background: "linear-gradient(135deg, #3d6b35 0%, #8cbd6e 100%)",
+                background: "#2b2b2a",
                 color: "white",
                 fontWeight: 700,
                 fontSize: "1rem",
                 cursor: "pointer",
-                boxShadow: "0 6px 24px rgba(61,107,53,0.3)",
+                boxShadow: "0 6px 24px rgba(43,43,42,0.25)",
                 marginBottom: "1.25rem",
                 transition: "transform 0.15s, box-shadow 0.15s",
                 display: "flex",
@@ -817,11 +813,11 @@ export default function LoyaltyPage() {
               }}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
-                (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 10px 32px rgba(61,107,53,0.4)";
+                (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 10px 32px rgba(43,43,42,0.32)";
               }}
               onMouseLeave={(e) => {
                 (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
-                (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 24px rgba(61,107,53,0.3)";
+                (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 24px rgba(43,43,42,0.25)";
               }}
             >
               🎁 Đổi điểm lấy voucher ({availableVouchers} voucher khả dụng)
@@ -829,13 +825,13 @@ export default function LoyaltyPage() {
           ) : (
             <div
               style={{
-                background: "rgba(140,189,110,0.1)",
-                border: "1.5px dashed #8cbd6e",
+                background: "#f5f5f4",
+                border: "1.5px dashed #8f8f8e",
                 borderRadius: "1.1rem",
                 padding: "1rem",
                 textAlign: "center",
                 marginBottom: "1.25rem",
-                color: "#3d6b35",
+                color: "#2b2b2a",
                 fontSize: "0.9rem",
               }}
             >
@@ -847,9 +843,9 @@ export default function LoyaltyPage() {
           {redeemError && (
             <p
               style={{
-                color: "#e8837a",
-                background: "#fff5f5",
-                border: "1px solid #ffd0d0",
+                color: "#d32f2f",
+                background: "#fff2f2",
+                border: "1px solid #ffcdd2",
                 borderRadius: "0.75rem",
                 padding: "0.75rem 1rem",
                 fontSize: "0.875rem",
@@ -864,15 +860,15 @@ export default function LoyaltyPage() {
           <div
             style={{
               background: "white",
+              border: "1px solid #e5e5e3",
               borderRadius: "1.25rem",
-              boxShadow: "0 2px 16px rgba(61,107,53,0.09)",
               overflow: "hidden",
             }}
           >
             <div
               style={{
                 padding: "1.1rem 1rem 0.85rem",
-                borderBottom: "1px solid rgba(61,107,53,0.08)",
+                borderBottom: "1px solid #e5e5e3",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -882,7 +878,7 @@ export default function LoyaltyPage() {
                 style={{
                   fontSize: "1rem",
                   fontWeight: 700,
-                  color: "#3d4a35",
+                  color: "#2b2b2a",
                   margin: 0,
                 }}
               >
@@ -891,7 +887,7 @@ export default function LoyaltyPage() {
               <span
                 style={{
                   fontSize: "0.75rem",
-                  color: "#8cbd6e",
+                  color: "#6b6b6a",
                   fontWeight: 600,
                 }}
               >
@@ -904,11 +900,10 @@ export default function LoyaltyPage() {
                 style={{
                   padding: "3rem 1rem",
                   textAlign: "center",
-                  color: "#5c3d2e",
-                  opacity: 0.55,
+                  color: "#6b6b6a",
                 }}
               >
-                <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>🌱</div>
+                <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>🎂</div>
                 <p style={{ margin: 0, fontSize: "0.9rem" }}>
                   Chưa có giao dịch nào. Hãy mua bánh để tích điểm!
                 </p>
@@ -926,30 +921,29 @@ export default function LoyaltyPage() {
           <div
             style={{
               marginTop: "1.25rem",
-              background: "linear-gradient(135deg, rgba(61,107,53,0.06) 0%, rgba(244,160,181,0.08) 100%)",
+              background: "#f5f5f4",
               borderRadius: "1.1rem",
               padding: "1.25rem 1.25rem",
-              border: "1px solid rgba(140,189,110,0.2)",
+              border: "1px solid #e5e5e3",
             }}
           >
             <h3
               style={{
                 fontSize: "0.9rem",
                 fontWeight: 700,
-                color: "#3d6b35",
+                color: "#2b2b2a",
                 margin: "0 0 0.75rem",
               }}
             >
-              🥑 Cách tích điểm
+              🎂 Cách tích điểm
             </h3>
             <ul
               style={{
                 margin: 0,
                 padding: "0 0 0 1.1rem",
-                color: "#5c3d2e",
+                color: "#6b6b6a",
                 fontSize: "0.85rem",
                 lineHeight: 1.7,
-                opacity: 0.8,
               }}
             >
               <li>Mua bánh ngọt tại quán → nhận <strong>1 điểm / 1,000 VND</strong></li>

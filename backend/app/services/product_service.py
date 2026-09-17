@@ -4,6 +4,7 @@ Handles product CRUD operations, image upload/processing, and catalog revalidati
 """
 
 import io
+import logging
 import uuid
 from typing import Any, Optional
 
@@ -11,6 +12,8 @@ from PIL import Image
 
 from app.core.config import settings
 from app.utils.image_url import format_image_url
+
+logger = logging.getLogger(__name__)
 
 
 class ProductServiceError(Exception):
@@ -103,12 +106,13 @@ class ProductService:
         except ProductServiceError:
             raise
         except Exception as e:
+            logger.exception("Failed to create product")
             error_msg = str(e).lower()
             if "duplicate" in error_msg or "unique" in error_msg:
                 raise ProductValidationError(
                     [{"field": "name", "message": "A product with this name already exists"}]
                 )
-            raise ProductServiceError(f"Failed to create product: {str(e)}", status_code=500)
+            raise ProductServiceError("Failed to create product", status_code=500)
 
     def update_product(self, product_id: str, data: dict) -> dict:
         """
@@ -167,8 +171,9 @@ class ProductService:
 
         except (ProductServiceError, ProductNotFoundError):
             raise
-        except Exception as e:
-            raise ProductServiceError(f"Failed to update product: {str(e)}", status_code=500)
+        except Exception:
+            logger.exception("Failed to update product %s", product_id)
+            raise ProductServiceError("Failed to update product", status_code=500)
 
     def toggle_status(self, product_id: str, is_active: bool) -> dict:
         """
@@ -204,8 +209,9 @@ class ProductService:
 
         except (ProductServiceError, ProductNotFoundError):
             raise
-        except Exception as e:
-            raise ProductServiceError(f"Failed to toggle status: {str(e)}", status_code=500)
+        except Exception:
+            logger.exception("Failed to toggle status for product %s", product_id)
+            raise ProductServiceError("Failed to toggle status", status_code=500)
 
     def upload_image(
         self,
@@ -310,8 +316,9 @@ class ProductService:
 
         except (ProductServiceError, ProductValidationError, ProductNotFoundError):
             raise
-        except Exception as e:
-            raise ProductServiceError(f"Failed to upload image: {str(e)}", status_code=500)
+        except Exception:
+            logger.exception("Failed to upload image for product %s", product_id)
+            raise ProductServiceError("Failed to upload image", status_code=500)
 
     def _process_image(self, file_content: bytes, content_type: str) -> tuple[bytes, str]:
         """
@@ -353,9 +360,12 @@ class ProductService:
 
             return output.getvalue(), content_type
 
-        except Exception as e:
+        except Exception:
+            # Keep a user-actionable message but never echo the raw decoder
+            # error back to the client (it can leak library internals).
+            logger.exception("Invalid image file rejected during processing")
             raise ProductValidationError(
-                [{"field": "image", "message": f"Invalid image file: {str(e)}"}]
+                [{"field": "image", "message": "Invalid or corrupt image file"}]
             )
 
     def _get_product_or_raise(self, product_id: str) -> dict:
@@ -376,8 +386,9 @@ class ProductService:
 
         except ProductNotFoundError:
             raise
-        except Exception as e:
-            raise ProductServiceError(f"Failed to fetch product: {str(e)}", status_code=500)
+        except Exception:
+            logger.exception("Failed to fetch product %s", product_id)
+            raise ProductServiceError("Failed to fetch product", status_code=500)
 
     def _get_product_with_images(self, product_id: str) -> dict:
         """Fetch product with its images."""

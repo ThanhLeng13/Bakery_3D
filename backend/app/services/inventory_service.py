@@ -502,15 +502,14 @@ class InventoryService:
                     failures.append(
                         f"Không thể hoàn tác stock cho lô {dec['batch_id']} sau {max_retries} lần thử."
                     )
-            except Exception as e:
-                logger.error(
-                    "STOCK ROLLBACK EXCEPTION: batch_id=%s qty=%d — error=%s",
+            except Exception:
+                logger.exception(
+                    "STOCK ROLLBACK EXCEPTION: batch_id=%s qty=%d",
                     dec["batch_id"],
                     dec["quantity_decremented"],
-                    str(e),
                 )
                 failures.append(
-                    f"Không thể hoàn tác stock cho lô {dec['batch_id']} do lỗi hệ thống: {str(e)}."
+                    f"Không thể hoàn tác stock cho lô {dec['batch_id']} do lỗi hệ thống."
                 )
 
         if failures:
