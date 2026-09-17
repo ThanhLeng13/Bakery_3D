@@ -125,13 +125,14 @@ class AuthService:
         except AuthServiceError:
             raise
         except Exception as e:
+            logger.exception("Registration failed")
             error_msg = str(e).lower()
             if "already registered" in error_msg or "duplicate" in error_msg or "unique" in error_msg:
                 raise ValidationError(
                     [{"field": "email", "message": "Email is already registered"}]
                 )
             raise AuthServiceError(
-                f"Registration failed: {str(e)}",
+                "Registration failed",
                 status_code=500,
             )
 
