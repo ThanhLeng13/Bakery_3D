@@ -33,6 +33,10 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
+
+# next-env.d.ts is intentionally tracked.
+# Next.js regenerates it, but `tsc --noEmit` and `next lint` need the file to
+# exist in a fresh checkout (CI), otherwise typechecking fails with missing
+# Next.js global types.
 
 .vercel
