@@ -6,11 +6,25 @@
    DESIGN TOKENS
    ========================================================= */
 :root {
-  --background: #fdf6ee;
-  --foreground: #5c3d2e;
-  --pink-pastel: #e8837a;
-  --cream: #fdf6ee;
-  --mocha: #5c3d2e;
+  --background: #fafaf9;
+  --foreground: #2b2b2a;
+  --brand: #8f8f8e;
+  --muted: #6b6b6a;
+  --surface: #fafaf9;
+  --subtle: #f5f5f4;
+  --line: #e5e5e3;
+  --space-1: 0.5rem;
+  --space-2: 1rem;
+  --space-3: 1.5rem;
+  --space-4: 2rem;
+  --space-6: 3rem;
+  --space-8: 4rem;
+
+  /* Brand palette (matches logo #8F8F8E – neutral warm grey) */
+  --brand: #8f8f8e;
+  --brand-ink: #2b2b2a;
+  --brand-soft: #6b6b6a;
+  --brand-line: #e5e5e3;
 
   /* Spacing tokens */
   --page-padding-x: 1rem;           /* 16px – mobile */
@@ -67,6 +81,18 @@
     /* Improve font rendering */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    line-height: 1.6;
+    caret-color: var(--foreground);
+  }
+
+  ::selection {
+    background: var(--line);
+    color: var(--foreground);
+  }
+
+  ::placeholder {
+    color: var(--muted);
+    opacity: 1;
   }
 
   /* Headings */
@@ -107,7 +133,7 @@
 
   /* Focus styles – accessible for keyboard navigation */
   :focus-visible {
-    outline: 2px solid var(--pink-pastel);
+    outline: 2px solid var(--foreground);
     outline-offset: 2px;
     border-radius: 4px;
   }
@@ -132,6 +158,11 @@
   a:where(:not(.btn)) {
     min-height: unset;
   }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
 }
 
 /* =========================================================
@@ -145,6 +176,61 @@
     margin-right: auto;
     padding-left: var(--page-padding-x);
     padding-right: var(--page-padding-x);
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    min-height: 56px;
+    padding: 16px 32px;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.4;
+    transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease;
+  }
+
+  .btn-primary {
+    background: var(--foreground);
+    color: white;
+  }
+
+  /* Hover: deepen to brand grey while keeping white text.
+     #8F8F8E with white text = 4.1:1, so we dim the surface instead and
+     keep AA-compliant contrast for all CTA sizes. */
+  .btn-primary:hover {
+    background: #6b6b6a;
+    color: white;
+  }
+
+  .btn-secondary {
+    background: white;
+    border-color: var(--brand);
+    color: var(--foreground);
+  }
+
+  .btn-secondary:hover {
+    background: var(--subtle);
+    border-color: var(--foreground);
+  }
+
+  .hero-title {
+    font-size: clamp(2.5rem, 4.5vw, 4rem);
+    line-height: 1.12;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+
+  .feature-card {
+    padding: 32px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: white;
+    text-align: center;
   }
 
   /* ---- Skeleton Loading ---- */
@@ -266,8 +352,8 @@
   }
 
   @keyframes pulse-ring {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(232, 131, 122, 0.4); }
-    50%       { box-shadow: 0 0 0 8px rgba(232, 131, 122, 0); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(143, 143, 142, 0.4); }
+    50%       { box-shadow: 0 0 0 8px rgba(143, 143, 142, 0); }
   }
 
   .animate-fade-in {

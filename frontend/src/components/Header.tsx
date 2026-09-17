@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import CartDrawer from "@/components/CartDrawer";
+import BrandLogo from "@/components/BrandLogo";
 import { useLoyaltyContext } from "@/contexts/LoyaltyContext";
 
 export default function Header() {
@@ -40,15 +41,16 @@ export default function Header() {
 
   return (
     <>
-    <header className="bg-white/90 backdrop-blur-md border-b border-mocha/10 sticky top-0 z-50 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+    <header className="bg-white border-b border-line sticky top-0 z-50">
+      <div className="page-container">
+        <div className="flex items-center justify-between gap-4 h-20 sm:h-24">
           {/* Logo */}
           <Link
             href="/"
-            className="font-heading text-xl text-mocha font-bold flex items-center gap-2 hover:text-pink-pastel transition-colors min-h-[44px]"
+            className="flex shrink-0 items-center min-h-[44px]"
+            aria-label="Bơ Nơ Bakery — Trang chủ"
           >
-            🎂 <span>Bơ Nơ</span>
+            <BrandLogo priority />
           </Link>
 
           {/* Desktop Nav */}
@@ -59,8 +61,8 @@ export default function Header() {
                 href={link.href}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-colors min-h-[40px] flex items-center ${
                   pathname === link.href
-                    ? "bg-pink-pastel/10 text-pink-pastel"
-                    : "text-mocha/70 hover:text-mocha hover:bg-mocha/5"
+                    ? "bg-subtle text-ink"
+                    : "text-muted hover:text-ink hover:bg-ink/5"
                 }`}
               >
                 {link.label}
@@ -74,7 +76,7 @@ export default function Header() {
             <button
               id="header-cart-btn"
               onClick={openCart}
-              className="relative p-2 rounded-full text-mocha/70 hover:text-mocha hover:bg-mocha/5 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+              className="relative p-2 rounded-full text-muted hover:text-ink hover:bg-ink/5 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
               aria-label={`Giỏ hàng${totalItems > 0 ? ` (${totalItems} sản phẩm)` : ""}`}
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -83,7 +85,7 @@ export default function Header() {
                 <path d="M16 10a4 4 0 01-8 0" />
               </svg>
               {totalItems > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-pink-pastel text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 leading-none">
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-action text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 leading-none">
                   {totalItems > 99 ? "99+" : totalItems}
                 </span>
               )}
@@ -93,15 +95,15 @@ export default function Header() {
               <div className="relative">
                 <button
                   onClick={() => setUserMenuOpen((v) => !v)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-full bg-pink-pastel/10 hover:bg-pink-pastel/20 transition-colors min-h-[40px]"
+                  className="flex items-center gap-2 px-3 py-2 rounded-full bg-subtle hover:bg-subtle transition-colors min-h-[40px]"
                   aria-expanded={userMenuOpen}
                   aria-haspopup="true"
                 >
                   {/* Avatar */}
-                  <div className="w-7 h-7 rounded-full bg-pink-pastel flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                  <div className="w-7 h-7 rounded-full bg-action flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                     {user.full_name?.charAt(0)?.toUpperCase() || "U"}
                   </div>
-                  <span className="text-sm font-medium text-mocha hidden sm:block max-w-[120px] truncate">
+                  <span className="text-sm font-medium text-ink hidden sm:block max-w-[120px] truncate">
                     {user.full_name}
                   </span>
                   {/* Points badge */}
@@ -119,7 +121,7 @@ export default function Header() {
                     </span>
                   )}
                   <svg
-                    className={`w-4 h-4 text-mocha/50 transition-transform ${userMenuOpen ? "rotate-180" : ""}`}
+                    className={`w-4 h-4 text-muted transition-transform ${userMenuOpen ? "rotate-180" : ""}`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -137,12 +139,12 @@ export default function Header() {
                       className="fixed inset-0 z-10"
                       onClick={() => setUserMenuOpen(false)}
                     />
-                    <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-lg border border-mocha/10 py-2 z-20 animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-lg border border-line py-2 z-20 animate-in fade-in slide-in-from-top-2 duration-150">
                       {/* User info */}
-                      <div className="px-4 py-3 border-b border-mocha/10">
-                        <p className="text-sm font-semibold text-mocha truncate">{user.full_name}</p>
+                      <div className="px-4 py-3 border-b border-line">
+                        <p className="text-sm font-semibold text-ink truncate">{user.full_name}</p>
                         {user.role === "admin" && (
-                          <span className="inline-block mt-1 px-2 py-0.5 bg-pink-pastel/10 text-pink-pastel text-xs rounded-full font-medium">
+                          <span className="inline-block mt-1 px-2 py-0.5 bg-subtle text-ink text-xs rounded-full font-medium">
                             Admin
                           </span>
                         )}
@@ -155,14 +157,14 @@ export default function Header() {
                       <div className="py-1">
                         <Link
                           href="/orders"
-                          className="flex items-center gap-2 px-4 py-2 text-sm text-mocha hover:bg-cream transition-colors"
+                          className="flex items-center gap-2 px-4 py-2 text-sm text-ink hover:bg-surface transition-colors"
                           onClick={() => setUserMenuOpen(false)}
                         >
                           📦 Đơn hàng của tôi
                         </Link>
                         <Link
                           href="/loyalty"
-                          className="flex items-center gap-2 px-4 py-2 text-sm text-mocha hover:bg-cream transition-colors"
+                          className="flex items-center gap-2 px-4 py-2 text-sm text-ink hover:bg-surface transition-colors"
                           onClick={() => setUserMenuOpen(false)}
                         >
                           <span>🌿 Điểm tích lũy</span>
@@ -182,7 +184,7 @@ export default function Header() {
                         {user.role === "admin" && (
                           <Link
                             href="/admin"
-                            className="flex items-center gap-2 px-4 py-2 text-sm text-mocha hover:bg-cream transition-colors"
+                            className="flex items-center gap-2 px-4 py-2 text-sm text-ink hover:bg-surface transition-colors"
                             onClick={() => setUserMenuOpen(false)}
                           >
                             ⚙️ Quản trị
@@ -192,14 +194,14 @@ export default function Header() {
                           <>
                             <Link
                               href="/baker"
-                              className="flex items-center gap-2 px-4 py-2 text-sm text-mocha hover:bg-cream transition-colors"
+                              className="flex items-center gap-2 px-4 py-2 text-sm text-ink hover:bg-surface transition-colors"
                               onClick={() => setUserMenuOpen(false)}
                             >
                               👨‍🍳 Xưởng bánh (Đơn hàng)
                             </Link>
                             <Link
                               href="/baker/inventory"
-                              className="flex items-center gap-2 px-4 py-2 text-sm text-mocha hover:bg-cream transition-colors"
+                              className="flex items-center gap-2 px-4 py-2 text-sm text-ink hover:bg-surface transition-colors"
                               onClick={() => setUserMenuOpen(false)}
                             >
                               📦 Quản lý kho bánh
@@ -222,13 +224,13 @@ export default function Header() {
               <div className="flex items-center gap-2">
                 <Link
                   href="/auth/login"
-                  className="hidden sm:flex px-4 py-2 text-sm font-medium text-mocha/70 hover:text-mocha transition-colors min-h-[40px] items-center"
+                  className="hidden sm:flex px-4 py-2 text-sm font-medium text-muted hover:text-ink transition-colors min-h-[40px] items-center"
                 >
                   Đăng nhập
                 </Link>
                 <Link
                   href="/auth/register"
-                  className="px-4 py-2 bg-pink-pastel text-white text-sm font-medium rounded-full hover:bg-pink-pastel/90 transition-colors min-h-[40px] flex items-center"
+                  className="px-4 py-2 bg-action text-white text-sm font-medium rounded-full hover:bg-brand-soft transition-colors min-h-[40px] flex items-center"
                 >
                   Đăng ký
                 </Link>
@@ -237,7 +239,7 @@ export default function Header() {
 
             {/* Mobile hamburger */}
             <button
-              className="md:hidden p-2 rounded-lg text-mocha/70 hover:text-mocha hover:bg-mocha/5 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+              className="lg:hidden p-2 rounded-lg text-muted hover:text-ink hover:bg-ink/5 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
               onClick={() => setMenuOpen((v) => !v)}
               aria-label="Mở menu"
               aria-expanded={menuOpen}
@@ -257,7 +259,7 @@ export default function Header() {
 
         {/* Mobile Menu */}
         {menuOpen && (
-          <div className="md:hidden py-3 border-t border-mocha/10">
+          <div className="lg:hidden py-4 border-t border-line">
             <nav className="flex flex-col gap-1">
               {navLinks.map((link) => (
                 <Link
@@ -265,8 +267,8 @@ export default function Header() {
                   href={link.href}
                   className={`px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
                     pathname === link.href
-                      ? "bg-pink-pastel/10 text-pink-pastel"
-                      : "text-mocha/70 hover:text-mocha hover:bg-mocha/5"
+                      ? "bg-subtle text-ink"
+                      : "text-muted hover:text-ink hover:bg-ink/5"
                   }`}
                   onClick={() => setMenuOpen(false)}
                 >
@@ -276,7 +278,7 @@ export default function Header() {
               {!isAuthenticated && (
                 <Link
                   href="/auth/login"
-                  className="px-4 py-3 rounded-xl text-sm font-medium text-mocha/70 hover:text-mocha hover:bg-mocha/5 transition-colors"
+                  className="px-4 py-3 rounded-xl text-sm font-medium text-muted hover:text-ink hover:bg-ink/5 transition-colors"
                   onClick={() => setMenuOpen(false)}
                 >
                   Đăng nhập

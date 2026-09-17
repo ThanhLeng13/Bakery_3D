@@ -133,13 +133,13 @@ function ReviewSubmitForm({
 
   if (!isAuthenticated) {
     return (
-      <div className="bg-gradient-to-br from-pink-pastel/5 to-amber-50 rounded-2xl p-5 border border-pink-pastel/20 text-center">
-        <p className="text-mocha/70 text-sm mb-3">
+      <div className="bg-surface rounded-2xl p-5 border border-line text-center">
+        <p className="text-muted text-sm mb-3">
           Đăng nhập để chia sẻ cảm nhận của bạn về sản phẩm này!
         </p>
         <Link
           href="/auth/login"
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-pink-pastel text-white text-sm font-medium rounded-full hover:bg-pink-pastel/90 transition-colors"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-action text-white text-sm font-medium rounded-full hover:bg-brand-soft transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
@@ -181,12 +181,12 @@ function ReviewSubmitForm({
   }
 
   return (
-    <div className="bg-gradient-to-br from-white to-pink-pastel/5 rounded-2xl border border-pink-pastel/15 overflow-hidden shadow-sm">
+    <div className="bg-white rounded-2xl border border-line overflow-hidden shadow-sm">
       {/* Form header */}
-      <div className="bg-gradient-to-r from-pink-pastel/10 to-amber-50/50 px-5 py-3 border-b border-pink-pastel/10 flex items-center justify-between">
+      <div className="bg-surface px-5 py-3 border-b border-line flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-lg">✍️</span>
-          <span className="font-semibold text-mocha text-sm">Viết đánh giá</span>
+          <span className="font-semibold text-ink text-sm">Viết đánh giá</span>
         </div>
         <button
           onClick={() => setShowForm(false)}
@@ -315,7 +315,7 @@ function ReviewsSection({ productId }: { productId: string }) {
 
       {/* Rating summary card */}
       {(avgRating !== null || reviewCount > 0) && (
-        <div className="bg-gradient-to-br from-amber-50/80 to-yellow-50/50 rounded-2xl p-4 border border-yellow-200/50 flex gap-4 items-start">
+        <div className="bg-surface rounded-2xl p-4 border border-line flex gap-4 items-start">
           {/* Big score */}
           <div className="flex-1 text-center flex flex-col items-center justify-center py-2">
             <p className="text-4xl font-bold text-mocha leading-none">
@@ -379,14 +379,16 @@ function ReviewsSection({ productId }: { productId: string }) {
               .map((w) => w[0])
               .join("")
               .toUpperCase();
-            // Avatar color based on name hash
+            // Avatar tint based on name hash. Kept inside the neutral logo
+            // palette (ink / muted / brand / line) so reviews do not reintroduce
+            // off-brand hues into the minimal monochrome design.
             const colors = [
-              "bg-pink-200 text-pink-800",
-              "bg-purple-200 text-purple-800",
-              "bg-blue-200 text-blue-800",
-              "bg-green-200 text-green-800",
-              "bg-amber-200 text-amber-800",
-              "bg-rose-200 text-rose-800",
+              "bg-ink text-white",
+              "bg-brand text-white",
+              "bg-muted text-white",
+              "bg-subtle text-ink",
+              "bg-line text-ink",
+              "bg-gray-700 text-white",
             ];
             const colorIdx =
               review.customer_name
