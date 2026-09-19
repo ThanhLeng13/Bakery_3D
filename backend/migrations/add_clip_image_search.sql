@@ -60,7 +60,12 @@ CREATE POLICY "Anyone can read cake embeddings"
 --
 -- Lọc is_active: không gợi ý sản phẩm đã ngừng bán.
 -- SECURITY DEFINER + search_path cố định: chống search_path injection.
-CREATE OR REPLACE FUNCTION public.match_cakes(
+--
+-- DROP trước CREATE: CREATE OR REPLACE không đổi được kiểu trả về, nên nếu hàm
+-- đã tồn tại với kiểu cũ thì phải xóa hẳn. DROP ... IF EXISTS nên chạy lại an toàn.
+DROP FUNCTION IF EXISTS public.match_cakes(public.vector, double precision, integer);
+
+CREATE FUNCTION public.match_cakes(
     query_embedding vector(512),
     match_threshold FLOAT DEFAULT 0.0,
     match_count     INT   DEFAULT 5
