@@ -71,7 +71,10 @@ RETURNS TABLE(
     image_url       TEXT,
     category        TEXT,
     product_type    TEXT,
-    base_price      NUMERIC,
+    -- Phải khớp CHÍNH XÁC kiểu của products.base_price (integer), nếu không
+    -- Postgres báo: "Returned type integer does not match expected type numeric".
+    -- Đã kiểm tra bằng PostgREST OpenAPI, không đoán.
+    base_price      INTEGER,
     similarity      FLOAT
 )
 LANGUAGE plpgsql
@@ -86,7 +89,7 @@ BEGIN
         ce.image_url,
         p.category::TEXT,
         p.product_type::TEXT,
-        p.base_price,
+        p.base_price::INTEGER,
         (1 - (ce.embedding <=> query_embedding))::FLOAT AS similarity
     FROM public.cake_embeddings ce
     JOIN public.products p ON p.id = ce.product_id
