@@ -193,13 +193,15 @@ export default function ImageSearchClient() {
     <main className="min-h-screen bg-surface">
       <div className="page-container py-10 sm:py-14">
         {/* Tiêu đề */}
-        <header className="text-center mb-10">
-          <h1 className="font-heading text-3xl sm:text-4xl font-bold text-ink mb-3">
+        <header className="text-center mb-12">
+          <p className="eyebrow mb-4">Bơ Nơ Bakery</p>
+          <h1 className="title-lux text-3xl sm:text-4xl md:text-5xl text-ink mb-4">
             Tìm bánh bằng hình ảnh
           </h1>
-          <p className="text-muted text-base sm:text-lg max-w-[640px] mx-auto">
-            Tải lên ảnh chiếc bánh bạn yêu thích, chúng tôi sẽ tìm những mẫu bánh
-            giống nhất trong tiệm.
+          <hr className="rule-fade max-w-[160px] mx-auto mb-5" />
+          <p className="text-muted text-base sm:text-lg max-w-[560px] mx-auto leading-relaxed">
+            Tải lên ảnh chiếc bánh bạn yêu thích, chúng tôi sẽ tìm những mẫu
+            bánh giống nhất trong tiệm.
           </p>
         </header>
 
@@ -212,8 +214,8 @@ export default function ImageSearchClient() {
             }}
             onDragLeave={() => setDragging(false)}
             onDrop={handleDrop}
-            className={`rounded-2xl border-2 border-dashed bg-white p-8 text-center transition-colors ${
-              dragging ? "border-action bg-subtle" : "border-line"
+            className={`rounded-2xl border border-dashed bg-white p-10 text-center transition-colors duration-300 ${
+              dragging ? "border-brand bg-subtle" : "border-line"
             }`}
           >
             {previewUrl ? (
@@ -302,17 +304,17 @@ export default function ImageSearchClient() {
           {/* Kết quả */}
           {results && (
             <section className="mt-10" aria-labelledby="ket-qua-heading">
-              <div className="flex flex-wrap items-baseline justify-between gap-2 mb-5">
+              <div className="flex flex-wrap items-baseline justify-between gap-2 mb-6">
                 <h2
                   id="ket-qua-heading"
-                  className="font-heading text-xl sm:text-2xl font-bold text-ink"
+                  className="font-heading text-xl sm:text-2xl font-medium text-ink"
                 >
                   {results.length > 0
                     ? `${results.length} mẫu bánh giống nhất`
                     : "Không tìm thấy mẫu bánh phù hợp"}
                 </h2>
                 {timing && (
-                  <p className="text-xs text-muted">
+                  <p className="text-xs text-muted tracking-wide">
                     Phân tích {timing.embed.toFixed(0)} ms · Tìm kiếm{" "}
                     {timing.search.toFixed(0)} ms
                   </p>
@@ -330,7 +332,7 @@ export default function ImageSearchClient() {
                     <li key={item.product_id + item.image_url}>
                       <Link
                         href={`/products/${item.product_id}`}
-                        className="group block rounded-2xl bg-white border border-line shadow-sm hover:shadow-md hover:border-brand transition-all overflow-hidden h-full"
+                        className="card-lux group block h-full"
                       >
                         <div className="aspect-square relative bg-subtle overflow-hidden">
                           {item.image_url && !imgErrors[item.product_id] ? (
@@ -339,7 +341,7 @@ export default function ImageSearchClient() {
                               alt={item.name}
                               fill
                               sizes="(max-width: 640px) 50vw, 33vw"
-                              className="object-cover group-hover:scale-105 transition-transform duration-300"
+                              className="object-cover"
                               onError={() =>
                                 setImgErrors((prev) => ({
                                   ...prev,
@@ -359,11 +361,11 @@ export default function ImageSearchClient() {
                             {item.similarity_percent.toFixed(0)}%
                           </span>
                         </div>
-                        <div className="p-3">
-                          <h3 className="text-sm font-semibold text-ink line-clamp-2 leading-snug">
+                        <div className="p-4">
+                          <h3 className="font-heading text-base font-medium text-ink line-clamp-2 leading-snug">
                             {item.name}
                           </h3>
-                          <p className="mt-1 text-sm text-muted">
+                          <p className="mt-1.5 text-sm text-muted tracking-wide">
                             {formatPrice(item.base_price)}
                           </p>
                         </div>

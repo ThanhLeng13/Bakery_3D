@@ -6,13 +6,13 @@
    DESIGN TOKENS
    ========================================================= */
 :root {
-  --background: #fafaf9;
-  --foreground: #2b2b2a;
-  --brand: #8f8f8e;
+  --background: #fbfaf8;
+  --foreground: #1f1e1d;
+  --brand: #90908f;
   --muted: #6b6b6a;
-  --surface: #fafaf9;
-  --subtle: #f5f5f4;
-  --line: #e5e5e3;
+  --surface: #fbfaf8;
+  --subtle: #f4f3f1;
+  --line: #e3e2df;
   --space-1: 0.5rem;
   --space-2: 1rem;
   --space-3: 1.5rem;
@@ -20,11 +20,15 @@
   --space-6: 3rem;
   --space-8: 4rem;
 
-  /* Brand palette (matches logo #8F8F8E – neutral warm grey) */
-  --brand: #8f8f8e;
-  --brand-ink: #2b2b2a;
+  /* Brand palette — #90908F is read straight from the logo file, where it is
+     the only colour present. Warm off-white and warm near-black rather than
+     pure #FFF/#000: the slight warmth reads as paper and ink, which is what
+     separates a patisserie from a generic storefront. */
+  --brand: #90908f;
+  --brand-ink: #1f1e1d;
   --brand-soft: #6b6b6a;
-  --brand-line: #e5e5e3;
+  --brand-line: #e3e2df;
+  --brand-gold: #b8a88a;
 
   /* Spacing tokens */
   --page-padding-x: 1rem;           /* 16px – mobile */
@@ -188,10 +192,15 @@
     padding: 16px 32px;
     border: 1px solid transparent;
     border-radius: 12px;
-    font-size: 1.125rem;
-    font-weight: 600;
+    font-size: 1rem;
+    font-weight: 500;
+    /* Giãn chữ nhẹ: nét chữ thoáng là dấu hiệu của typography cao cấp.
+       Không giãn quá 0.08em vì sẽ phá vỡ khả năng đọc của tiếng Việt. */
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
     line-height: 1.4;
-    transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease;
+    transition: background-color 180ms ease, color 180ms ease,
+      border-color 180ms ease;
   }
 
   .btn-primary {
@@ -199,17 +208,16 @@
     color: white;
   }
 
-  /* Hover: deepen the surface instead of lightening it.
-     #8F8F8E against white text is only ~3.5:1, below the WCAG AA 4.5:1
-     threshold for body-sized text, so hovering to brand would have made the
-     label harder to read. #6B6B6A against white is ~5.7:1. */
+  /* Hover: đậm lên thay vì nhạt đi. #90908F với chữ trắng chỉ đạt ~2.7:1,
+     dưới ngưỡng AA 4.5:1, nên hover sang màu brand sẽ làm chữ khó đọc hơn.
+     #6B6B6A với chữ trắng đạt ~5.3:1. */
   .btn-primary:hover {
     background: #6b6b6a;
     color: white;
   }
 
   .btn-secondary {
-    background: white;
+    background: transparent;
     border-color: var(--brand);
     color: var(--foreground);
   }
@@ -227,11 +235,119 @@
   }
 
   .feature-card {
-    padding: 32px;
+    /* 40px thay vì 32px: khoảng trắng rộng là dấu hiệu rõ nhất của thiết kế
+       cao cấp. Thẻ chật chội trông như bảng điều khiển, không như tiệm bánh. */
+    padding: 40px 32px;
     border: 1px solid var(--line);
     border-radius: 16px;
     background: white;
     text-align: center;
+    transition: border-color 300ms ease, box-shadow 300ms ease;
+  }
+
+  .feature-card:hover {
+    border-color: var(--brand);
+    box-shadow: 0 16px 36px -26px rgba(31, 30, 29, 0.22);
+  }
+
+  /* =========================================================
+     LUXURY DETAILS
+     Chi tiết nhỏ tạo cảm giác cao cấp. Nguyên tắc: sang trọng đến từ
+     khoảng trắng, độ mảnh của nét, và sự tiết chế — không đến từ hiệu ứng.
+     ========================================================= */
+
+  /* Nhãn nhỏ in hoa, giãn chữ rộng — đúng kiểu chữ "BAKERY" dưới logo.
+     Dùng làm nhãn mục, không dùng cho nội dung dài vì giãn chữ gây mỏi mắt. */
+  .eyebrow {
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--brand);
+  }
+
+  /* Đường kẻ mảnh dần hai đầu, dùng làm dấu phân cách giữa các mục.
+     Khác đường kẻ thường ở chỗ nó mờ dần — mắt không bị chặn đột ngột. */
+  .rule-fade {
+    height: 1px;
+    border: 0;
+    background: linear-gradient(
+      to right,
+      transparent,
+      var(--line) 20%,
+      var(--line) 80%,
+      transparent
+    );
+  }
+
+  /* Khung viền kép kiểu khung tranh: một nét ngoài mảnh, một nét trong
+     lùi vào. Thủ pháp của các thương hiệu xa xỉ để đóng khung nội dung. */
+  .frame-inset {
+    position: relative;
+    border: 1px solid var(--line);
+  }
+
+  .frame-inset::after {
+    content: "";
+    position: absolute;
+    inset: 6px;
+    border: 1px solid var(--line);
+    pointer-events: none;
+  }
+
+  /* Chữ tiêu đề serif với nét mảnh hơn và giãn dòng thoáng — Playfair
+     Display ở độ đậm 700 trông nặng nề và mất chất thanh lịch. */
+  .title-lux {
+    font-family: var(--font-playfair), serif;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+    text-wrap: balance;
+  }
+
+  /* Thẻ sản phẩm nâng lên rất nhẹ khi hover. Bóng đổ rất mờ và tản rộng:
+     bóng đậm, hẹp là dấu hiệu của giao diện rẻ tiền. */
+  .card-lux {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: box-shadow 320ms cubic-bezier(0.4, 0, 0.2, 1),
+      border-color 320ms ease, transform 320ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-lux:hover {
+    border-color: var(--brand);
+    box-shadow: 0 18px 40px -24px rgba(31, 30, 29, 0.28);
+    transform: translateY(-2px);
+  }
+
+  /* Ảnh bên trong thẻ phóng rất chậm. Chuyển động nhanh tạo cảm giác
+     "webapp"; chuyển động chậm tạo cảm giác được chăm chút. */
+  .card-lux img {
+    transition: transform 700ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-lux:hover img {
+    transform: scale(1.04);
+  }
+
+  /* Tôn trọng người dùng tắt hiệu ứng chuyển động. */
+  @media (prefers-reduced-motion: reduce) {
+    .card-lux,
+    .card-lux img,
+    .btn-primary,
+    .btn-secondary {
+      transition: none;
+    }
+
+    .card-lux:hover {
+      transform: none;
+    }
+
+    .card-lux:hover img {
+      transform: none;
+    }
   }
 
   /* ---- Skeleton Loading ---- */

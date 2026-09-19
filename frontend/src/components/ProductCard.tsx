@@ -29,7 +29,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   return (
     <Link
       href={`/products/${product.id}`}
-      className="group block rounded-2xl bg-white border border-line shadow-sm hover:shadow-md hover:border-brand transition-all overflow-hidden focus:outline-none focus:ring-2 focus:ring-action focus:ring-offset-2 animate-fade-in"
+      className="card-lux group block focus:outline-none focus:ring-2 focus:ring-action focus:ring-offset-2 animate-fade-in"
     >
       {/* Image – CLS-safe: explicit aspect ratio + next/image */}
       <div className="aspect-square relative bg-subtle overflow-hidden">
@@ -39,7 +39,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             alt={product.name}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
+            className="object-cover"
             onError={() => setImgError(true)}
             loading="lazy"
             placeholder="blur"

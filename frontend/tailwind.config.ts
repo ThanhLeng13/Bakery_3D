@@ -9,26 +9,36 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        brand: "#8F8F8E",
-        // Slightly darker brand grey: keeps white text at AA contrast on hover.
+        // Màu lấy CHÍNH XÁC từ file logo (frontend/public/brand/bo-no-logo.png).
+        // Logo chỉ có MỘT màu duy nhất #90908F trên 3.473.403 pixel — đã phân
+        // tích bằng script, không ước lượng bằng mắt.
+        brand: "#90908F",
+        // Xám đậm hơn cho hover: giữ chữ trắng đạt tương phản AA (5.3:1).
+        // Không dùng #90908F làm nền nút vì chữ trắng chỉ đạt 2.7:1.
         "brand-soft": "#6B6B6A",
-        ink: "#2B2B2A",
+        // ─── Tông "sang trọng": đen mực ấm, không dùng đen tuyền ──────────
+        // Đen tuyền #000 trông gắt và rẻ tiền; các thương hiệu cao cấp dùng
+        // đen ngả nâu/xám rất nhẹ để mềm mắt mà vẫn sâu.
+        ink: "#1F1E1D",
         muted: "#6B6B6A",
-        action: "#2B2B2A",
-        surface: "#FAFAF9",
-        subtle: "#F5F5F4",
-        line: "#E5E5E3",
+        action: "#1F1E1D",
+        // Nền trắng ngà thay vì trắng tinh — ánh giấy, ấm và cao cấp hơn.
+        surface: "#FBFAF8",
+        subtle: "#F4F3F1",
+        line: "#E3E2DF",
+        // Đường viền mảnh kim loại cho chi tiết trang trí.
+        gold: "#B8A88A",
         gray: {
-          50: "#FAFAF9",
-          100: "#F5F5F4",
-          200: "#E5E5E3",
+          50: "#FBFAF8",
+          100: "#F4F3F1",
+          200: "#E3E2DF",
           300: "#C5C5C3",
-          400: "#8F8F8E",
+          400: "#90908F",
           500: "#6B6B6A",
           600: "#595958",
           700: "#454544",
-          800: "#2B2B2A",
-          900: "#20201F",
+          800: "#1F1E1D",
+          900: "#171716",
         },
         // ─── LEGACY ALIASES ────────────────────────────────────────────────
         // The old warm bakery palette (cream / coral / mocha) was replaced by
@@ -36,9 +46,9 @@ const config: Config = {
         // legacy class usages visually correct while files are migrated one
         // by one. REMOVE THIS BLOCK once `grep -r "mocha|pink-pastel|cream"`
         // returns zero matches across src/.
-        mocha: "#2B2B2A", // was #5C3D2E (brown)  -> ink
-        "pink-pastel": "#2B2B2A", // was #E8837A (coral)  -> action
-        cream: "#FAFAF9", // was #FDF6EE (cream)  -> surface
+        mocha: "#1F1E1D", // was #5C3D2E (brown)  -> ink
+        "pink-pastel": "#1F1E1D", // was #E8837A (coral)  -> action
+        cream: "#FBFAF8", // was #FDF6EE (cream)  -> surface
         background: "var(--background)",
         foreground: "var(--foreground)",
       },
