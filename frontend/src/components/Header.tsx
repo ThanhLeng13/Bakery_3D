@@ -34,6 +34,7 @@ export default function Header() {
 
   const navLinks = [
     { href: "/products", label: "Menu" },
+    { href: "/tim-banh", label: "Tìm bằng ảnh" },
     { href: "/cake-builder", label: "Thiết kế bánh" },
     { href: "/orders", label: "Đơn hàng" },
     { href: "/loyalty", label: "Tích điểm" },
