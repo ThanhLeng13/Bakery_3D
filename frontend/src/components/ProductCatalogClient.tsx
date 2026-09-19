@@ -47,69 +47,89 @@ export default function ProductCatalogClient({
 
   return (
     <main className="min-h-screen bg-surface">
-      {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-          <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl font-bold text-ink">
-            Danh Mục Bánh Kem
-          </h1>
-          <p className="mt-2 text-sm sm:text-base text-muted">
-            Khám phá bộ sưu tập bánh kem thủ công của chúng tôi
-          </p>
-        </div>
+      {/* ─── Tiêu đề ───────────────────────────────────────────────────────
+          Bỏ thanh nền trắng đổ bóng: một dải màu khác chạy ngang màn hình là
+          ngôn ngữ của bảng điều khiển. Tiệm bánh cao cấp để tiêu đề nằm trực
+          tiếp trên nền giấy, ngăn cách bằng một đường kẻ mảnh. */}
+      <div className="page-container pt-14 pb-10 sm:pt-20 sm:pb-14 text-center">
+        <p className="eyebrow mb-5">Bộ sưu tập</p>
+        <h1 className="title-lux text-[1.875rem] sm:text-[2.5rem] text-ink mb-5">
+          Danh mục bánh kem
+        </h1>
+        <hr className="rule-fade max-w-[160px] mx-auto mb-6" />
+        <p className="text-muted text-base max-w-[480px] mx-auto leading-relaxed">
+          Bánh kem thủ công, làm theo yêu cầu cho từng dịp.
+        </p>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Category Tabs */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2" role="tablist">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat.value}
-              role="tab"
-              aria-selected={currentCategory === cat.value}
-              onClick={() => handleFilterChange(cat.value, 1)}
-              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap min-h-[44px] min-w-[44px] transition-colors ${
-                currentCategory === cat.value
-                  ? "bg-action text-white shadow-sm"
-                  : "bg-white text-ink hover:bg-subtle border border-line"
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
+      <div className="page-container pb-20">
+        {/* ─── Bộ lọc ──────────────────────────────────────────────────────
+            Kiểu chữ in hoa giãn nhẹ, không tô nền đặc. Nút lọc đặc màu trắng
+            hay đen hút mắt khỏi sản phẩm — thứ khách thực sự đến để xem. */}
+        <div
+          className="flex gap-8 mb-12 overflow-x-auto border-b border-line"
+          role="tablist"
+        >
+          {CATEGORIES.map((cat) => {
+            const active = currentCategory === cat.value;
+            return (
+              <button
+                key={cat.value}
+                role="tab"
+                aria-selected={active}
+                onClick={() => handleFilterChange(cat.value, 1)}
+                className={`relative pb-4 pt-1 text-sm tracking-[0.12em] uppercase whitespace-nowrap min-h-[44px] transition-colors duration-300 ${
+                  active
+                    ? "text-ink"
+                    : "text-muted hover:text-ink"
+                }`}
+              >
+                {cat.label}
+                {/* Gạch chân chỉ hiện ở mục đang chọn — dấu hiệu nhẹ nhàng
+                    hơn nhiều so với đổi cả nền nút. */}
+                <span
+                  className={`absolute inset-x-0 bottom-0 h-px transition-opacity duration-300 ${
+                    active ? "bg-ink opacity-100" : "opacity-0"
+                  }`}
+                />
+              </button>
+            );
+          })}
         </div>
 
         {/* Loading State or Products Grid */}
         {isPending ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-8">
             {Array.from({ length: 8 }).map((_, i) => (
               <SkeletonCard key={i} />
             ))}
           </div>
         ) : initialProducts.length === 0 ? (
-          <div className="text-center py-16">
+          <div className="text-center py-24">
             <svg
-              className="w-16 h-16 mx-auto text-muted mb-4"
+              className="w-14 h-14 mx-auto text-brand mb-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              strokeWidth={1.25}
               aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth={1.5}
                 d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
               />
             </svg>
-            <p className="text-muted text-lg">
+            <p className="text-muted text-base max-w-[360px] mx-auto leading-relaxed">
               Hiện tại chưa có sản phẩm nào
               {currentCategory !== "all" && " trong danh mục này"}.
             </p>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            {/* Khoảng cách rộng hơn (32px thay vì 24px): lưới dày đặc trông
+                như trang thương mại điện tử, lưới thoáng mới giống showroom. */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-8">
               {initialProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}

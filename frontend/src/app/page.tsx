@@ -4,139 +4,167 @@ import Header from "@/components/Header";
 import BrandLogo from "@/components/BrandLogo";
 
 export const metadata: Metadata = {
-  title: "Trang chủ",
+  title: "Bơ Nơ Bakery – Bánh kem thủ công",
   description:
-    "Bơ Nơ Bakery – Thiết kế bánh kem theo ý muốn với công cụ trực quan 3D và AI tư vấn thông minh bằng tiếng Việt tại TP.HCM.",
+    "Bơ Nơ Bakery – Bánh kem thủ công thiết kế theo yêu cầu, xem trước bằng mô hình 3D và tư vấn bằng AI tiếng Việt.",
 };
+
+/**
+ * Icon nét mảnh dùng chung.
+ *
+ * Vẽ bằng SVG thay vì emoji hay icon font: emoji render khác nhau trên mỗi hệ
+ * điều hành, còn icon font buộc tải thêm một file. Nét 1.25 mảnh hơn nét 2
+ * thông thường — ở cỡ lớn, nét mảnh trông tinh tế hơn hẳn nét dày.
+ */
+function ThinIcon({ path }: { path: string }) {
+  return (
+    <svg
+      className="h-10 w-10 text-brand"
+      viewBox="0 0 48 48"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d={path} />
+    </svg>
+  );
+}
+
+const FEATURES = [
+  {
+    n: "01",
+    title: "Thiết kế trực quan",
+    body: "Chọn màu, topping và trang trí, xem trước chiếc bánh của bạn ngay trên trình duyệt.",
+    path: "M24 6l16 9v18l-16 9-16-9V15z M24 24l16-9 M24 24v18 M24 24L8 15",
+  },
+  {
+    n: "02",
+    title: "Tư vấn bằng AI",
+    body: "Trò chuyện tự nhiên để tìm mẫu bánh hợp dịp, số người và ngân sách của bạn.",
+    path: "M8 12a4 4 0 014-4h24a4 4 0 014 4v16a4 4 0 01-4 4H20l-8 8v-8h-4z",
+  },
+  {
+    n: "03",
+    title: "Tìm bánh bằng ảnh",
+    body: "Tải lên ảnh chiếc bánh bạn thích, hệ thống tìm ra mẫu gần giống nhất trong tiệm.",
+    path: "M6 12a2 2 0 012-2h32a2 2 0 012 2v24a2 2 0 01-2 2H8a2 2 0 01-2-2z M6 32l10-9 8 7 6-5 12 11 M17 19a3 3 0 100-6 3 3 0 000 6z",
+  },
+];
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-surface">
-      {/* Navigation */}
       <Header />
 
-      {/* Hero Section */}
+      {/* ─── Hero ──────────────────────────────────────────────────────────
+          Chữ nhỏ hơn và nhẹ hơn so với landing page thông thường: thương hiệu
+          cao cấp dùng typography tiết chế và để khoảng trắng nói thay. Tiêu đề
+          64px đậm 700 là ngôn ngữ của trang bán hàng, không phải của tiệm bánh
+          thủ công. Ở đây tối đa 56px và độ đậm 500. */}
       <section
-        className="page-container pt-12 pb-8 sm:pt-16 sm:pb-12 text-center"
+        className="page-container pt-20 pb-24 sm:pt-28 sm:pb-32 text-center"
         aria-labelledby="hero-heading"
       >
+        <p className="eyebrow mb-6">Thủ công · TP.HCM</p>
+
         <h1
           id="hero-heading"
-          className="hero-title font-heading text-ink font-bold mb-4"
+          className="title-lux text-[2.25rem] leading-[1.1] sm:text-[3rem] md:text-[3.5rem] text-ink mb-7"
         >
-          Tiệm Bánh Kem
+          Bánh kem
+          <br />
+          <span className="italic">làm riêng cho bạn</span>
         </h1>
-        <p className="font-heading text-2xl sm:text-[32px] text-ink mb-6">
-          Bơ Nơ Bakery
+
+        <hr className="rule-fade max-w-[200px] mx-auto mb-7" />
+
+        <p className="text-base sm:text-lg leading-[1.75] text-muted max-w-[540px] mx-auto mb-11">
+          Mỗi chiếc bánh được thiết kế theo yêu cầu, xem trước bằng mô hình 3D
+          trước khi đặt. Bạn chọn — chúng tôi làm.
         </p>
-        <p className="text-lg sm:text-xl leading-relaxed text-muted font-body max-w-[760px] mx-auto mb-8">
-          Thiết kế bánh kem theo ý muốn với công cụ trực quan và AI tư vấn thông minh.
-          Mỗi chiếc bánh là một tác phẩm nghệ thuật dành riêng cho bạn.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link
-            href="/cake-builder"
-            className="btn btn-primary"
-          >
-            Thiết kế bánh ngay
+
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <Link href="/cake-builder" className="btn btn-primary w-full sm:w-auto">
+            Thiết kế bánh
           </Link>
-          <Link
-            href="/products"
-            className="btn btn-secondary"
-          >
-            Xem menu bánh
+          <Link href="/products" className="btn btn-secondary w-full sm:w-auto">
+            Xem menu
           </Link>
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* ─── Dải phân cách ─────────────────────────────────────────────────
+          Chữ kẹp giữa hai đường kẻ mảnh: thủ pháp của tạp chí in, tạo nhịp nghỉ
+          giữa hai khối lớn mà không cần thêm màu hay hình ảnh. */}
+      <div className="page-container">
+        <div className="flex items-center gap-6 sm:gap-10">
+          <hr className="rule-fade flex-1" />
+          <p className="eyebrow whitespace-nowrap">Vì sao chọn Bơ Nơ</p>
+          <hr className="rule-fade flex-1" />
+        </div>
+      </div>
+
+      {/* ─── Ba điểm chính ─────────────────────────────────────────────────
+          Đánh số 01/02/03 thay vì ba thẻ giống hệt nhau. Ba khối vuông vức
+          cạnh nhau là dấu hiệu của template; số thứ tự gợi cảm giác một bộ
+          sưu tập được tuyển chọn. Các khối ngăn bằng đường kẻ 1px thay vì
+          khoảng trống, để chúng đọc như một dải liền mạch. */}
       <section
-        className="page-container pt-8 pb-12 sm:pb-16"
-        aria-labelledby="features-heading"
+        className="page-container pt-16 pb-24 sm:pb-32"
+        aria-label="Điểm nổi bật"
       >
-        <h2
-          id="features-heading"
-          className="font-heading text-3xl sm:text-4xl leading-tight text-ink font-bold text-center mb-8"
-        >
-          Tại sao chọn Bơ Nơ Bakery?
+        <div className="grid grid-cols-1 gap-px bg-line sm:grid-cols-3 border-y border-line">
+          {FEATURES.map((f) => (
+            <article
+              key={f.n}
+              className="bg-surface px-8 py-12 sm:px-10 sm:py-14 transition-colors duration-500 hover:bg-white"
+            >
+              <p className="font-heading text-sm text-brand mb-7 tracking-[0.2em]">
+                {f.n}
+              </p>
+              <ThinIcon path={f.path} />
+              <h3 className="mt-7 mb-3 font-heading text-xl text-ink font-normal">
+                {f.title}
+              </h3>
+              <p className="text-muted text-[0.9375rem] leading-[1.7]">
+                {f.body}
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {/* ─── Lời mời cuối ──────────────────────────────────────────────────── */}
+      <section className="page-container pb-24 sm:pb-32 text-center">
+        <hr className="rule-fade max-w-[120px] mx-auto mb-12" />
+        <h2 className="title-lux text-2xl sm:text-[2rem] text-ink mb-5 max-w-[520px] mx-auto">
+          Sẵn sàng cho chiếc bánh của riêng bạn?
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Feature 1 */}
-          <article className="feature-card">
-            <FeatureIcon type="design" />
-            <h3 className="font-heading text-2xl text-ink font-bold mb-4">
-              Click-to-Customize
-            </h3>
-            <p className="text-muted font-body text-base leading-relaxed">
-              Thiết kế bánh kem trực quan bằng SVG. Chọn màu, topping, trang trí — thấy kết quả ngay lập tức.
-            </p>
-          </article>
-
-          {/* Feature 2 */}
-          <article className="feature-card">
-            <FeatureIcon type="chat" />
-            <h3 className="font-heading text-2xl text-ink font-bold mb-4">
-              AI Tư Vấn
-            </h3>
-            <p className="text-muted font-body text-base leading-relaxed">
-              Chatbot AI giúp bạn chọn bánh phù hợp theo dịp, số người, ngân sách. Tư vấn bằng tiếng Việt.
-            </p>
-          </article>
-
-          {/* Feature 3 */}
-          <article className="feature-card sm:col-span-2 lg:col-span-1">
-            <FeatureIcon type="order" />
-            <h3 className="font-heading text-2xl text-ink font-bold mb-4">
-              Đặt hàng dễ dàng
-            </h3>
-            <p className="text-muted font-body text-base leading-relaxed">
-              Chọn ngày nhận, xác nhận đơn hàng, theo dõi trạng thái — tất cả trên một nền tảng.
-            </p>
-          </article>
-        </div>
+        <p className="text-muted text-base leading-[1.75] max-w-[440px] mx-auto mb-10">
+          Bắt đầu thiết kế, hoặc hỏi trợ lý AI nếu bạn chưa biết chọn gì.
+        </p>
+        <Link href="/cake-builder" className="btn btn-primary">
+          Bắt đầu thiết kế
+        </Link>
       </section>
 
-      {/* CTA Section */}
-      <section className="bg-white border-y border-line py-12 sm:py-16" aria-labelledby="cta-heading">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
-          <h2
-            id="cta-heading"
-            className="font-heading text-3xl sm:text-4xl text-ink font-bold mb-4"
-          >
-            Sẵn sàng tạo chiếc bánh của bạn?
-          </h2>
-          <p className="text-muted font-body mb-8 text-lg">
-            Bắt đầu thiết kế ngay hoặc nhờ AI tư vấn — chỉ cần click nút chat ở góc phải.
-          </p>
-          <Link
-            href="/cake-builder"
-            className="btn btn-primary"
-          >
-            Bắt đầu thiết kế
+      {/* ─── Footer ────────────────────────────────────────────────────────── */}
+      <footer className="border-t border-line py-14">
+        <div className="page-container flex flex-col items-center gap-6 text-center">
+          <Link href="/" aria-label="Bơ Nơ Bakery — Trang chủ">
+            <BrandLogo />
           </Link>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-white py-8 sm:py-12">
-        <div className="page-container flex flex-col items-center gap-6 text-center font-body text-base">
-          <Link href="/" aria-label="Bơ Nơ Bakery — Trang chủ"><BrandLogo /></Link>
-          <div>
-            <p className="mb-2 text-ink">Bơ Nơ Bakery — Tiệm Bánh Kem Thủ Công</p>
-            <p className="text-muted">TP. Đà Nẵng | ☎ 0901 234 567</p>
-          </div>
+          <hr className="rule-fade max-w-[80px]" />
+          <p className="text-muted text-sm leading-relaxed">
+            Bơ Nơ Bakery — Tiệm bánh kem thủ công
+            <br />
+            TP. Đà Nẵng · 0901 234 567
+          </p>
         </div>
       </footer>
     </main>
-  );
-}
-
-function FeatureIcon({ type }: { type: "design" | "chat" | "order" }) {
-  return (
-    <svg className="mx-auto mb-6 h-12 w-12 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {type === "design" && <><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" /><path d="m4 7.5 8 4.5 8-4.5M12 12v9M8 5.25l8 4.5" /></>}
-      {type === "chat" && <><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H6l-4 3V11.5A7.5 7.5 0 0 1 9.5 4H14" /><path d="m19 2 1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3Z" /><path d="M7 11h7M7 15h4" /></>}
-      {type === "order" && <><rect x="4" y="6" width="16" height="15" rx="2" /><path d="M8 6V4a4 4 0 0 1 8 0v2M9 13l2 2 4-4" /></>}
-    </svg>
   );
 }
