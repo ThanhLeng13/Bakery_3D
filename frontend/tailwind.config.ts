@@ -9,36 +9,38 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Màu lấy CHÍNH XÁC từ file logo (frontend/public/brand/bo-no-logo.png).
-        // Logo chỉ có MỘT màu duy nhất #90908F trên 3.473.403 pixel — đã phân
-        // tích bằng script, không ước lượng bằng mắt.
-        brand: "#90908F",
-        // Xám đậm hơn cho hover: giữ chữ trắng đạt tương phản AA (5.3:1).
-        // Không dùng #90908F làm nền nút vì chữ trắng chỉ đạt 2.7:1.
+        // ─── Bảng màu lấy từ thiết kế Stitch ──────────────────────────────
+        // Trích trực tiếp bằng cách đọc pixel ảnh thiết kế, không ước lượng:
+        //   nền #FAF8F5 · nền phụ #F3EFE9 · mực #1F1B1A
+        //   khối CTA #2B2625 · vàng nhấn #FEDEB2 / #FAB361
+        //
+        // Tông kem ấm thay cho xám trung tính: màu kem gợi giấy, bơ và kem
+        // tươi — đúng chất tiệm bánh — trong khi xám trung tính đọc ra như
+        // giao diện phần mềm.
+        brand: "#90908F", // màu logo, vẫn dùng cho chi tiết phụ
         "brand-soft": "#6B6B6A",
-        // ─── Tông "sang trọng": đen mực ấm, không dùng đen tuyền ──────────
-        // Đen tuyền #000 trông gắt và rẻ tiền; các thương hiệu cao cấp dùng
-        // đen ngả nâu/xám rất nhẹ để mềm mắt mà vẫn sâu.
-        ink: "#1F1E1D",
-        muted: "#6B6B6A",
-        action: "#1F1E1D",
-        // Nền trắng ngà thay vì trắng tinh — ánh giấy, ấm và cao cấp hơn.
-        surface: "#FBFAF8",
-        subtle: "#F4F3F1",
-        line: "#E3E2DF",
-        // Đường viền mảnh kim loại cho chi tiết trang trí.
-        gold: "#B8A88A",
+        ink: "#1F1B1A",
+        muted: "#6B6560", // xám ngả nâu cho hợp nền kem
+        action: "#1F1B1A",
+        surface: "#FAF8F5", // nền chính
+        subtle: "#F3EFE9", // nền phụ
+        line: "#E8E3DC", // đường kẻ ngả kem
+        // Vàng nhấn: dùng cho nút nổi bật trên nền tối và nhãn "đặc biệt".
+        gold: "#FEDEB2",
+        "gold-deep": "#FAB361",
+        // Khối tối (CTA, footer tối)
+        cocoa: "#2B2625",
         gray: {
-          50: "#FBFAF8",
-          100: "#F4F3F1",
-          200: "#E3E2DF",
-          300: "#C5C5C3",
+          50: "#FAF8F5",
+          100: "#F3EFE9",
+          200: "#E8E3DC",
+          300: "#CFC8C0",
           400: "#90908F",
-          500: "#6B6B6A",
-          600: "#595958",
-          700: "#454544",
-          800: "#1F1E1D",
-          900: "#171716",
+          500: "#6B6560",
+          600: "#595350",
+          700: "#403A38",
+          800: "#2B2625",
+          900: "#1F1B1A",
         },
         // ─── LEGACY ALIASES ────────────────────────────────────────────────
         // The old warm bakery palette (cream / coral / mocha) was replaced by
@@ -46,9 +48,9 @@ const config: Config = {
         // legacy class usages visually correct while files are migrated one
         // by one. REMOVE THIS BLOCK once `grep -r "mocha|pink-pastel|cream"`
         // returns zero matches across src/.
-        mocha: "#1F1E1D", // was #5C3D2E (brown)  -> ink
-        "pink-pastel": "#1F1E1D", // was #E8837A (coral)  -> action
-        cream: "#FBFAF8", // was #FDF6EE (cream)  -> surface
+        mocha: "#1F1B1A", // was #5C3D2E (brown)  -> ink
+        "pink-pastel": "#1F1B1A", // was #E8837A (coral)  -> action
+        cream: "#FAF8F5", // was #FDF6EE (cream)  -> surface
         background: "var(--background)",
         foreground: "var(--foreground)",
       },

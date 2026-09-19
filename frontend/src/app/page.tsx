@@ -3,47 +3,66 @@ import Link from "next/link";
 import Image from "next/image";
 import Header from "@/components/Header";
 import BrandLogo from "@/components/BrandLogo";
+import NewsletterForm from "@/components/NewsletterForm";
 
 export const metadata: Metadata = {
-  title: "Bơ Nơ Bakery – Bánh kem thủ công",
+  title: "Bơ Nơ Bakery – Bánh kem nghệ thuật",
   description:
     "Bơ Nơ Bakery – Bánh kem thủ công thiết kế theo yêu cầu, xem trước bằng mô hình 3D và tư vấn bằng AI tiếng Việt.",
 };
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-/** Lấy vài ảnh bánh thật để trưng ở trang chủ. */
-async function getShowcaseImages(): Promise<{ url: string; name: string }[]> {
+interface ShowcaseProduct {
+  url: string;
+  name: string;
+  price: number;
+  tag: string;
+}
+
+/**
+ * Lấy ảnh bánh thật cho trang chủ (hero + dải sản phẩm).
+ *
+ * Trả về mảng rỗng nếu API chưa chạy — trang chủ vẫn phải hiển thị được, chỉ
+ * là ẩn các khối ảnh đi, chứ không được vỡ.
+ */
+async function getShowcase(): Promise<ShowcaseProduct[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/v1/products?page_size=8`, {
+    const res = await fetch(`${API_BASE_URL}/api/v1/products?page_size=10`, {
       next: { revalidate: 300 },
     });
     if (!res.ok) return [];
     const data = await res.json();
-    const out: { url: string; name: string }[] = [];
+    const out: ShowcaseProduct[] = [];
     for (const p of data.products ?? []) {
-      if (p.image_url) out.push({ url: p.image_url, name: p.name });
-      if (out.length === 4) break;
+      if (p.image_url) {
+        out.push({
+          url: p.image_url,
+          name: p.name,
+          price: p.base_price,
+          tag: "",
+        });
+      }
     }
     return out;
   } catch {
-    // Trang chủ vẫn phải hiển thị được kể cả khi API chưa chạy.
     return [];
   }
 }
 
-/**
- * Icon nét mảnh dùng chung.
- *
- * Vẽ bằng SVG thay vì emoji hay icon font: emoji render khác nhau trên mỗi hệ
- * điều hành, còn icon font buộc tải thêm một file. Nét 1.25 mảnh hơn nét 2
- * thông thường — ở cỡ lớn, nét mảnh trông tinh tế hơn hẳn nét dày.
- */
-function ThinIcon({ path }: { path: string }) {
+function formatPrice(price: number): string {
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(price);
+}
+
+/** Icon nét mảnh cho ba khối giá trị. */
+function ValueIcon({ path }: { path: string }) {
   return (
     <svg
-      className="h-10 w-10 text-brand"
-      viewBox="0 0 48 48"
+      className="h-9 w-9 text-ink"
+      viewBox="0 0 40 40"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.25"
@@ -56,165 +75,349 @@ function ThinIcon({ path }: { path: string }) {
   );
 }
 
-const FEATURES = [
+const VALUES = [
   {
     n: "01",
-    title: "Thiết kế trực quan",
-    body: "Chọn màu, topping và trang trí, xem trước chiếc bánh của bạn ngay trên trình duyệt.",
-    path: "M24 6l16 9v18l-16 9-16-9V15z M24 24l16-9 M24 24v18 M24 24L8 15",
+    title: "Trực quan hóa mô hình 3D",
+    body: "Tự do xoay 360°, chỉnh tông màu kem, nắp và thử nghiệm nhân phủ trước khi duyệt làm.",
+    cta: "Thử công cụ 3D ngay",
+    href: "/cake-builder",
+    path: "M20 5l13 7.5v15L20 35 7 27.5v-15z M20 20l13-7.5 M20 20v15 M20 20L7 12.5",
   },
   {
     n: "02",
-    title: "Tư vấn bằng AI",
-    body: "Trò chuyện tự nhiên để tìm mẫu bánh hợp dịp, số người và ngân sách của bạn.",
-    path: "M8 12a4 4 0 014-4h24a4 4 0 014 4v16a4 4 0 01-4 4H20l-8 8v-8h-4z",
+    title: "Tư vấn thảo thuận cùng đầu bếp",
+    body: "Đội ngũ nghệ nhân lắng nghe câu chuyện, phong cách tiếp và ngân sách để tạo nên bản phác thảo độc quyền.",
+    cta: "Đặt lịch hẹn tư vấn",
+    href: "/products",
+    path: "M7 10a3 3 0 013-3h20a3 3 0 013 3v13a3 3 0 01-3 3H16l-6 6v-6H10a3 3 0 01-3-3z",
   },
   {
     n: "03",
-    title: "Tìm bánh bằng ảnh",
-    body: "Tải lên ảnh chiếc bánh bạn thích, hệ thống tìm ra mẫu gần giống nhất trong tiệm.",
-    path: "M6 12a2 2 0 012-2h32a2 2 0 012 2v24a2 2 0 01-2 2H8a2 2 0 01-2-2z M6 32l10-9 8 7 6-5 12 11 M17 19a3 3 0 100-6 3 3 0 000 6z",
+    title: "Tái hiện hoàn hảo từ ảnh mẫu",
+    body: "Tải lên bất kỳ ảnh bánh mẫu nào. Hệ thống phân tích và tìm ra mẫu bánh gần giống nhất trong tiệm.",
+    cta: "Tải ảnh lên thử nghiệm",
+    href: "/tim-banh",
+    path: "M5 10a2 2 0 012-2h26a2 2 0 012 2v20a2 2 0 01-2 2H7a2 2 0 01-2-2z M5 27l8-7 7 6 5-4 10 9 M14 16a2.5 2.5 0 100-5 2.5 2.5 0 000 5z",
   },
 ];
 
 export default async function Home() {
-  const showcase = await getShowcaseImages();
+  const showcase = await getShowcase();
+  const heroImage = showcase[0];
+  const strip = showcase.slice(1, 5);
 
   return (
     <main className="min-h-screen bg-surface">
       <Header />
 
-      {/* ─── Hero ──────────────────────────────────────────────────────────
-          Chữ nhỏ hơn và nhẹ hơn so với landing page thông thường: thương hiệu
-          cao cấp dùng typography tiết chế và để khoảng trắng nói thay. Tiêu đề
-          64px đậm 700 là ngôn ngữ của trang bán hàng, không phải của tiệm bánh
-          thủ công. Ở đây tối đa 56px và độ đậm 500. */}
-      <section
-        className="page-container pt-20 pb-24 sm:pt-28 sm:pb-32 text-center"
-        aria-labelledby="hero-heading"
-      >
-        <p className="eyebrow mb-6">Thủ công · TP.HCM</p>
+      {/* ─── Hero hai cột ──────────────────────────────────────────────────
+          Chữ bên trái, ảnh bên phải. Bố cục hai cột cho phép ảnh bánh lớn —
+          thứ quan trọng nhất với một tiệm bánh — mà không đẩy chữ xuống dưới
+          màn hình như bố cục căn giữa. */}
+      <section className="page-container pt-12 pb-20 sm:pt-16 sm:pb-28">
+        <div className="grid items-center gap-12 lg:grid-cols-[1fr_minmax(0,480px)] lg:gap-16">
+          {/* Cột chữ */}
+          <div>
+            {/* Nhãn: dấu chấm vàng + chữ in hoa giãn nhẹ, trên nền pill kem. */}
+            <p className="inline-flex items-center gap-2 rounded-full bg-subtle px-3.5 py-1.5 text-[0.6875rem] font-medium uppercase tracking-[0.14em] text-muted mb-7">
+              <span className="h-1.5 w-1.5 rounded-full bg-gold-deep" />
+              Atelier thủ công · TP. Hồ Chí Minh &amp; Đà Nẵng
+            </p>
 
-        <h1
-          id="hero-heading"
-          className="title-lux text-[2.25rem] leading-[1.1] sm:text-[3rem] md:text-[3.5rem] text-ink mb-7"
-        >
-          Bánh kem
-          <br />
-          <span className="italic">làm riêng cho bạn</span>
-        </h1>
+            <h1 className="title-lux text-[2.5rem] leading-[1.05] sm:text-[3.25rem] lg:text-[3.5rem] text-ink mb-6">
+              Bánh kem nghệ thuật
+              <br />
+              <span className="italic">làm riêng cho bạn</span>
+            </h1>
 
-        <hr className="rule-fade max-w-[200px] mx-auto mb-7" />
+            <p className="text-[0.9375rem] sm:text-base leading-[1.75] text-muted max-w-[520px] mb-9">
+              Mỗi chiếc bánh là một tác phẩm độc bản được phác thảo theo câu
+              chuyện riêng, phối hợp mô hình 3D chân thực 360° trước khi bắt đầu
+              tạo hình. Bạn tưởng tượng — chúng tôi hiện thực.
+            </p>
 
-        <p className="text-base sm:text-lg leading-[1.75] text-muted max-w-[540px] mx-auto mb-11">
-          Mỗi chiếc bánh được thiết kế theo yêu cầu, xem trước bằng mô hình 3D
-          trước khi đặt. Bạn chọn — chúng tôi làm.
-        </p>
+            <div className="flex flex-col sm:flex-row gap-3 mb-10">
+              <Link href="/cake-builder" className="btn btn-primary">
+                Bắt đầu thiết kế 3D
+              </Link>
+              <Link href="/products" className="btn btn-secondary">
+                Khám phá menu
+              </Link>
+            </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <Link href="/cake-builder" className="btn btn-primary w-full sm:w-auto">
-            Thiết kế bánh
-          </Link>
-          <Link href="/products" className="btn btn-secondary w-full sm:w-auto">
-            Xem menu
-          </Link>
+            {/* Ba điểm tin cậy, ngăn bằng đường kẻ dọc mảnh. */}
+            <ul className="flex flex-col sm:flex-row gap-4 sm:gap-7 border-t border-line pt-6">
+              {[
+                "Mô hình 3D trực quan",
+                "100% Bơ AOP & tài cây tươi",
+                "Giao lạnh chuyên dụng 24/7",
+              ].map((item, i) => (
+                <li
+                  key={item}
+                  className={`flex items-start gap-2 text-[0.8125rem] leading-snug text-muted ${
+                    i > 0 ? "sm:border-l sm:border-line sm:pl-7" : ""
+                  }`}
+                >
+                  <svg
+                    className="mt-0.5 h-4 w-4 shrink-0 text-ink"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    aria-hidden="true"
+                  >
+                    <circle cx="10" cy="10" r="7.5" />
+                    <path d="M7 10l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Cột ảnh — khung vòm, thủ pháp của tạp chí thời trang. */}
+          {heroImage && (
+            <div className="relative">
+              <div className="arch relative aspect-[4/5] w-full bg-subtle shadow-[0_24px_60px_-32px_rgba(31,27,26,0.35)]">
+                <Image
+                  src={heroImage.url}
+                  alt={heroImage.name}
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 480px"
+                  className="object-cover"
+                  priority
+                />
+                {/* Thẻ thông tin nhỏ nằm đè lên ảnh, lệch xuống dưới. */}
+                <div className="absolute inset-x-4 bottom-4 flex items-end justify-between gap-3 rounded-2xl bg-surface/95 backdrop-blur-sm px-4 py-3">
+                  <div>
+                    <p className="text-[0.625rem] uppercase tracking-[0.14em] text-muted mb-1">
+                      Haute pâtisserie collection
+                    </p>
+                    <p className="font-heading text-sm text-ink">
+                      Mẫu thiết kế độc bản 2025
+                    </p>
+                  </div>
+                  <Link
+                    href="/products"
+                    aria-label="Xem bộ sưu tập"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-action text-surface transition-colors hover:bg-cocoa"
+                  >
+                    <svg
+                      className="h-4 w-4"
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      aria-hidden="true"
+                    >
+                      <path d="M5 15L15 5M9 5h6v6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
-      {/* ─── Dải phân cách ─────────────────────────────────────────────────
-          Chữ kẹp giữa hai đường kẻ mảnh: thủ pháp của tạp chí in, tạo nhịp nghỉ
-          giữa hai khối lớn mà không cần thêm màu hay hình ảnh. */}
-      <div className="page-container">
-        <div className="flex items-center gap-6 sm:gap-10">
-          <hr className="rule-fade flex-1" />
-          <p className="eyebrow whitespace-nowrap">Vì sao chọn Bơ Nơ</p>
-          <hr className="rule-fade flex-1" />
+      {/* ─── Ba giá trị ──────────────────────────────────────────────────── */}
+      <section className="page-container pb-20 sm:pb-28" aria-labelledby="values-heading">
+        <div className="text-center mb-12">
+          <p className="eyebrow mb-3">Giá trị nghệ nhân</p>
+          <h2
+            id="values-heading"
+            className="title-lux text-[1.75rem] sm:text-[2.25rem] text-ink"
+          >
+            Vì sao khách hàng chọn Bơ Nơ
+          </h2>
         </div>
-      </div>
 
-      {/* ─── Ba điểm chính ─────────────────────────────────────────────────
-          Đánh số 01/02/03 thay vì ba thẻ giống hệt nhau. Ba khối vuông vức
-          cạnh nhau là dấu hiệu của template; số thứ tự gợi cảm giác một bộ
-          sưu tập được tuyển chọn. Các khối ngăn bằng đường kẻ 1px thay vì
-          khoảng trống, để chúng đọc như một dải liền mạch. */}
-      <section
-        className="page-container pt-16 pb-24 sm:pb-32"
-        aria-label="Điểm nổi bật"
-      >
-        <div className="grid grid-cols-1 gap-px bg-line sm:grid-cols-3 border-y border-line">
-          {FEATURES.map((f) => (
+        <div className="grid gap-6 md:grid-cols-3">
+          {VALUES.map((v) => (
             <article
-              key={f.n}
-              className="bg-surface px-8 py-12 sm:px-10 sm:py-14 transition-colors duration-500 hover:bg-white"
+              key={v.n}
+              className="flex flex-col rounded-2xl border border-line bg-white p-7 sm:p-8 transition-shadow duration-500 hover:shadow-[0_18px_44px_-28px_rgba(31,27,26,0.3)]"
             >
-              <p className="font-heading text-sm text-brand mb-7 tracking-[0.14em]">
-                {f.n}
-              </p>
-              <ThinIcon path={f.path} />
-              <h3 className="mt-7 mb-3 font-heading text-xl text-ink font-normal">
-                {f.title}
+              <div className="flex items-start justify-between mb-7">
+                <p className="font-heading text-sm italic text-muted">{v.n}</p>
+                <ValueIcon path={v.path} />
+              </div>
+              <h3 className="font-heading text-lg text-ink mb-3 leading-snug">
+                {v.title}
               </h3>
-              <p className="text-muted text-[0.9375rem] leading-[1.7]">
-                {f.body}
-              </p>
+              <p className="text-sm leading-[1.7] text-muted flex-1">{v.body}</p>
+              <Link
+                href={v.href}
+                className="link-underline mt-6 self-start text-[0.8125rem] text-ink"
+              >
+                {v.cta} →
+              </Link>
             </article>
           ))}
         </div>
       </section>
 
-      {/* ─── Dải ảnh bánh thật ─────────────────────────────────────────────
-          Trang chủ của một tiệm bánh phải cho thấy bánh. Khối này lấy ảnh thật
-          từ API và xếp thành một dải phẳng, không bo góc, không bóng đổ: ảnh
-          tràn viền là thủ pháp của tạp chí ảnh, và nó khiến ảnh trông như tác
-          phẩm thay vì như ô sản phẩm trong giỏ hàng.
-          Nếu API chưa chạy thì khối này tự ẩn, không để lại khoảng trống. */}
-      {showcase.length > 0 && (
-        <section className="pb-24 sm:pb-32" aria-label="Hình ảnh bánh">
-          <div className="grid grid-cols-2 gap-px bg-line sm:grid-cols-4">
-            {showcase.map((item) => (
-              <div key={item.url} className="relative aspect-[4/5] bg-subtle">
-                <Image
-                  src={item.url}
-                  alt={item.name}
-                  fill
-                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 25vw"
-                  className="object-cover"
-                />
-              </div>
+      {/* ─── Dải sản phẩm ──────────────────────────────────────────────────── */}
+      {strip.length > 0 && (
+        <section className="page-container pb-20 sm:pb-28" aria-labelledby="strip-heading">
+          <div className="text-center mb-12">
+            <p className="eyebrow mb-3">Hương vị đặc trưng tại Bơ Nơ</p>
+            <h2
+              id="strip-heading"
+              className="title-lux text-[1.75rem] sm:text-[2.25rem] text-ink max-w-[620px] mx-auto"
+            >
+              Dòng bánh tươi thủ công trong ngày
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {strip.map((item, i) => (
+              <article
+                key={item.url}
+                className="flex flex-col rounded-2xl border border-line bg-white p-4 transition-shadow duration-500 hover:shadow-[0_18px_44px_-28px_rgba(31,27,26,0.3)]"
+              >
+                <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-subtle mb-4">
+                  <Image
+                    src={item.url}
+                    alt={item.name}
+                    fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                    className="object-cover"
+                  />
+                </div>
+                {i === 0 && <span className="tag-gold mb-2 self-start">Thủ công</span>}
+                <h3 className="font-heading text-base text-ink leading-snug line-clamp-2 mb-2">
+                  {item.name}
+                </h3>
+                <div className="mt-auto flex items-center justify-between gap-3 pt-3">
+                  <p className="text-sm text-ink tracking-wide">
+                    {formatPrice(item.price)}
+                  </p>
+                  <Link
+                    href="/products"
+                    className="rounded-full bg-action px-4 py-1.5 text-[0.6875rem] font-medium uppercase tracking-[0.06em] text-surface transition-colors hover:bg-cocoa"
+                  >
+                    Đặt ngay
+                  </Link>
+                </div>
+              </article>
             ))}
           </div>
         </section>
       )}
 
-      {/* ─── Lời mời cuối ──────────────────────────────────────────────────── */}
-      <section className="page-container pb-24 sm:pb-32 text-center">
-        <hr className="rule-fade max-w-[120px] mx-auto mb-12" />
-        <h2 className="title-lux text-2xl sm:text-[2rem] text-ink mb-5 max-w-[520px] mx-auto">
-          Sẵn sàng cho chiếc bánh của riêng bạn?
-        </h2>
-        <p className="text-muted text-base leading-[1.75] max-w-[440px] mx-auto mb-10">
-          Bắt đầu thiết kế, hoặc hỏi trợ lý AI nếu bạn chưa biết chọn gì.
-        </p>
-        <Link href="/cake-builder" className="btn btn-primary">
-          Bắt đầu thiết kế
-        </Link>
+      {/* ─── Khối CTA nền nâu đậm ──────────────────────────────────────────── */}
+      <section className="page-container pb-20 sm:pb-28">
+        <div className="cta-cocoa px-6 py-16 sm:px-14 sm:py-20 text-center">
+          <p className="eyebrow-light mb-5">Bespoke confectionery atelier</p>
+          <h2 className="title-lux text-[1.75rem] leading-tight sm:text-[2.5rem] text-surface mb-5 max-w-[560px] mx-auto">
+            Sẵn sàng sáng tạo chiếc
+            <br />
+            <span className="italic text-gold">bánh của riêng bạn?</span>
+          </h2>
+          <p className="text-sm sm:text-base leading-[1.75] text-surface/70 max-w-[480px] mx-auto mb-10">
+            Bắt đầu với trợ lý thiết kế thông minh, hoặc gửi ảnh mẫu để đội ngũ
+            thợ bánh Bơ Nơ liên hệ tư vấn ngay trong 15 phút.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link href="/cake-builder" className="btn-gold">
+              Khởi tạo bản thiết kế
+            </Link>
+            <Link href="/tim-banh" className="btn-outline-light">
+              Chat với bánh nghệ nhân
+            </Link>
+          </div>
+        </div>
       </section>
 
-      {/* ─── Footer ────────────────────────────────────────────────────────── */}
-      <footer className="border-t border-line py-14 pattern-dots">
-        <div className="page-container flex flex-col items-center gap-5 text-center">
-          <Link href="/" aria-label="Bơ Nơ Bakery — Trang chủ">
-            <BrandLogo />
-          </Link>
-          <hr className="rule-fade max-w-[72px]" />
-          <p className="text-muted text-sm leading-relaxed">
-            Bơ Nơ Bakery — Tiệm bánh kem thủ công
-          </p>
-          <p className="text-muted text-sm">
-            TP. Đà Nẵng
-            <span className="dot-sep" />
-            0901 234 567
-          </p>
+      {/* ─── Footer bốn cột ────────────────────────────────────────────────── */}
+      <footer className="border-t border-line pt-16 pb-10">
+        <div className="page-container">
+          <div className="grid gap-10 lg:grid-cols-[1.2fr_1fr_1fr_1.2fr] lg:gap-12">
+            {/* Cột 1: thương hiệu */}
+            <div>
+              <Link href="/" aria-label="Bơ Nơ Bakery — Trang chủ">
+                <BrandLogo />
+              </Link>
+              <p className="mt-5 text-[0.8125rem] leading-relaxed text-muted max-w-[280px]">
+                Tiệm bánh kem thủ công &amp; nghệ thuật bánh ngọt độc bản, kiến
+                tạo khoảnh khắc ngọt ngào giữa đời thường.
+              </p>
+              <div className="flex gap-2 mt-5">
+                {["IG", "FB", "TT"].map((s) => (
+                  <span
+                    key={s}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-[0.6875rem] font-medium text-muted"
+                    aria-hidden="true"
+                  >
+                    {s}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Cột 2 */}
+            <div>
+              <h3 className="text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-ink mb-5">
+                Atelier &amp; tiệm bánh
+              </h3>
+              <div className="space-y-4 text-[0.8125rem] leading-relaxed text-muted">
+                <p>
+                  <span className="text-ink">Chi nhánh TP. Hồ Chí Minh:</span>
+                  <br />
+                  128 Nguyễn Đình Chiểu, Phường Võ Thị Sáu, Quận 3
+                </p>
+                <p>
+                  <span className="text-ink">Chi nhánh Đà Nẵng:</span>
+                  <br />
+                  45 Bạch Đằng, Quận Hải Châu, TP. Đà Nẵng
+                </p>
+              </div>
+            </div>
+
+            {/* Cột 3 */}
+            <div>
+              <h3 className="text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-ink mb-5">
+                Chăm sóc khách hàng
+              </h3>
+              <div className="space-y-4 text-[0.8125rem] leading-relaxed text-muted">
+                <p>
+                  <span className="text-ink">Hotline đặt bánh gấp:</span>
+                  <br />
+                  0901 234 567
+                </p>
+                <p>
+                  <span className="text-ink">Giờ mở cửa:</span> 08:00 – 21:30
+                  hằng ngày
+                </p>
+                <p>Email: bonjour@bonobakery.vn</p>
+              </div>
+            </div>
+
+            {/* Cột 4: đăng ký nhận tin */}
+            <div>
+              <h3 className="text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-ink mb-5">
+                Nhận tin mới nhất
+              </h3>
+              <p className="text-[0.8125rem] leading-relaxed text-muted mb-4">
+                Nhận ưu đãi độc quyền và bộ sưu tập mùa lễ hội từ Bơ Nơ Bakery.
+              </p>
+              {/* Form chưa nối API — chỉ để hoàn thiện giao diện, không giả vờ
+                  là đã hoạt động. */}
+              <NewsletterForm />
+            </div>
+          </div>
+
+          {/* Dòng bản quyền */}
+          <div className="mt-14 pt-6 border-t border-line flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-[0.75rem] text-muted">
+            <p>© 2025 Bơ Nơ Bakery. All rights reserved.</p>
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              <span>Chính sách bảo mật</span>
+              <span>Điều khoản dịch vụ</span>
+              <span>Chính sách giao hàng</span>
+            </div>
+          </div>
         </div>
       </footer>
     </main>

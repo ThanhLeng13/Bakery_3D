@@ -219,15 +219,18 @@ export default function Header() {
               <div className="flex items-center gap-2">
                 <Link
                   href="/auth/login"
-                  className="hidden sm:flex px-4 py-2 text-sm font-medium text-muted hover:text-ink transition-colors min-h-[40px] items-center"
+                  className="hidden lg:flex px-4 py-2 text-sm text-muted hover:text-ink transition-colors min-h-[40px] items-center"
                 >
                   Đăng nhập
                 </Link>
+                {/* Nút CTA chính của header, theo thiết kế: nền đậm, chữ in hoa
+                    giãn nhẹ. Đây là hành động chính nên được nổi bật hơn các
+                    liên kết còn lại. */}
                 <Link
-                  href="/auth/register"
-                  className="px-4 py-2 bg-action text-white text-sm font-medium rounded-full hover:bg-brand-soft transition-colors min-h-[40px] flex items-center"
+                  href="/cake-builder"
+                  className="hidden sm:flex px-5 py-2.5 bg-action text-surface text-xs font-medium tracking-[0.08em] uppercase rounded-full hover:bg-cocoa transition-colors min-h-[44px] items-center"
                 >
-                  Đăng ký
+                  Thiết kế ngay
                 </Link>
               </div>
             )}
