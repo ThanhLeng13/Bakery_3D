@@ -53,8 +53,10 @@ const config: Config = {
         foreground: "var(--foreground)",
       },
       fontFamily: {
-        heading: ["var(--font-playfair)", "serif"],
-        body: ["var(--font-dm-sans)", "sans-serif"],
+        heading: ["var(--font-playfair)", "Georgia", "serif"],
+        // Be Vietnam Pro thay cho DM Sans: DM Sans không có subset tiếng Việt
+        // trên Google Fonts, khiến chữ có dấu bị vỡ nét.
+        body: ["var(--font-body)", "system-ui", "sans-serif"],
       },
     },
   },

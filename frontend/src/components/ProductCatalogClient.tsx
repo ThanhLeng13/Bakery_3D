@@ -78,7 +78,7 @@ export default function ProductCatalogClient({
                 role="tab"
                 aria-selected={active}
                 onClick={() => handleFilterChange(cat.value, 1)}
-                className={`relative pb-4 pt-1 text-sm tracking-[0.12em] uppercase whitespace-nowrap min-h-[44px] transition-colors duration-300 ${
+                className={`relative pb-4 pt-1 text-sm tracking-[0.08em] uppercase whitespace-nowrap min-h-[44px] transition-colors duration-300 ${
                   active
                     ? "text-ink"
                     : "text-muted hover:text-ink"

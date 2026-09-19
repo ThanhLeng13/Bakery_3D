@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import Header from "@/components/Header";
 import BrandLogo from "@/components/BrandLogo";
 
@@ -8,6 +9,28 @@ export const metadata: Metadata = {
   description:
     "Bơ Nơ Bakery – Bánh kem thủ công thiết kế theo yêu cầu, xem trước bằng mô hình 3D và tư vấn bằng AI tiếng Việt.",
 };
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+/** Lấy vài ảnh bánh thật để trưng ở trang chủ. */
+async function getShowcaseImages(): Promise<{ url: string; name: string }[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/v1/products?page_size=8`, {
+      next: { revalidate: 300 },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const out: { url: string; name: string }[] = [];
+    for (const p of data.products ?? []) {
+      if (p.image_url) out.push({ url: p.image_url, name: p.name });
+      if (out.length === 4) break;
+    }
+    return out;
+  } catch {
+    // Trang chủ vẫn phải hiển thị được kể cả khi API chưa chạy.
+    return [];
+  }
+}
 
 /**
  * Icon nét mảnh dùng chung.
@@ -54,7 +77,9 @@ const FEATURES = [
   },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const showcase = await getShowcaseImages();
+
   return (
     <main className="min-h-screen bg-surface">
       <Header />
@@ -122,7 +147,7 @@ export default function Home() {
               key={f.n}
               className="bg-surface px-8 py-12 sm:px-10 sm:py-14 transition-colors duration-500 hover:bg-white"
             >
-              <p className="font-heading text-sm text-brand mb-7 tracking-[0.2em]">
+              <p className="font-heading text-sm text-brand mb-7 tracking-[0.14em]">
                 {f.n}
               </p>
               <ThinIcon path={f.path} />
@@ -136,6 +161,30 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {/* ─── Dải ảnh bánh thật ─────────────────────────────────────────────
+          Trang chủ của một tiệm bánh phải cho thấy bánh. Khối này lấy ảnh thật
+          từ API và xếp thành một dải phẳng, không bo góc, không bóng đổ: ảnh
+          tràn viền là thủ pháp của tạp chí ảnh, và nó khiến ảnh trông như tác
+          phẩm thay vì như ô sản phẩm trong giỏ hàng.
+          Nếu API chưa chạy thì khối này tự ẩn, không để lại khoảng trống. */}
+      {showcase.length > 0 && (
+        <section className="pb-24 sm:pb-32" aria-label="Hình ảnh bánh">
+          <div className="grid grid-cols-2 gap-px bg-line sm:grid-cols-4">
+            {showcase.map((item) => (
+              <div key={item.url} className="relative aspect-[4/5] bg-subtle">
+                <Image
+                  src={item.url}
+                  alt={item.name}
+                  fill
+                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 25vw"
+                  className="object-cover"
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ─── Lời mời cuối ──────────────────────────────────────────────────── */}
       <section className="page-container pb-24 sm:pb-32 text-center">
@@ -152,16 +201,19 @@ export default function Home() {
       </section>
 
       {/* ─── Footer ────────────────────────────────────────────────────────── */}
-      <footer className="border-t border-line py-14">
-        <div className="page-container flex flex-col items-center gap-6 text-center">
+      <footer className="border-t border-line py-14 pattern-dots">
+        <div className="page-container flex flex-col items-center gap-5 text-center">
           <Link href="/" aria-label="Bơ Nơ Bakery — Trang chủ">
             <BrandLogo />
           </Link>
-          <hr className="rule-fade max-w-[80px]" />
+          <hr className="rule-fade max-w-[72px]" />
           <p className="text-muted text-sm leading-relaxed">
             Bơ Nơ Bakery — Tiệm bánh kem thủ công
-            <br />
-            TP. Đà Nẵng · 0901 234 567
+          </p>
+          <p className="text-muted text-sm">
+            TP. Đà Nẵng
+            <span className="dot-sep" />
+            0901 234 567
           </p>
         </div>
       </footer>

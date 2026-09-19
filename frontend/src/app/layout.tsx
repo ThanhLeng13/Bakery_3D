@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Playfair_Display, DM_Sans } from "next/font/google";
+import { Playfair_Display, Be_Vietnam_Pro } from "next/font/google";
 import dynamic from "next/dynamic";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
@@ -8,15 +8,30 @@ import RoleBoundary from "@/components/RoleBoundary";
 import "./globals.css";
 
 // ---- Fonts ----
+// Playfair Display: tiêu đề serif. Google Fonts có subset "vietnamese" cho
+// font này nên dấu tiếng Việt hiển thị đúng.
 const playfair = Playfair_Display({
   subsets: ["latin", "vietnamese"],
   variable: "--font-playfair",
   display: "swap",
 });
 
-const dmSans = DM_Sans({
-  subsets: ["latin", "latin-ext"],
-  variable: "--font-dm-sans",
+/**
+ * Be Vietnam Pro cho phần thân.
+ *
+ * Trước đây dùng DM Sans, nhưng DM Sans KHÔNG có subset "vietnamese" trên
+ * Google Fonts — chỉ có latin và latin-ext. Hệ quả: mọi ký tự có dấu như
+ * "THIẾT KẾ BÁNH" rơi vào font dự phòng của hệ điều hành, nên nét chữ vỡ và
+ * lệch hẳn khỏi phần chữ không dấu đứng cạnh. Đã kiểm tra bằng cách đọc
+ * unicode-range trong CSS của Google Fonts, không đoán.
+ *
+ * Be Vietnam Pro được thiết kế riêng cho tiếng Việt, có đủ 5 thanh và dấu
+ * mũ, đồng thời vẫn là sans-serif hình học nên đi với Playfair rất hợp.
+ */
+const beVietnam = Be_Vietnam_Pro({
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600"],
+  variable: "--font-body",
   display: "swap",
 });
 
@@ -65,7 +80,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" className={`${playfair.variable} ${dmSans.variable}`} suppressHydrationWarning>
+    <html lang="vi" className={`${playfair.variable} ${beVietnam.variable}`} suppressHydrationWarning>
       <head>
         {/* Preconnect to Google Fonts CDN (already loaded by next/font but good practice) */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
