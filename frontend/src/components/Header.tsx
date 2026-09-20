@@ -223,9 +223,10 @@ export default function Header() {
                 >
                   Đăng nhập
                 </Link>
-                {/* Nút CTA chính của header, theo thiết kế: nền đậm, chữ in hoa
-                    giãn nhẹ. Đây là hành động chính nên được nổi bật hơn các
-                    liên kết còn lại. */}
+                {/* Nút CTA chính, theo thiết kế: nền đậm, chữ in hoa giãn nhẹ.
+                    Thiết kế Stitch ở header CHỈ có "Đăng nhập" + "Thiết kế ngay",
+                    không có nút Đăng ký. Khách tạo tài khoản qua liên kết ở
+                    trang đăng nhập, nên header không cần nút đó. */}
                 <Link
                   href="/cake-builder"
                   className="hidden sm:flex px-5 py-2.5 bg-action text-surface text-xs font-medium tracking-[0.08em] uppercase rounded-full hover:bg-cocoa transition-colors min-h-[44px] items-center"
@@ -274,13 +275,26 @@ export default function Header() {
                 </Link>
               ))}
               {!isAuthenticated && (
-                <Link
-                  href="/auth/login"
-                  className="px-4 py-3 rounded-xl text-sm font-medium text-muted hover:text-ink hover:bg-ink/5 transition-colors"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Đăng nhập
-                </Link>
+                <>
+                  <Link
+                    href="/auth/login"
+                    className="px-4 py-3 rounded-xl text-sm font-medium text-muted hover:text-ink hover:bg-ink/5 transition-colors"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Đăng nhập
+                  </Link>
+                  {/* Nút Đăng ký chỉ có ở menu mobile: phần header ẩn nút Đăng
+                      nhập dưới breakpoint lg, nên nếu không có ở đây thì khách
+                      trên điện thoại không có đường vào tài khoản. Desktop giữ
+                      đúng thiết kế (chỉ Đăng nhập). */}
+                  <Link
+                    href="/auth/register"
+                    className="px-4 py-3 rounded-xl text-sm font-medium text-muted hover:text-ink hover:bg-ink/5 transition-colors"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Đăng ký
+                  </Link>
+                </>
               )}
             </nav>
           </div>
