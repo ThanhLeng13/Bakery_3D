@@ -3,12 +3,10 @@
 /**
  * Trang Tích Điểm — Bơ Nơ Bakery
  *
- * Theme màu trung tính lấy đúng tông logo (#8F8F8E):
- *   chữ chính   #2b2b2a
- *   accent      #8f8f8e
- *   chữ phụ     #6b6b6a
- *   đường viền  #e5e5e3
- *   nền         #fafaf9
+ * Màu lấy từ biến CSS trong globals.css, KHÔNG viết mã hex trực tiếp.
+ * Trước đây file này hard-code 70 mã màu của bảng xám cũ, nên khi đổi sang
+ * tông kem thì cả trang lệch màu so với phần còn lại của site. Dùng biến CSS
+ * thì lần đổi bảng màu sau sẽ tự động áp dụng, không phải sửa lại file này.
  */
 
 import { useState } from "react";
@@ -41,15 +39,15 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 const TYPE_COLOR: Record<string, string> = {
-  purchase: "#8f8f8e",
-  order: "#2b2b2a",
-  redeem: "#6b6b6a",
+  purchase: "var(--brand)",
+  order: "var(--foreground)",
+  redeem: "var(--muted)",
 };
 
 // ─── Transaction Row ──────────────────────────────────────────────────────────
 function TransactionRow({ tx }: { tx: LoyaltyTransaction }) {
   const isPositive = tx.points > 0;
-  const color = TYPE_COLOR[tx.type] || "#8f8f8e";
+  const color = TYPE_COLOR[tx.type] || "var(--brand)";
 
   return (
     <div
@@ -58,12 +56,12 @@ function TransactionRow({ tx }: { tx: LoyaltyTransaction }) {
         alignItems: "center",
         justifyContent: "space-between",
         padding: "0.85rem 1rem",
-        borderBottom: "1px solid #e5e5e3",
+        borderBottom: "1px solid var(--line)",
         transition: "background 0.15s",
         gap: "1rem",
       }}
       onMouseEnter={(e) =>
-        ((e.currentTarget as HTMLDivElement).style.background = "#f5f5f4")
+        ((e.currentTarget as HTMLDivElement).style.background = "var(--subtle)")
       }
       onMouseLeave={(e) =>
         ((e.currentTarget as HTMLDivElement).style.background = "transparent")
@@ -85,7 +83,7 @@ function TransactionRow({ tx }: { tx: LoyaltyTransaction }) {
             style={{
               fontSize: "0.875rem",
               fontWeight: 600,
-              color: "#2b2b2a",
+              color: "var(--foreground)",
               margin: 0,
               whiteSpace: "nowrap",
               overflow: "hidden",
@@ -98,7 +96,7 @@ function TransactionRow({ tx }: { tx: LoyaltyTransaction }) {
             <p
               style={{
                 fontSize: "0.75rem",
-                color: "#6b6b6a",
+                color: "var(--muted)",
                 margin: 0,
                 marginTop: "0.15rem",
                 whiteSpace: "nowrap",
@@ -117,14 +115,14 @@ function TransactionRow({ tx }: { tx: LoyaltyTransaction }) {
           style={{
             fontWeight: 700,
             fontSize: "0.9rem",
-            color: isPositive ? "#2b2b2a" : "#6b6b6a",
+            color: isPositive ? "var(--foreground)" : "var(--muted)",
             margin: 0,
           }}
         >
           {isPositive ? "+" : ""}
           {tx.points.toLocaleString("vi-VN")} điểm
         </p>
-        <p style={{ fontSize: "0.75rem", color: "#6b6b6a", margin: 0, marginTop: "0.1rem" }}>
+        <p style={{ fontSize: "0.75rem", color: "var(--muted)", margin: 0, marginTop: "0.1rem" }}>
           {formatDate(tx.created_at)}
         </p>
       </div>
@@ -172,7 +170,7 @@ function RedeemModal({
       <div
         style={{
           background: "#fff",
-          border: "1px solid #e5e5e3",
+          border: "1px solid var(--line)",
           borderRadius: "1.5rem",
           padding: "2rem",
           width: "100%",
@@ -187,13 +185,13 @@ function RedeemModal({
             style={{
               fontSize: "1.3rem",
               fontWeight: 700,
-              color: "#2b2b2a",
+              color: "var(--foreground)",
               margin: 0,
             }}
           >
             Đổi Điểm Lấy Voucher
           </h2>
-          <p style={{ color: "#6b6b6a", fontSize: "0.875rem", margin: "0.5rem 0 0" }}>
+          <p style={{ color: "var(--muted)", fontSize: "0.875rem", margin: "0.5rem 0 0" }}>
             {pointsPerVoucher} điểm = 1 voucher = {formatVND(voucherValue)} giảm giá
           </p>
         </div>
@@ -215,9 +213,9 @@ function RedeemModal({
               width: "44px",
               height: "44px",
               borderRadius: "50%",
-              border: "1px solid #8f8f8e",
+              border: "1px solid var(--brand)",
               background: "white",
-              color: "#2b2b2a",
+              color: "var(--foreground)",
               fontSize: "1.25rem",
               fontWeight: 700,
               cursor: count <= 1 ? "not-allowed" : "pointer",
@@ -236,13 +234,13 @@ function RedeemModal({
               style={{
                 fontSize: "2.5rem",
                 fontWeight: 800,
-                color: "#2b2b2a",
+                color: "var(--foreground)",
                 lineHeight: 1,
               }}
             >
               {count}
             </div>
-            <div style={{ fontSize: "0.75rem", color: "#6b6b6a" }}>voucher</div>
+            <div style={{ fontSize: "0.75rem", color: "var(--muted)" }}>voucher</div>
           </div>
 
           <button
@@ -252,8 +250,8 @@ function RedeemModal({
               width: "44px",
               height: "44px",
               borderRadius: "50%",
-              border: "1px solid #2b2b2a",
-              background: "#2b2b2a",
+              border: "1px solid var(--foreground)",
+              background: "var(--foreground)",
               color: "white",
               fontSize: "1.25rem",
               fontWeight: 700,
@@ -272,18 +270,18 @@ function RedeemModal({
         {/* Summary */}
         <div
           style={{
-            background: "#f5f5f4",
-            border: "1px solid #e5e5e3",
+            background: "var(--subtle)",
+            border: "1px solid var(--line)",
             borderRadius: "1rem",
             padding: "1rem",
             textAlign: "center",
             marginBottom: "1.5rem",
           }}
         >
-          <p style={{ margin: 0, color: "#6b6b6a", fontWeight: 600 }}>
+          <p style={{ margin: 0, color: "var(--muted)", fontWeight: 600 }}>
             Dùng {(count * pointsPerVoucher).toLocaleString("vi-VN")} điểm
           </p>
-          <p style={{ margin: "0.25rem 0 0", color: "#2b2b2a", fontSize: "1.1rem", fontWeight: 700 }}>
+          <p style={{ margin: "0.25rem 0 0", color: "var(--foreground)", fontSize: "1.1rem", fontWeight: 700 }}>
             Nhận {formatVND(count * voucherValue)} giảm giá
           </p>
         </div>
@@ -311,9 +309,9 @@ function RedeemModal({
               flex: 1,
               padding: "0.85rem",
               borderRadius: "0.85rem",
-              border: "1px solid #8f8f8e",
+              border: "1px solid var(--brand)",
               background: "transparent",
-              color: "#2b2b2a",
+              color: "var(--foreground)",
               fontWeight: 600,
               cursor: "pointer",
               fontSize: "0.9rem",
@@ -332,9 +330,9 @@ function RedeemModal({
               borderRadius: "0.85rem",
               border: "none",
               background: loading
-                ? "#e5e5e3"
-                : "#2b2b2a",
-              color: loading ? "#6b6b6a" : "white",
+                ? "var(--line)"
+                : "var(--foreground)",
+              color: loading ? "var(--muted)" : "white",
               fontWeight: 700,
               cursor: loading ? "not-allowed" : "pointer",
               fontSize: "0.9rem",
@@ -377,7 +375,7 @@ function SuccessModal({
       <div
         style={{
           background: "#fff",
-          border: "1px solid #e5e5e3",
+          border: "1px solid var(--line)",
           borderRadius: "1.5rem",
           padding: "2rem",
           width: "100%",
@@ -388,10 +386,10 @@ function SuccessModal({
         }}
       >
         <div style={{ fontSize: "3rem", marginBottom: "0.5rem" }}>🎉</div>
-        <h2 style={{ color: "#2b2b2a", margin: "0 0 0.5rem", fontSize: "1.3rem" }}>
+        <h2 style={{ color: "var(--foreground)", margin: "0 0 0.5rem", fontSize: "1.3rem" }}>
           Đổi điểm thành công!
         </h2>
-        <p style={{ color: "#6b6b6a", margin: "0 0 1.5rem", fontSize: "0.9rem" }}>
+        <p style={{ color: "var(--muted)", margin: "0 0 1.5rem", fontSize: "0.9rem" }}>
           Bạn nhận được voucher giảm <strong>{formatVND(discountVnd)}</strong>
         </p>
 
@@ -400,14 +398,14 @@ function SuccessModal({
             <div
               key={code}
               style={{
-                background: "#f5f5f4",
-                border: "1.5px dashed #8f8f8e",
+                background: "var(--subtle)",
+                border: "1.5px dashed var(--brand)",
                 borderRadius: "0.75rem",
                 padding: "0.75rem 1rem",
                 fontFamily: "monospace",
                 fontSize: "1rem",
                 fontWeight: 700,
-                color: "#2b2b2a",
+                color: "var(--foreground)",
                 letterSpacing: "0.08em",
               }}
             >
@@ -416,7 +414,7 @@ function SuccessModal({
           ))}
         </div>
 
-        <p style={{ color: "#6b6b6a", fontSize: "0.75rem", margin: "0 0 1.5rem" }}>
+        <p style={{ color: "var(--muted)", fontSize: "0.75rem", margin: "0 0 1.5rem" }}>
           💡 Lưu mã và trình với nhân viên khi đến quán để được giảm giá.
         </p>
 
@@ -428,7 +426,7 @@ function SuccessModal({
             padding: "0.85rem",
             borderRadius: "0.85rem",
             border: "none",
-            background: "#2b2b2a",
+            background: "var(--foreground)",
             color: "white",
             fontWeight: 700,
             cursor: "pointer",
@@ -473,7 +471,7 @@ export default function LoyaltyPage() {
   // ── Not logged in ─────────────────────────────────────────────────────────
   if (!isAuthenticated) {
     return (
-      <main style={{ minHeight: "100vh", background: "#fafaf9" }}>
+      <main style={{ minHeight: "100vh", background: "var(--surface)" }}>
         <Header />
         <div
           style={{
@@ -495,13 +493,13 @@ export default function LoyaltyPage() {
             style={{
               fontSize: "1.6rem",
               fontWeight: 700,
-              color: "#2b2b2a",
+              color: "var(--foreground)",
               marginBottom: "0.75rem",
             }}
           >
             Hệ Thống Tích Điểm
           </h1>
-          <p style={{ color: "#6b6b6a", marginBottom: "2rem" }}>
+          <p style={{ color: "var(--muted)", marginBottom: "2rem" }}>
             Đăng nhập để xem và tích lũy điểm thưởng từ mỗi đơn hàng!
           </p>
           <Link
@@ -510,7 +508,7 @@ export default function LoyaltyPage() {
               display: "inline-block",
               padding: "0.85rem 2.5rem",
               borderRadius: "9999px",
-              background: "#2b2b2a",
+              background: "var(--foreground)",
               color: "white",
               fontWeight: 700,
               textDecoration: "none",
@@ -528,7 +526,7 @@ export default function LoyaltyPage() {
   // ── Loading ───────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <main style={{ minHeight: "100vh", background: "#fafaf9" }}>
+      <main style={{ minHeight: "100vh", background: "var(--surface)" }}>
         <Header />
         <div style={{ maxWidth: "700px", margin: "3rem auto", padding: "0 1rem" }}>
           {[1, 2, 3].map((i) => (
@@ -536,7 +534,7 @@ export default function LoyaltyPage() {
               key={i}
               style={{
                 height: i === 1 ? "200px" : "120px",
-                background: "linear-gradient(90deg, #f5f5f4 25%, #e5e5e3 50%, #f5f5f4 75%)",
+                background: "linear-gradient(90deg, var(--subtle) 25%, var(--line) 50%, var(--subtle) 75%)",
                 backgroundSize: "200% 100%",
                 animation: "shimmer 1.5s infinite",
                 borderRadius: "1.25rem",
@@ -552,7 +550,7 @@ export default function LoyaltyPage() {
   // ── Error ─────────────────────────────────────────────────────────────────
   if (error) {
     return (
-      <main style={{ minHeight: "100vh", background: "#fafaf9" }}>
+      <main style={{ minHeight: "100vh", background: "var(--surface)" }}>
         <Header />
         <div style={{ maxWidth: "500px", margin: "4rem auto", padding: "0 1rem", textAlign: "center" }}>
           <p style={{ color: "#d32f2f", fontSize: "1rem" }}>⚠️ {error}</p>
@@ -589,7 +587,7 @@ export default function LoyaltyPage() {
       <main
         style={{
           minHeight: "100vh",
-          background: "#fafaf9",
+          background: "var(--surface)",
         }}
       >
         <Header />
@@ -599,7 +597,7 @@ export default function LoyaltyPage() {
           {/* ── HERO CARD ──────────────────────────────────────────────────── */}
           <div
             style={{
-              background: "#2b2b2a",
+              background: "var(--foreground)",
               borderRadius: "1.75rem",
               padding: "2rem 2rem 2.5rem",
               marginBottom: "1.25rem",
@@ -757,14 +755,14 @@ export default function LoyaltyPage() {
                   background: "white",
                   borderRadius: "1.1rem",
                   padding: "1.1rem",
-                  border: "1px solid #e5e5e3",
+                  border: "1px solid var(--line)",
                 }}
               >
                 <div style={{ fontSize: "1.5rem", marginBottom: "0.4rem" }}>{item.icon}</div>
                 <p
                   style={{
                     fontSize: "0.75rem",
-                    color: "#6b6b6a",
+                    color: "var(--muted)",
                     margin: "0 0 0.25rem",
                     fontWeight: 500,
                   }}
@@ -775,7 +773,7 @@ export default function LoyaltyPage() {
                   style={{
                     fontSize: "0.9rem",
                     fontWeight: 700,
-                    color: "#2b2b2a",
+                    color: "var(--foreground)",
                     margin: 0,
                   }}
                 >
@@ -798,7 +796,7 @@ export default function LoyaltyPage() {
                 padding: "1rem",
                 borderRadius: "1.1rem",
                 border: "none",
-                background: "#2b2b2a",
+                background: "var(--foreground)",
                 color: "white",
                 fontWeight: 700,
                 fontSize: "1rem",
@@ -825,13 +823,13 @@ export default function LoyaltyPage() {
           ) : (
             <div
               style={{
-                background: "#f5f5f4",
-                border: "1.5px dashed #8f8f8e",
+                background: "var(--subtle)",
+                border: "1.5px dashed var(--brand)",
                 borderRadius: "1.1rem",
                 padding: "1rem",
                 textAlign: "center",
                 marginBottom: "1.25rem",
-                color: "#2b2b2a",
+                color: "var(--foreground)",
                 fontSize: "0.9rem",
               }}
             >
@@ -860,7 +858,7 @@ export default function LoyaltyPage() {
           <div
             style={{
               background: "white",
-              border: "1px solid #e5e5e3",
+              border: "1px solid var(--line)",
               borderRadius: "1.25rem",
               overflow: "hidden",
             }}
@@ -868,7 +866,7 @@ export default function LoyaltyPage() {
             <div
               style={{
                 padding: "1.1rem 1rem 0.85rem",
-                borderBottom: "1px solid #e5e5e3",
+                borderBottom: "1px solid var(--line)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -878,7 +876,7 @@ export default function LoyaltyPage() {
                 style={{
                   fontSize: "1rem",
                   fontWeight: 700,
-                  color: "#2b2b2a",
+                  color: "var(--foreground)",
                   margin: 0,
                 }}
               >
@@ -887,7 +885,7 @@ export default function LoyaltyPage() {
               <span
                 style={{
                   fontSize: "0.75rem",
-                  color: "#6b6b6a",
+                  color: "var(--muted)",
                   fontWeight: 600,
                 }}
               >
@@ -900,7 +898,7 @@ export default function LoyaltyPage() {
                 style={{
                   padding: "3rem 1rem",
                   textAlign: "center",
-                  color: "#6b6b6a",
+                  color: "var(--muted)",
                 }}
               >
                 <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>🎂</div>
@@ -921,17 +919,17 @@ export default function LoyaltyPage() {
           <div
             style={{
               marginTop: "1.25rem",
-              background: "#f5f5f4",
+              background: "var(--subtle)",
               borderRadius: "1.1rem",
               padding: "1.25rem 1.25rem",
-              border: "1px solid #e5e5e3",
+              border: "1px solid var(--line)",
             }}
           >
             <h3
               style={{
                 fontSize: "0.9rem",
                 fontWeight: 700,
-                color: "#2b2b2a",
+                color: "var(--foreground)",
                 margin: "0 0 0.75rem",
               }}
             >
@@ -941,7 +939,7 @@ export default function LoyaltyPage() {
               style={{
                 margin: 0,
                 padding: "0 0 0 1.1rem",
-                color: "#6b6b6a",
+                color: "var(--muted)",
                 fontSize: "0.85rem",
                 lineHeight: 1.7,
               }}

@@ -111,7 +111,7 @@ function LoginContent() {
                 required
                 autoComplete="email"
                 placeholder="email@example.com"
-                className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-pink-pastel focus:ring-2 focus:ring-pink-pastel/20 outline-none transition-colors font-body text-mocha placeholder:text-gray-400"
+                className="w-full px-4 py-3 rounded-lg border border-line focus:border-pink-pastel focus:ring-2 focus:ring-pink-pastel/20 outline-none transition-colors font-body text-mocha placeholder:text-muted"
               />
             </div>
 
@@ -140,7 +140,7 @@ function LoginContent() {
                   required
                   autoComplete="current-password"
                   placeholder="Nhập mật khẩu"
-                  className="w-full px-4 py-3 pr-12 rounded-lg border border-gray-200 focus:border-pink-pastel focus:ring-2 focus:ring-pink-pastel/20 outline-none transition-colors font-body text-mocha placeholder:text-gray-400"
+                  className="w-full px-4 py-3 pr-12 rounded-lg border border-line focus:border-pink-pastel focus:ring-2 focus:ring-pink-pastel/20 outline-none transition-colors font-body text-mocha placeholder:text-muted"
                 />
                 <button
                   type="button"
@@ -170,7 +170,7 @@ function LoginContent() {
           {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200" />
+              <div className="w-full border-t border-line" />
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="px-3 bg-white text-mocha/50 font-body">
@@ -183,7 +183,7 @@ function LoginContent() {
           <button
             type="button"
             onClick={handleGoogleLogin}
-            className="w-full py-3 px-4 border border-gray-200 rounded-lg flex items-center justify-center gap-3 hover:bg-gray-50 focus:ring-2 focus:ring-gray-200 focus:ring-offset-2 transition-colors font-body text-mocha min-h-[44px]"
+            className="w-full py-3 px-4 border border-line rounded-lg flex items-center justify-center gap-3 hover:bg-surface focus:ring-2 focus:ring-line focus:ring-offset-2 transition-colors font-body text-mocha min-h-[44px]"
           >
             <GoogleIcon className="w-5 h-5" />
             <span>Đăng nhập với Google</span>

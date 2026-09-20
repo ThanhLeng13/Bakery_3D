@@ -68,7 +68,7 @@ export default function StarRating({
         {Array.from({ length: emptyStars }).map((_, i) => (
           <svg
             key={`empty-${i}`}
-            className={`${starClass} text-gray-300`}
+            className={`${starClass} text-line`}
             fill="currentColor"
             viewBox="0 0 20 20"
             aria-hidden="true"

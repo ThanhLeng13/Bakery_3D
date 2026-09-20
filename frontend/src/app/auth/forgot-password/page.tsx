@@ -128,7 +128,7 @@ function ForgotPasswordContent() {
                     required
                     autoComplete="email"
                     placeholder="email@example.com"
-                    className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-pink-pastel focus:ring-2 focus:ring-pink-pastel/20 outline-none transition-colors font-body text-mocha placeholder:text-gray-400"
+                    className="w-full px-4 py-3 rounded-lg border border-line focus:border-pink-pastel focus:ring-2 focus:ring-pink-pastel/20 outline-none transition-colors font-body text-mocha placeholder:text-muted"
                   />
                 </div>
 

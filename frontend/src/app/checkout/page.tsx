@@ -426,7 +426,7 @@ function CheckoutContent() {
   return (
     <main className="min-h-screen bg-cream">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-100 sticky top-0 z-30">
+      <header className="bg-white/80 backdrop-blur-sm border-b border-line sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => router.back()}
@@ -491,7 +491,7 @@ function CheckoutContent() {
                 {cartItems.map((item) => (
                   <div key={item.cartKey} className="flex gap-3 p-3 bg-cream/60 rounded-xl">
                     {/* Thumbnail */}
-                    <div className="w-14 h-14 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100 relative">
+                    <div className="w-14 h-14 flex-shrink-0 rounded-lg overflow-hidden bg-subtle relative">
                       {item.imageUrl ? (
                         <Image
                           src={item.imageUrl}

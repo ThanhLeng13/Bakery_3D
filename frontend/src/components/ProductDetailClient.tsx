@@ -71,7 +71,7 @@ function StarPicker({ value, onChange }: StarPickerProps) {
         >
           <svg
             className={`w-8 h-8 transition-colors ${
-              (hovered || value) >= star ? "text-yellow-400" : "text-gray-200"
+              (hovered || value) >= star ? "text-yellow-400" : "text-line"
             }`}
             fill="currentColor"
             viewBox="0 0 20 20"
@@ -325,7 +325,7 @@ function ReviewsSection({ productId }: { productId: string }) {
               {Array.from({ length: 5 }).map((_, i) => (
                 <svg
                   key={i}
-                  className={`w-4 h-4 ${i < Math.round(avgRating ?? 0) ? "text-yellow-400" : "text-gray-200"}`}
+                  className={`w-4 h-4 ${i < Math.round(avgRating ?? 0) ? "text-yellow-400" : "text-line"}`}
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -379,16 +379,16 @@ function ReviewsSection({ productId }: { productId: string }) {
               .map((w) => w[0])
               .join("")
               .toUpperCase();
-            // Avatar tint based on name hash. Kept inside the neutral logo
-            // palette (ink / muted / brand / line) so reviews do not reintroduce
-            // off-brand hues into the minimal monochrome design.
+            // Avatar tint based on name hash. Kept inside the project palette
+            // (ink / muted / brand / line / cocoa) so reviews do not
+            // reintroduce off-brand hues.
             const colors = [
-              "bg-ink text-white",
-              "bg-brand text-white",
-              "bg-muted text-white",
+              "bg-ink text-surface",
+              "bg-brand text-surface",
+              "bg-muted text-surface",
               "bg-subtle text-ink",
               "bg-line text-ink",
-              "bg-gray-700 text-white",
+              "bg-cocoa text-surface",
             ];
             const colorIdx =
               review.customer_name
@@ -416,7 +416,7 @@ function ReviewsSection({ productId }: { productId: string }) {
                       {Array.from({ length: 5 }).map((_, i) => (
                         <svg
                           key={i}
-                          className={`w-3.5 h-3.5 ${i < review.rating ? "text-yellow-400" : "text-gray-200"}`}
+                          className={`w-3.5 h-3.5 ${i < review.rating ? "text-yellow-400" : "text-line"}`}
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
@@ -621,7 +621,7 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
           {/* Image Gallery */}
           <section aria-label="Hình ảnh sản phẩm">
             {/* Main Image */}
-            <div className="aspect-square rounded-2xl overflow-hidden bg-gray-100 relative">
+            <div className="aspect-square rounded-2xl overflow-hidden bg-subtle relative">
               {mainImage ? (
                 <Image
                   src={mainImage.url}
@@ -677,7 +677,7 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
                         onError={() => handleImageError(index)}
                       />
                     ) : (
-                      <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                      <div className="w-full h-full bg-subtle flex items-center justify-center">
                         <svg
                           className="w-6 h-6 text-mocha/20"
                           fill="none"
@@ -784,7 +784,7 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
                   /* Skeleton loading */
                   <div className="space-y-2 animate-pulse">
                     {[1, 2, 3].map((i) => (
-                      <div key={i} className="h-14 bg-gray-100 rounded-xl" />
+                      <div key={i} className="h-14 bg-subtle rounded-xl" />
                     ))}
                   </div>
                 ) : allBranches.length === 0 ? (
@@ -802,7 +802,7 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
                           disabled={!isAvail}
                           className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all text-left ${
                             !isAvail
-                              ? "opacity-60 cursor-not-allowed bg-gray-50 border-gray-200"
+                              ? "opacity-60 cursor-not-allowed bg-surface border-line"
                               : isSelected
                               ? "border-pink-pastel bg-pink-pastel/5 shadow-sm"
                               : "border-mocha/10 hover:border-pink-pastel/50 hover:bg-pink-pastel/5 bg-white"
@@ -920,7 +920,7 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
                     disabled={isOutOfStock}
                     className={`w-full py-3 px-6 font-semibold rounded-full transition-all min-h-[44px] shadow-sm hover:shadow-md active:scale-[0.98] ${
                       isOutOfStock
-                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                        ? "bg-subtle text-muted cursor-not-allowed"
                         : "bg-pink-pastel text-white hover:bg-pink-pastel/90"
                     }`}
                     aria-label={isOutOfStock ? "Hết hàng" : `Mua ${product.name} ngay`}
@@ -944,7 +944,7 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
                     disabled={isOutOfStock}
                     className={`w-full py-2.5 px-6 font-medium rounded-full transition-all min-h-[44px] border ${
                       isOutOfStock
-                        ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                        ? "bg-subtle text-muted border-line cursor-not-allowed"
                         : addedToCart
                           ? "bg-green-50 text-green-600 border-green-200"
                           : "bg-white text-mocha border-mocha/20 hover:border-pink-pastel hover:text-pink-pastel"

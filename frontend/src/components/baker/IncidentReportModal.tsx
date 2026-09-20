@@ -139,7 +139,7 @@ export default function IncidentReportModal({
     >
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+        <div className="flex items-center justify-between p-5 border-b border-line">
           <div>
             <h2
               id="incident-modal-title"
@@ -212,7 +212,7 @@ export default function IncidentReportModal({
                       className={`w-full flex items-start gap-3 p-3 rounded-xl border-2 transition-all text-left ${
                         selectedType === option.type
                           ? `${option.color} border-current`
-                          : "border-gray-200 hover:border-gray-300"
+                          : "border-line hover:border-line"
                       }`}
                     >
                       <span className="text-2xl flex-shrink-0 mt-0.5">{option.icon}</span>
@@ -256,7 +256,7 @@ export default function IncidentReportModal({
                   maxLength={500}
                   rows={3}
                   placeholder="Mô tả thêm về sự cố (vd: thiếu dâu tây, không có hộp 8 inch...)"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-subtle/50 focus:border-line resize-none"
+                  className="w-full px-4 py-3 rounded-xl border border-line text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-subtle/50 focus:border-line resize-none"
                 />
               </div>
 
@@ -265,7 +265,7 @@ export default function IncidentReportModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 py-3 border border-gray-200 text-ink rounded-xl text-sm font-medium hover:bg-surface transition-colors"
+                  className="flex-1 py-3 border border-line text-ink rounded-xl text-sm font-medium hover:bg-surface transition-colors"
                 >
                   Hủy
                 </button>

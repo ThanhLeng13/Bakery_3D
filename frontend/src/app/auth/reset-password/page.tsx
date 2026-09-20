@@ -192,7 +192,7 @@ function ResetPasswordContent() {
                       minLength={8}
                       autoComplete="new-password"
                       placeholder="Nhập mật khẩu mới"
-                      className="w-full px-4 py-3 pr-12 rounded-lg border border-gray-200 focus:border-pink-pastel focus:ring-2 focus:ring-pink-pastel/20 outline-none transition-colors font-body text-mocha placeholder:text-gray-400"
+                      className="w-full px-4 py-3 pr-12 rounded-lg border border-line focus:border-pink-pastel focus:ring-2 focus:ring-pink-pastel/20 outline-none transition-colors font-body text-mocha placeholder:text-muted"
                     />
                     <button
                       type="button"
@@ -230,10 +230,10 @@ function ResetPasswordContent() {
                     minLength={8}
                     autoComplete="new-password"
                     placeholder="Nhập lại mật khẩu mới"
-                    className={`w-full px-4 py-3 rounded-lg border focus:ring-2 outline-none transition-colors font-body text-mocha placeholder:text-gray-400 ${
+                    className={`w-full px-4 py-3 rounded-lg border focus:ring-2 outline-none transition-colors font-body text-mocha placeholder:text-muted ${
                       confirmPassword && confirmPassword !== newPassword
                         ? "border-red-300 focus:border-red-400 focus:ring-red-200"
-                        : "border-gray-200 focus:border-pink-pastel focus:ring-pink-pastel/20"
+                        : "border-line focus:border-pink-pastel focus:ring-pink-pastel/20"
                     }`}
                   />
                   {confirmPassword && confirmPassword !== newPassword && (

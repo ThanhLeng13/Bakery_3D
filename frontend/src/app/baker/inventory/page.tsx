@@ -676,7 +676,7 @@ function InventoryContent() {
                 const isExpired = batch.is_expired;
                 const isEmpty = batch.quantity_available <= 0;
                 const statusColor = !batch.is_active
-                  ? "bg-gray-100 border-gray-200"
+                  ? "bg-subtle border-line"
                   : isExpired
                     ? "bg-red-50 border-red-200"
                     : isEmpty
@@ -697,7 +697,7 @@ function InventoryContent() {
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center gap-2 mb-1">
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                          !batch.is_active ? "bg-gray-200 text-gray-600"
+                          !batch.is_active ? "bg-subtle text-muted"
                           : isExpired ? "bg-red-200 text-red-700"
                           : isEmpty ? "bg-amber-200 text-amber-700"
                           : "bg-green-200 text-green-700"

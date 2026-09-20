@@ -194,12 +194,12 @@ export default function ImageSearchClient() {
       <div className="page-container py-10 sm:py-14">
         {/* Tiêu đề */}
         <header className="text-center mb-12">
-          <p className="eyebrow mb-4">Bơ Nơ Bakery</p>
-          <h1 className="title-lux text-3xl sm:text-4xl md:text-5xl text-ink mb-4">
+          <p className="eyebrow mb-3">Bộ sưu tập</p>
+          <h1 className="title-lux text-[1.875rem] sm:text-[2.5rem] text-ink mb-5">
             Tìm bánh bằng hình ảnh
           </h1>
-          <hr className="rule-fade max-w-[160px] mx-auto mb-5" />
-          <p className="text-muted text-base sm:text-lg max-w-[560px] mx-auto leading-relaxed">
+          <hr className="rule-fade max-w-[160px] mx-auto mb-6" />
+          <p className="text-muted text-base max-w-[520px] mx-auto leading-relaxed">
             Tải lên ảnh chiếc bánh bạn yêu thích, chúng tôi sẽ tìm những mẫu
             bánh giống nhất trong tiệm.
           </p>

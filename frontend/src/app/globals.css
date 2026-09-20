@@ -206,15 +206,15 @@
 
   .btn-primary {
     background: var(--foreground);
-    color: white;
+    color: var(--surface);
   }
 
   /* Hover: đậm lên thay vì nhạt đi. #90908F với chữ trắng chỉ đạt ~2.7:1,
      dưới ngưỡng AA 4.5:1, nên hover sang màu brand sẽ làm chữ khó đọc hơn.
-     #6B6B6A với chữ trắng đạt ~5.3:1. */
+     --brand-soft với nền kem đạt ~5.3:1. */
   .btn-primary:hover {
-    background: #6b6b6a;
-    color: white;
+    background: var(--brand-soft);
+    color: var(--surface);
   }
 
   .btn-secondary {

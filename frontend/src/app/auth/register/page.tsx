@@ -179,10 +179,10 @@ function RegisterContent() {
                 onChange={(e) => updateField("full_name", e.target.value)}
                 autoComplete="name"
                 placeholder="Nguyễn Văn A"
-                className={`w-full px-4 py-3 rounded-lg border outline-none transition-colors font-body text-mocha placeholder:text-gray-400 ${
+                className={`w-full px-4 py-3 rounded-lg border outline-none transition-colors font-body text-mocha placeholder:text-muted ${
                   fieldErrors.full_name
                     ? "border-red-400 focus:border-red-400 focus:ring-2 focus:ring-red-200"
-                    : "border-gray-200 focus:border-pink-pastel focus:ring-2 focus:ring-pink-pastel/20"
+                    : "border-line focus:border-pink-pastel focus:ring-2 focus:ring-pink-pastel/20"
                 }`}
               />
               {fieldErrors.full_name && (
@@ -207,10 +207,10 @@ function RegisterContent() {
                 onChange={(e) => updateField("email", e.target.value)}
                 autoComplete="email"
                 placeholder="email@example.com"
-                className={`w-full px-4 py-3 rounded-lg border outline-none transition-colors font-body text-mocha placeholder:text-gray-400 ${
+                className={`w-full px-4 py-3 rounded-lg border outline-none transition-colors font-body text-mocha placeholder:text-muted ${
                   fieldErrors.email
                     ? "border-red-400 focus:border-red-400 focus:ring-2 focus:ring-red-200"
-                    : "border-gray-200 focus:border-pink-pastel focus:ring-2 focus:ring-pink-pastel/20"
+                    : "border-line focus:border-pink-pastel focus:ring-2 focus:ring-pink-pastel/20"
                 }`}
               />
               {fieldErrors.email && (
@@ -236,10 +236,10 @@ function RegisterContent() {
                 autoComplete="tel"
                 placeholder="0901234567"
                 inputMode="numeric"
-                className={`w-full px-4 py-3 rounded-lg border outline-none transition-colors font-body text-mocha placeholder:text-gray-400 ${
+                className={`w-full px-4 py-3 rounded-lg border outline-none transition-colors font-body text-mocha placeholder:text-muted ${
                   fieldErrors.phone
                     ? "border-red-400 focus:border-red-400 focus:ring-2 focus:ring-red-200"
-                    : "border-gray-200 focus:border-pink-pastel focus:ring-2 focus:ring-pink-pastel/20"
+                    : "border-line focus:border-pink-pastel focus:ring-2 focus:ring-pink-pastel/20"
                 }`}
               />
               {fieldErrors.phone && (
@@ -265,10 +265,10 @@ function RegisterContent() {
                   onChange={(e) => updateField("password", e.target.value)}
                   autoComplete="new-password"
                   placeholder="Ít nhất 8 ký tự, 1 chữ hoa, 1 chữ thường, 1 số"
-                  className={`w-full px-4 py-3 pr-12 rounded-lg border outline-none transition-colors font-body text-mocha placeholder:text-gray-400 ${
+                  className={`w-full px-4 py-3 pr-12 rounded-lg border outline-none transition-colors font-body text-mocha placeholder:text-muted ${
                     fieldErrors.password
                       ? "border-red-400 focus:border-red-400 focus:ring-2 focus:ring-red-200"
-                      : "border-gray-200 focus:border-pink-pastel focus:ring-2 focus:ring-pink-pastel/20"
+                      : "border-line focus:border-pink-pastel focus:ring-2 focus:ring-pink-pastel/20"
                   }`}
                 />
                 <button

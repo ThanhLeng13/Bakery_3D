@@ -69,7 +69,7 @@ const STATUS_STYLES: Record<OrderStatus, string> = {
   confirmed: "bg-blue-100 text-blue-800 border-blue-200",
   in_production: "bg-orange-100 text-orange-800 border-orange-200",
   ready: "bg-green-100 text-green-800 border-green-200",
-  delivered: "bg-gray-100 text-gray-700 border-gray-200",
+  delivered: "bg-subtle text-ink border-line",
 };
 
 // Valid admin transitions
@@ -221,7 +221,7 @@ function AdminOrdersContent() {
   return (
     <main className="min-h-screen bg-cream">
       {/* Header */}
-      <header className="bg-white/90 backdrop-blur-sm border-b border-gray-100 sticky top-0 z-40">
+      <header className="bg-white/90 backdrop-blur-sm border-b border-line sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button

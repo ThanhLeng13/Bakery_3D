@@ -158,7 +158,7 @@ export default function OptionsPanel({
                 className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all duration-150 min-w-[44px] min-h-[44px] ${
                   selected
                     ? "border-brand bg-subtle shadow-sm scale-105 ring-2 ring-subtle"
-                    : "border-gray-200 hover:border-line hover:bg-surface"
+                    : "border-line hover:border-line hover:bg-surface"
                 }`}
                 aria-label={`Topping: ${option.label}`}
                 aria-pressed={selected}
@@ -195,7 +195,7 @@ export default function OptionsPanel({
               className={`w-9 h-9 rounded-full border-2 transition-all duration-100 min-w-[44px] min-h-[44px] flex items-center justify-center ${
                 zoneCustomization.color === color.id
                   ? "border-brand scale-110 shadow-md ring-2 ring-subtle"
-                  : "border-gray-300 hover:scale-105 hover:border-line"
+                  : "border-line hover:scale-105 hover:border-line"
               }`}
               style={{ backgroundColor: color.id }}
               aria-label={`Màu ${color.label}`}
@@ -203,7 +203,7 @@ export default function OptionsPanel({
               title={color.label}
             >
               {zoneCustomization.color === color.id && (
-                <span className="text-xs font-bold" style={{ color: color.name === "white" || color.name === "vanilla" ? "#2B2B2A" : "#FFF" }}>
+                <span className="text-xs font-bold" style={{ color: color.name === "white" || color.name === "vanilla" ? "var(--foreground)" : "#FFF" }}>
                   ✓
                 </span>
               )}
@@ -229,7 +229,7 @@ export default function OptionsPanel({
               className={`w-9 h-9 rounded-full border-2 transition-all duration-100 min-w-[44px] min-h-[44px] flex items-center justify-center ${
                 zoneCustomization.color === color.id
                   ? "border-brand scale-110 shadow-md ring-2 ring-subtle"
-                  : "border-gray-300 hover:scale-105 hover:border-line"
+                  : "border-line hover:scale-105 hover:border-line"
               }`}
               style={{ backgroundColor: color.id }}
               aria-label={`Màu ${color.label}`}
@@ -237,7 +237,7 @@ export default function OptionsPanel({
               title={color.label}
             >
               {zoneCustomization.color === color.id && (
-                <span className="text-xs font-bold" style={{ color: color.name === "white" || color.name === "vanilla" ? "#2B2B2A" : "#FFF" }}>
+                <span className="text-xs font-bold" style={{ color: color.name === "white" || color.name === "vanilla" ? "var(--foreground)" : "#FFF" }}>
                   ✓
                 </span>
               )}
@@ -259,7 +259,7 @@ export default function OptionsPanel({
               className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all duration-150 min-w-[44px] min-h-[44px] ${
                 zoneCustomization.decoration === option.id
                   ? "border-brand bg-subtle shadow-sm scale-105 ring-2 ring-subtle"
-                  : "border-gray-200 hover:border-line hover:bg-surface"
+                  : "border-line hover:border-line hover:bg-surface"
               }`}
               aria-label={`Hoa văn: ${option.label}`}
               aria-pressed={zoneCustomization.decoration === option.id}
@@ -293,7 +293,7 @@ export default function OptionsPanel({
               className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all duration-150 min-w-[44px] min-h-[44px] ${
                 zoneCustomization.decoration === option.id
                   ? "border-brand bg-subtle shadow-sm scale-105 ring-2 ring-subtle"
-                  : "border-gray-200 hover:border-line hover:bg-surface"
+                  : "border-line hover:border-line hover:bg-surface"
               }`}
               aria-label={`Viền: ${option.label}`}
               aria-pressed={zoneCustomization.decoration === option.id}
@@ -325,7 +325,7 @@ export default function OptionsPanel({
               className={`w-9 h-9 rounded-full border-2 transition-all duration-100 min-w-[44px] min-h-[44px] flex items-center justify-center ${
                 zoneCustomization.color === color.id
                   ? "border-brand scale-110 shadow-md ring-2 ring-subtle"
-                  : "border-gray-300 hover:scale-105 hover:border-line"
+                  : "border-line hover:scale-105 hover:border-line"
               }`}
               style={{ backgroundColor: color.id }}
               aria-label={`Màu ${color.label}`}
@@ -333,7 +333,7 @@ export default function OptionsPanel({
               title={color.label}
             >
               {zoneCustomization.color === color.id && (
-                <span className="text-xs font-bold" style={{ color: color.name === "white" || color.name === "vanilla" ? "#2B2B2A" : "#FFF" }}>
+                <span className="text-xs font-bold" style={{ color: color.name === "white" || color.name === "vanilla" ? "var(--foreground)" : "#FFF" }}>
                   ✓
                 </span>
               )}
@@ -365,7 +365,7 @@ export default function OptionsPanel({
           md:w-[320px] md:min-w-[280px]
           bg-white rounded-t-2xl md:rounded-2xl
           shadow-xl md:shadow-lg
-          border border-gray-100
+          border border-line
           z-50 md:z-auto
           transform transition-transform duration-100 ease-out
           ${activeZone ? "translate-y-0" : "translate-y-full md:translate-y-0"}
@@ -381,17 +381,17 @@ export default function OptionsPanel({
           <>
             {/* Mobile drag handle */}
             <div className="md:hidden flex justify-center pt-2 pb-1">
-              <div className="w-10 h-1 bg-gray-300 rounded-full" />
+              <div className="w-10 h-1 bg-line rounded-full" />
             </div>
 
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-line">
               <h3 className="font-heading text-lg text-ink font-semibold">
                 {zoneTitle}
               </h3>
               <button
                 onClick={onClose}
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors min-w-[44px] min-h-[44px]"
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-subtle transition-colors min-w-[44px] min-h-[44px]"
                 aria-label="Đóng panel tùy chỉnh"
               >
                 <svg

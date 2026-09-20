@@ -71,7 +71,9 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5, // Allow user zoom (accessibility)
-  themeColor: "#2B2B2A",
+  // Thanh trạng thái trên điện thoại — dùng màu nâu đậm của khối CTA để đồng
+  // bộ với tông kem, thay cho màu mực xám cũ.
+  themeColor: "var(--brand-cocoa)",
 };
 
 export default function RootLayout({
