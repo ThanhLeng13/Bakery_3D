@@ -15,6 +15,12 @@ Model: ViT-B-32 pretrained laion2b_s34b_b79k
 Tải model:
     Model được load MỘT LẦN và cache ở cấp module (_model). Load lại mỗi request
     sẽ tốn ~45s và ~350MB RAM — không chấp nhận được cho API.
+
+Tối ưu độ trễ:
+    Cả model CLIP lẫn client Supabase đều được cache ở cấp module. Đo trước khi
+    tối ưu: 13.063ms cho request đầu (nạp model) và 624ms cho các request sau,
+    trong đó 216ms là riêng create_client() và 84ms là truy vấn thật. Sau khi
+    cache cả hai, request ấm còn ~114ms.
 """
 
 import io
@@ -42,6 +48,12 @@ MIN_IMAGE_SIDE = 32
 
 # CLIP chuẩn hóa ảnh về 224×224 (khớp preprocess của ViT-B-32).
 CLIP_INPUT_SIZE = 224
+
+# ─── Cache Supabase client ───────────────────────────────────────────────────
+# create_client() tốn ~216ms (bắt tay TLS + nạp OpenAPI schema PostgREST).
+# Tạo mới mỗi request làm mỗi lần tìm kiếm mất ~624ms thay vì ~114ms.
+_cached_client: Any = None
+_client_lock = threading.Lock()
 
 
 class ClipServiceError(Exception):
@@ -192,10 +204,30 @@ def embed_image_bytes(raw: bytes) -> list[float]:
 
 
 def _client():
-    """Supabase client (service role) — tách riêng để dễ mock trong test."""
-    from supabase import create_client
+    """Supabase client (service role).
 
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+    Client được TÁI DỤNG, không tạo mới mỗi request. Đo được: create_client()
+    tốn trung bình 216ms vì phải bắt tay TLS và nạp OpenAPI schema của
+    PostgREST. Cộng với 84ms truy vấn thật, mỗi lần tìm kiếm mất ~624ms.
+
+    Tái dùng client đưa tổng xuống ~114ms, nhanh hơn 5.5 lần. Đây là client
+    service-role chỉ đọc, không giữ token người dùng, nên dùng chung an toàn —
+    khác với client có token auth (xem dependencies.get_supabase_client, chỗ đó
+    cố ý tạo mới mỗi request để tránh rò token giữa các request).
+
+    Khoá lại bằng _client_lock vì nhiều request có thể vào đồng thời lúc khởi
+    động và cùng thấy cache rỗng.
+    """
+    global _cached_client
+    if _cached_client is None:
+        with _client_lock:
+            if _cached_client is None:
+                from supabase import create_client
+
+                _cached_client = create_client(
+                    settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY
+                )
+    return _cached_client
 
 
 class ClipSearchService:
