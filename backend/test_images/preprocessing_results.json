@@ -1,0 +1,50 @@
+[
+  {
+    "strategy": "baseline (khong xu ly)",
+    "top1": 22.22222222222222,
+    "top3": 55.55555555555556,
+    "errors": 0
+  },
+  {
+    "strategy": "crop 70% giua",
+    "top1": 16.666666666666664,
+    "top3": 44.44444444444444,
+    "errors": 0
+  },
+  {
+    "strategy": "crop 55% giua",
+    "top1": 22.22222222222222,
+    "top3": 33.33333333333333,
+    "errors": 0
+  },
+  {
+    "strategy": "crop 45% giua",
+    "top1": 22.22222222222222,
+    "top3": 50.0,
+    "errors": 0
+  },
+  {
+    "strategy": "crop 70% duoi (bo logo)",
+    "top1": 16.666666666666664,
+    "top3": 50.0,
+    "errors": 0
+  },
+  {
+    "strategy": "bo 20% tren + 12% duoi",
+    "top1": 27.77777777777778,
+    "top3": 44.44444444444444,
+    "errors": 0
+  },
+  {
+    "strategy": "bo 26% tren + 12% duoi",
+    "top1": 22.22222222222222,
+    "top3": 44.44444444444444,
+    "errors": 0
+  },
+  {
+    "strategy": "bo 32% tren + 14% duoi",
+    "top1": 11.11111111111111,
+    "top3": 55.55555555555556,
+    "errors": 0
+  }
+]
