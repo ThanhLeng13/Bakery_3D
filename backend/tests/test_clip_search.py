@@ -385,3 +385,153 @@ class TestSearchEndpoint:
         # KHÔNG bị 413, tức là kích thước đúng giới hạn đã lọt qua cửa.
         assert response.status_code == 400
         assert mock_embed.called
+
+
+# ─── Giới hạn body ở tầng ASGI ───────────────────────────────────────────────
+
+
+class TestBodySizeLimitMiddleware:
+    """Lớp chặn thứ nhất: từ chối theo Content-Length trước khi parse multipart.
+
+    Không có lớp này, một upload rất lớn vẫn bị bộ phân tích multipart của
+    FastAPI gom trọn vào RAM trước khi endpoint kịp kiểm tra kích thước.
+    """
+
+    def test_rejects_body_over_limit_before_parsing(self):
+        from fastapi.testclient import TestClient
+
+        from app.core.config import settings
+        from app.main import app
+
+        client = TestClient(app)
+        oversized = b"x" * (settings.MAX_REQUEST_BODY_BYTES + 1024)
+        response = client.post(
+            "/api/v1/search/by-image",
+            files={"file": ("huge.jpg", oversized, "image/jpeg")},
+        )
+
+        assert response.status_code == 413
+        # Header cho client biết giới hạn thật là bao nhiêu.
+        assert response.headers.get("x-max-body-bytes") == str(
+            settings.MAX_REQUEST_BODY_BYTES
+        )
+
+    def test_limit_leaves_room_for_multipart_framing(self):
+        """Giới hạn ASGI phải LỚN HƠN giới hạn ảnh.
+
+        Bọc multipart luôn phình thêm vài trăm byte (boundary, tên field,
+        header). Nếu đặt bằng đúng giới hạn ảnh thì một ảnh đúng 10 MB hợp lệ
+        sẽ bị lớp ASGI từ chối nhầm trước khi endpoint kịp xem xét.
+        """
+        from app.core.config import settings
+        from app.services.clip_service import MAX_UPLOAD_BYTES
+
+        assert settings.MAX_REQUEST_BODY_BYTES > MAX_UPLOAD_BYTES
+
+    def test_normal_requests_are_not_affected(self):
+        """Request nhỏ phải đi qua bình thường — middleware không được chặn nhầm."""
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        client = TestClient(app)
+        response = client.get("/health")
+        assert response.status_code == 200
+
+    def test_missing_content_length_is_not_rejected(self):
+        """Request không khai Content-Length phải đi tiếp, không bị chặn oan.
+
+        Middleware chỉ nhìn được header này; thiếu nó thì để lớp kiểm tra trong
+        endpoint làm việc, chứ không được đoán rồi từ chối.
+        """
+        from app.core.body_limit import BodySizeLimitMiddleware
+
+        middleware = BodySizeLimitMiddleware(app=None, max_body_bytes=100)
+        scope = {"type": "http", "headers": []}
+        assert middleware._content_length(scope) is None
+
+    def test_malformed_content_length_is_not_rejected(self):
+        """Content-Length rác không được làm sập middleware."""
+        from app.core.body_limit import BodySizeLimitMiddleware
+
+        middleware = BodySizeLimitMiddleware(app=None, max_body_bytes=100)
+        scope = {"type": "http", "headers": [(b"content-length", b"khong-phai-so")]}
+        assert middleware._content_length(scope) is None
+
+    def test_websocket_scope_passes_through(self):
+        """WebSocket và lifespan không bị middleware đụng tới."""
+        import asyncio
+
+        from app.core.body_limit import BodySizeLimitMiddleware
+
+        called = {}
+
+        async def fake_app(scope, receive, send):
+            called["scope_type"] = scope["type"]
+
+        middleware = BodySizeLimitMiddleware(app=fake_app, max_body_bytes=100)
+        asyncio.run(middleware({"type": "websocket", "headers": []}, None, None))
+        assert called["scope_type"] == "websocket"
+
+    def test_reject_drains_body_before_returning(self):
+        """Khi từ chối, middleware phải hút hết phần thân qua receive().
+
+        Uvicorn tạm dừng đọc socket cho tới khi `receive()` được gọi. Nếu ta gửi
+        response rồi thoát ngay, client vẫn đang đẩy phần thân lên và kết nối bị
+        ngắt giữa chừng. Test này khẳng định receive() ĐƯỢC gọi cho tới khi hết
+        body, nên hành vi đó không bị xoá nhầm sau này.
+        """
+        import asyncio
+
+        from app.core.body_limit import BodySizeLimitMiddleware
+
+        drained = []
+
+        async def receive():
+            drained.append(1)
+            # Hai khối body rồi hết.
+            return {
+                "type": "http.request",
+                "body": b"x" * 10,
+                "more_body": len(drained) < 2,
+            }
+
+        sent = []
+
+        async def send(message):
+            sent.append(message)
+
+        middleware = BodySizeLimitMiddleware(app=None, max_body_bytes=5)
+        scope = {
+            "type": "http",
+            "headers": [(b"content-length", b"999999")],
+        }
+        asyncio.run(middleware(scope, receive, send))
+
+        # Đã gửi 413.
+        assert sent[0]["type"] == "http.response.start"
+        assert sent[0]["status"] == 413
+        # Và đã hút trọn 2 khối body trước khi trả về.
+        assert len(drained) == 2
+
+    def test_drain_stops_on_disconnect(self):
+        """Client ngắt giữa chừng thì dừng hút, không lặp vô hạn."""
+        import asyncio
+
+        from app.core.body_limit import BodySizeLimitMiddleware
+
+        calls = []
+
+        async def receive():
+            calls.append(1)
+            return {"type": "http.disconnect"}
+
+        async def send(message):
+            pass
+
+        middleware = BodySizeLimitMiddleware(app=None, max_body_bytes=5)
+        scope = {"type": "http", "headers": [(b"content-length", b"999999")]}
+        asyncio.run(middleware(scope, receive, send))
+
+        # Dừng ngay ở lần gọi đầu, không hút tiếp.
+        assert len(calls) == 1

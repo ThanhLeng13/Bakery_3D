@@ -112,14 +112,18 @@ def main() -> int:
     todo = images
     if args.skip_existing:
         todo = [i for i in images if (i["product_id"], i["url"]) not in existing]
+        # Đếm số ảnh bị bỏ qua NGAY TẠI ĐÂY, trước khi áp --limit.
+        # Nếu tính sau khi cắt --limit thì ảnh bị cắt cũng bị tính nhầm là
+        # "đã có embedding" — ví dụ 20 ảnh, 18 đã có, --limit 1 sẽ báo bỏ qua 19
+        # trong khi sự thật là 18.
+        skipped = len(images) - len(todo)
+    else:
+        # Không bật --skip-existing thì không có ảnh nào bị bỏ qua.
+        skipped = 0
+
+    # --limit áp SAU cùng: nó chỉ giới hạn số việc làm, không phải lý do bỏ qua.
     if args.limit:
         todo = todo[: args.limit]
-
-    # Đếm số ảnh bị bỏ qua vì đã có embedding. Phải tính TRƯỚC khi vào vòng lặp,
-    # vì sau đó `todo` đã bị lọc và không còn biết được đã bỏ qua bao nhiêu.
-    # Trước đây biến này bị khởi tạo lại bằng 0 ngay trước vòng lặp nên báo cáo
-    # luôn in ra "Bỏ qua: 0" dù thực tế có ảnh bị bỏ qua.
-    skipped = len(images) - len(todo) if args.skip_existing else 0
 
     if not todo:
         print("Không có ảnh nào cần xử lý. Kho đã đầy đủ embedding.")

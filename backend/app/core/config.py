@@ -42,6 +42,18 @@ class Settings(BaseSettings):
     SUPABASE_KEY: str = ""
     SUPABASE_SERVICE_ROLE_KEY: str = ""
 
+    # Kích thước body tối đa ở tầng ASGI, tính bằng byte.
+    #
+    # Lớn hơn giới hạn ảnh (10 MB trong clip_service) để chừa chỗ cho phần
+    # framing của multipart: boundary, tên field, header Content-Disposition…
+    # Đặt bằng đúng 10 MB sẽ từ chối nhầm ảnh 10 MB hợp lệ vì bọc multipart
+    # luôn phình thêm vài trăm byte.
+    #
+    # Đây là lớp bảo vệ THỨ NHẤT, chặn trước khi FastAPI phân tích multipart.
+    # Endpoint vẫn kiểm tra lại độ dài thật của ảnh — phòng thủ nhiều lớp, vì
+    # lớp này chỉ nhìn được Content-Length.
+    MAX_REQUEST_BODY_BYTES: int = 12 * 1024 * 1024
+
     # Groq API (Free)
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
