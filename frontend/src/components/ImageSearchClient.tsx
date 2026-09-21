@@ -105,6 +105,13 @@ export default function ImageSearchClient() {
 
   const pickFile = useCallback(
     (next: File | null) => {
+      // Hủy request đang bay trước khi đổi ảnh. Nếu không, kết quả của ảnh CŨ
+      // sẽ về sau khi giao diện đã chuyển sang ảnh MỚI và ghi đè lên đó — khách
+      // thấy kết quả không khớp với ảnh đang hiển thị.
+      abortRef.current?.abort();
+      abortRef.current = null;
+      setLoading(false);
+
       setError("");
       setResults(null);
       setTiming(null);
@@ -242,7 +249,14 @@ export default function ImageSearchClient() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => pickFile(null)}
+                    onClick={() => {
+                      // Xóa giá trị input trước khi mở lại hộp chọn file.
+                      // Không xóa thì khi khách chọn LẠI đúng file vừa rồi,
+                      // trình duyệt thấy value không đổi nên không phát sự kiện
+                      // change, và nút trông như bị liệt.
+                      if (inputRef.current) inputRef.current.value = "";
+                      pickFile(null);
+                    }}
                     disabled={loading}
                     className="btn btn-secondary disabled:opacity-60"
                   >

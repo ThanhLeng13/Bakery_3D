@@ -115,6 +115,12 @@ def main() -> int:
     if args.limit:
         todo = todo[: args.limit]
 
+    # Đếm số ảnh bị bỏ qua vì đã có embedding. Phải tính TRƯỚC khi vào vòng lặp,
+    # vì sau đó `todo` đã bị lọc và không còn biết được đã bỏ qua bao nhiêu.
+    # Trước đây biến này bị khởi tạo lại bằng 0 ngay trước vòng lặp nên báo cáo
+    # luôn in ra "Bỏ qua: 0" dù thực tế có ảnh bị bỏ qua.
+    skipped = len(images) - len(todo) if args.skip_existing else 0
+
     if not todo:
         print("Không có ảnh nào cần xử lý. Kho đã đầy đủ embedding.")
         return 0
@@ -127,7 +133,8 @@ def main() -> int:
     print()
 
     # ─── Xử lý từng ảnh ──────────────────────────────────────────────────────
-    ok = skipped = failed = 0
+    # `skipped` đã được tính ở trên; ở đây chỉ khởi tạo ok/failed.
+    ok = failed = 0
     embed_times: list[float] = []
     started_all = time.perf_counter()
 

@@ -1,0 +1,67 @@
+fix: address review findings on image search, a11y and the embed script
+
+Nine findings from the review, all verified against the code before changing
+anything. Eight were real; one was not, and is noted below.
+
+Search endpoint no longer blocks the event loop. search_by_image is synchronous
+— it runs CLIP inference on CPU and then a blocking Supabase RPC — and was being
+called directly from an async def, so every search stalled the whole server for
+its duration. It now goes through run_in_threadpool.
+
+Uploads are bounded while reading. The endpoint called file.read() with no
+limit, so a 2GB upload was buffered entirely into memory before the size check
+rejected it. It now reads MAX_UPLOAD_BYTES + 1 and rejects anything larger with
+413 before further work. The +1 is deliberate: it distinguishes "exactly at the
+limit", which is allowed, from "over the limit", and there is a test pinning
+that boundary so it cannot drift to >=.
+
+Image validation now runs before the model loads. embed_image_bytes called
+_load_model() first, so a request with garbage bytes triggered a 45s, 350MB model
+load and blocked the process, all to then fail validation. Measured after the
+fix: invalid bytes return 400 in 81ms and the model is untouched. Two tests
+assert the ordering directly — one that _load_model is not called for invalid
+input, one that it is called for valid input — by calling the real function and
+patching only _load_model.
+
+Duplicate embeddings are collapsed per product. cake_embeddings holds one row per
+image, and two products in the live catalogue have two images each, so a product
+matching on both images consumed two of the six result slots and the customer
+silently received fewer distinct cakes than requested. This is fixed in a NEW
+migration, dedupe_match_cakes_by_product.sql; the previously-applied
+fix_match_cakes_returntype.sql is left byte-identical, since it may already have
+been run and two conflicting definitions would be worse than one.
+
+The skipped count in embed_catalog.py was always zero. `skipped` was initialised
+to 0 immediately before the loop, after filtering had already discarded the
+information, and was never incremented. Running the script against real data now
+reports "Bỏ qua: 18" where it previously printed 0.
+
+Contrast fix in .eyebrow. It used --brand (#90908F), which measures 3.01:1 on
+the cream surface — below the 4.5:1 that WCAG AA requires for small text, and it
+is 0.75rem with wide tracking, so it is unambiguously small text. Now uses
+--muted, measured at 5.42:1. The logo grey is kept for decoration where no text
+sits on it. Every other accent was measured too: gold on cocoa is 11.59:1 and
+the gold tag is 7.12:1, so only this one needed changing.
+
+themeColor is a literal again. It had been changed to var(--brand-cocoa), which
+cannot work: the meta tag is read by the browser before CSS custom properties
+resolve, so the mobile status bar would have silently lost its colour.
+
+Frontend search fixes. pickFile now aborts the in-flight request, clears the ref
+and resets loading before switching images; previously a response for the old
+image could land after the UI had moved on and overwrite the new results. "Chọn
+ảnh khác" clears inputRef.value first, without which reselecting the same file
+fires no change event and the button appears dead.
+
+NewsletterForm no longer fakes a working subscription. It accepted input and
+discarded it silently. Until there is an endpoint, the input and button are
+disabled with a visible note saying the feature is being finished, so the control
+communicates its real state instead of lying.
+
+Not changed: the review's suggestion to reset `skipped` was already satisfied by
+this approach; and the SQL dedup was applied as a new migration rather than an
+edit, for the reason above.
+
+Validation: 222 backend tests pass (up from 218 — four new), typecheck and lint
+clean, production build 25/25 pages. Endpoint re-verified end to end: valid image
+200, garbage 400 in 81ms, 11MB 413, 60MB 413, model still serving afterwards.

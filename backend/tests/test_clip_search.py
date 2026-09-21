@@ -19,8 +19,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 from PIL import Image
 
+from app.services import clip_service
 from app.services.clip_service import (
     EMBEDDING_DIM,
+    ClipModelUnavailableError,
     ClipSearchService,
     ClipServiceError,
     InvalidImageError,
@@ -84,6 +86,27 @@ class TestImageValidation:
         Image.new("RGBA", (100, 100), color=(255, 0, 0, 128)).save(buffer, format="PNG")
         image = _validate_and_open_image(buffer.getvalue())
         assert image.mode == "RGB"
+
+    def test_invalid_bytes_do_not_trigger_model_load(self):
+        """Bytes rác không được kích hoạt nạp model.
+
+        Nạp model tốn ~45s và ~350MB RAM. Nếu thứ tự sai — nạp model trước rồi
+        mới kiểm tra ảnh — thì chỉ cần một request với bytes rác là đủ để chặn
+        tiến trình trong 45 giây. Test này gọi HÀM THẬT embed_image_bytes và
+        chỉ patch _load_model, nên nó kiểm tra đúng thứ tự thực thi bên trong.
+        """
+        with patch.object(clip_service, "_load_model") as mock_load:
+            with pytest.raises(InvalidImageError):
+                clip_service.embed_image_bytes(b"day khong phai la anh")
+            mock_load.assert_not_called()
+
+    def test_valid_bytes_do_trigger_model_load(self):
+        """Mặt còn lại: ảnh hợp lệ thì PHẢI nạp model để chạy suy luận."""
+        with patch.object(clip_service, "_load_model") as mock_load:
+            mock_load.side_effect = ClipModelUnavailableError("test")
+            with pytest.raises(ClipModelUnavailableError):
+                clip_service.embed_image_bytes(make_png_bytes())
+            mock_load.assert_called_once()
 
 
 # ─── Tìm kiếm ────────────────────────────────────────────────────────────────
@@ -309,3 +332,56 @@ class TestSearchEndpoint:
         client = TestClient(app)
         response = client.post("/api/v1/search/by-image")
         assert response.status_code == 422
+
+    def test_rejects_oversized_upload_at_endpoint(self):
+        """Ảnh vượt 10 MB phải bị chặn ở tầng endpoint với HTTP 413.
+
+        Endpoint đọc tối đa MAX_UPLOAD_BYTES + 1 byte thay vì đọc trọn file,
+        nên một upload rất lớn không bị nạp hết vào RAM trước khi từ chối.
+        """
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+        from app.services.clip_service import MAX_UPLOAD_BYTES
+
+        client = TestClient(app)
+        # 10 MB + 2 byte: vượt ngưỡng đúng 2 byte, đủ để kích hoạt nhánh 413.
+        oversized = b"x" * (MAX_UPLOAD_BYTES + 2)
+        with patch(
+            "app.services.clip_service.embed_image_bytes"
+        ) as mock_embed:
+            response = client.post(
+                "/api/v1/search/by-image",
+                files={"file": ("big.jpg", oversized, "image/jpeg")},
+            )
+
+        assert response.status_code == 413
+        # Bị chặn trước khi chạm tới model.
+        mock_embed.assert_not_called()
+
+    def test_accepts_upload_of_exactly_max_size(self):
+        """Ảnh đúng bằng giới hạn vẫn phải được chấp nhận.
+
+        Đọc MAX + 1 byte để phân biệt "bằng giới hạn" với "vượt giới hạn";
+        test này bảo vệ ranh giới đó khỏi bị lệch thành >=.
+        """
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+        from app.services.clip_service import MAX_UPLOAD_BYTES
+
+        client = TestClient(app)
+        exactly_max = b"x" * MAX_UPLOAD_BYTES
+        with patch(
+            "app.services.clip_service.embed_image_bytes",
+            side_effect=InvalidImageError(),
+        ) as mock_embed:
+            response = client.post(
+                "/api/v1/search/by-image",
+                files={"file": ("exact.jpg", exactly_max, "image/jpeg")},
+            )
+
+        # Nội dung là rác nên bị 400 ở tầng validate ảnh — điều quan trọng là
+        # KHÔNG bị 413, tức là kích thước đúng giới hạn đã lọt qua cửa.
+        assert response.status_code == 400
+        assert mock_embed.called

@@ -181,9 +181,14 @@ def embed_image_bytes(raw: bytes) -> list[float]:
     """Sinh vector 512 chiều từ bytes ảnh.
 
     Đây là hàm lõi: dùng cho cả ảnh khách upload và script sinh embedding kho.
+
+    Thứ tự QUAN TRỌNG: kiểm tra ảnh TRƯỚC, nạp model SAU. Nạp model tốn ~45s và
+    ~350MB RAM, nên nếu ảnh hỏng/không phải ảnh thì phải báo lỗi ngay mà không
+    kích hoạt nạp model. Trước đây thứ tự ngược lại, khiến một request với bytes
+    rác cũng đủ để nạp model và chặn cả tiến trình.
     """
-    model, preprocess = _load_model()
     image = _validate_and_open_image(raw)
+    model, preprocess = _load_model()
 
     import torch
 

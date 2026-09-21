@@ -8,8 +8,10 @@ Endpoints:
 import logging
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from starlette.concurrency import run_in_threadpool
 
 from app.services.clip_service import (
+    MAX_UPLOAD_BYTES,
     ClipSearchService,
     ClipServiceError,
     get_model_status,
@@ -70,11 +72,25 @@ async def search_by_image(
         413 - ảnh vượt quá 10 MB
         503 - model chưa sẵn sàng hoặc không truy vấn được kho
     """
-    raw = await file.read()
+    # Đọc tối đa MAX_UPLOAD_BYTES + 1 byte. Đọc thêm 1 byte để phân biệt được
+    # "đúng bằng giới hạn" (hợp lệ) với "vượt giới hạn" (từ chối). Nếu đọc hết
+    # file rồi mới kiểm tra thì một upload 2GB sẽ được nạp trọn vào RAM trước
+    # khi bị từ chối.
+    raw = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Ảnh quá lớn. Tối đa {MAX_UPLOAD_BYTES // (1024 * 1024)} MB.",
+        )
 
     service = ClipSearchService()
     try:
-        return service.search_by_image(
+        # search_by_image là hàm ĐỒNG BỘ: nó chạy suy luận CLIP trên CPU (~70ms)
+        # rồi gọi RPC Supabase bằng thư viện blocking (~100ms). Gọi thẳng trong
+        # async def sẽ chặn event loop suốt thời gian đó, khiến mọi request khác
+        # phải chờ. run_in_threadpool đẩy sang thread riêng để event loop rảnh.
+        return await run_in_threadpool(
+            service.search_by_image,
             raw,
             match_count=match_count,
             match_threshold=match_threshold,
