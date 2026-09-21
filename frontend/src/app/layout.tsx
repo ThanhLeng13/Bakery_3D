@@ -46,17 +46,17 @@ const ChatWidget = dynamic(() => import("@/components/ChatWidget"), {
 export const metadata: Metadata = {
   title: {
     template: "%s | Bơ Nơ – Tiệm Bánh Kem",
-    default: "Bơ Nơ – Tiệm Bánh Kem Thủ Công TP.HCM",
+    default: "Bơ Nơ – Tiệm Bánh Kem Thủ Công Đà Nẵng",
   },
   description:
-    "Tiệm bánh kem tùy chỉnh tại TP.HCM – Thiết kế bánh kem theo ý muốn với công cụ trực quan và AI tư vấn thông minh bằng tiếng Việt.",
-  keywords: ["bánh kem", "cake shop", "tiệm bánh", "thiết kế bánh", "TP.HCM"],
+    "Tiệm bánh kem tùy chỉnh tại Đà Nẵng – Thiết kế bánh kem theo ý muốn với công cụ trực quan và AI tư vấn thông minh bằng tiếng Việt.",
+  keywords: ["bánh kem", "cake shop", "tiệm bánh", "thiết kế bánh", "Đà Nẵng"],
   authors: [{ name: "Bơ Nơ Bakery" }],
   openGraph: {
     type: "website",
     locale: "vi_VN",
     siteName: "Bơ Nơ",
-    title: "Bơ Nơ – Tiệm Bánh Kem Thủ Công TP.HCM",
+    title: "Bơ Nơ – Tiệm Bánh Kem Thủ Công Đà Nẵng",
     description:
       "Thiết kế bánh kem theo ý muốn với công cụ trực quan và AI tư vấn thông minh.",
   },

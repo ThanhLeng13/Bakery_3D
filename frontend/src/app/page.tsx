@@ -122,7 +122,7 @@ export default async function Home() {
             {/* Nhãn: dấu chấm vàng + chữ in hoa giãn nhẹ, trên nền pill kem. */}
             <p className="inline-flex items-center gap-2 rounded-full bg-subtle px-3.5 py-1.5 text-[0.6875rem] font-medium uppercase tracking-[0.14em] text-muted mb-7">
               <span className="h-1.5 w-1.5 rounded-full bg-gold-deep" />
-              Atelier thủ công · TP. Hồ Chí Minh &amp; Đà Nẵng
+              Atelier thủ công · TP. Đà Nẵng
             </p>
 
             <h1 className="title-lux text-[2.5rem] leading-[1.05] sm:text-[3.25rem] lg:text-[3.5rem] text-ink mb-6">
@@ -364,14 +364,13 @@ export default async function Home() {
               </h3>
               <div className="space-y-4 text-[0.8125rem] leading-relaxed text-muted">
                 <p>
-                  <span className="text-ink">Chi nhánh TP. Hồ Chí Minh:</span>
-                  <br />
-                  128 Nguyễn Đình Chiểu, Phường Võ Thị Sáu, Quận 3
-                </p>
-                <p>
                   <span className="text-ink">Chi nhánh Đà Nẵng:</span>
                   <br />
                   45 Bạch Đằng, Quận Hải Châu, TP. Đà Nẵng
+                </p>
+                <p>
+                  <span className="text-ink">Giờ mở cửa:</span> 08:00 – 21:30
+                  hằng ngày
                 </p>
               </div>
             </div>
@@ -383,15 +382,15 @@ export default async function Home() {
               </h3>
               <div className="space-y-4 text-[0.8125rem] leading-relaxed text-muted">
                 <p>
-                  <span className="text-ink">Hotline đặt bánh gấp:</span>
+                  <span className="text-ink">Đặt bánh &amp; tư vấn:</span>
                   <br />
-                  0901 234 567
+                  Liên hệ qua hotline hoặc fanpage của tiệm
                 </p>
                 <p>
-                  <span className="text-ink">Giờ mở cửa:</span> 08:00 – 21:30
-                  hằng ngày
+                  <span className="text-ink">Nhận bánh tại:</span>
+                  <br />
+                  Chi nhánh Hải Châu, TP. Đà Nẵng
                 </p>
-                <p>Email: bonjour@bonobakery.vn</p>
               </div>
             </div>
 
