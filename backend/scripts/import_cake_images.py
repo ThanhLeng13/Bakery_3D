@@ -98,11 +98,13 @@ def main() -> int:
     )
     by_name = {p["name"]: p for p in products}
 
-    # Đọc ảnh đang có để tránh thêm trùng
+    # Đọc ảnh đang có để tránh thêm trùng.
+    # Cột tên là `url`, KHÔNG phải `image_url` — đã kiểm chứng bằng cách đọc
+    # schema thật từ PostgREST OpenAPI, sau khi đoán sai và bị lỗi 42703.
     existing_images = (
-        client.table("product_images").select("product_id,image_url").execute().data or []
+        client.table("product_images").select("product_id,url").execute().data or []
     )
-    have_url: set[str] = {row["image_url"] for row in existing_images}
+    have_url: set[str] = {row["url"] for row in existing_images}
 
     print("=" * 74)
     print("NHAP ANH BANH SINH NHAT")
@@ -194,7 +196,7 @@ def main() -> int:
                 continue
             client.table("product_images").insert({
                 "product_id": product["id"],
-                "image_url": public_url,
+                "url": public_url,
             }).execute()
             added += 1
             print(f"    + {product['name']}/{image.name}")

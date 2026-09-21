@@ -82,6 +82,15 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# ---- 🍰 Ảnh bánh sinh nhật (nguồn để nhập vào Supabase Storage) ----
+# Ảnh gốc dung lượng lớn, không đưa vào Git. Chỉ giữ README mô tả quy ước đặt tên.
+backend/cake_images/*/
+backend/cake_images/*.jpg
+backend/cake_images/*.jpeg
+backend/cake_images/*.png
+backend/cake_images/*.webp
+!backend/cake_images/README.md
+
 # ---- ⏱️ Runtime / Temp / Cache ----
 tmp_*/
 .browser_profile/
