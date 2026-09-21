@@ -535,3 +535,109 @@ class TestBodySizeLimitMiddleware:
 
         # Dừng ngay ở lần gọi đầu, không hút tiếp.
         assert len(calls) == 1
+
+
+class TestBodySizeLimitStreaming:
+    """Lớp chặn thứ hai: đếm byte thật, bắt được chunked và Content-Length giả.
+
+    Đây là lớp bắt buộc, không phải phòng xa. Đo trên server thật trước khi có
+    nó: một request chunked 30 MB lọt hoàn toàn qua lớp 1, bị bộ phân tích
+    multipart gom trọn vào RAM, rồi mới bị endpoint từ chối.
+    """
+
+    @staticmethod
+    def _run(max_body_bytes, chunks):
+        """Chạy middleware với các khối body cho trước. Trả (app_received, status)."""
+        import asyncio
+
+        from app.core.body_limit import BodySizeLimitMiddleware
+
+        seen = {"total": 0}
+
+        async def fake_app(scope, receive, send):
+            while True:
+                message = await receive()
+                if message["type"] == "http.disconnect":
+                    break
+                seen["total"] += len(message.get("body", b""))
+                if not message.get("more_body", False):
+                    break
+            await send(
+                {"type": "http.response.start", "status": 200, "headers": []}
+            )
+            await send({"type": "http.response.body", "body": b"{}"})
+
+        queue = list(chunks)
+
+        async def receive():
+            if queue:
+                return {"type": "http.request", "body": queue.pop(0), "more_body": True}
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        sent = []
+
+        async def send(message):
+            sent.append(message)
+
+        middleware = BodySizeLimitMiddleware(app=fake_app, max_body_bytes=max_body_bytes)
+        # KHÔNG có content-length -> chỉ lớp 2 bắt được.
+        asyncio.run(middleware({"type": "http", "headers": []}, receive, send))
+
+        status = sent[0].get("status") if sent else None
+        return seen["total"], status
+
+    def test_chunked_body_over_limit_is_cut_and_rejected(self):
+        """Chunked vượt ngưỡng: ứng dụng chỉ nhận tới ngưỡng, và trả 413."""
+        limit = 100 * 1024
+        received, status = self._run(limit, [b"x" * 65536] * 30)
+
+        assert status == 413
+        # Ứng dụng không bao giờ thấy quá ngưỡng.
+        assert received <= limit
+        # Và thực sự ít hơn nhiều so với 30 khối (1.9 MB).
+        assert received < 30 * 65536
+
+    def test_body_under_limit_passes_through_untouched(self):
+        """Body dưới ngưỡng: ứng dụng nhận đủ, status giữ nguyên 200."""
+        received, status = self._run(100 * 1024, [b"x" * 51200])
+
+        assert status == 200
+        assert received == 51200
+
+    def test_body_exactly_at_limit_passes(self):
+        """Đúng bằng ngưỡng thì phải lọt qua (ranh giới không được lệch thành >)."""
+        limit = 100 * 1024
+        received, status = self._run(limit, [b"x" * 51200, b"y" * 51200])
+
+        assert status == 200
+        assert received == limit
+
+    def test_body_one_byte_over_limit_is_rejected(self):
+        """Nhích qua ngưỡng đúng 1 byte cũng phải bị chặn."""
+        limit = 100 * 1024
+        received, status = self._run(limit, [b"x" * limit, b"y"])
+
+        assert status == 413
+        assert received <= limit
+
+    def test_413_response_replaces_application_response(self):
+        """413 phải thay thế response của ứng dụng, không bị response đó ghi đè.
+
+        Ứng dụng vẫn chạy tiếp sau khi body bị cắt và gửi 200 của nó. Nếu
+        middleware chuyển tiếp ngay thì client đã nhận 200 và không thể sửa nữa —
+        ASGI chỉ cho gửi http.response.start một lần.
+        """
+        received, status = self._run(100 * 1024, [b"x" * 65536] * 5)
+
+        assert status == 413, "response cua ung dung (200) da ghi de mat 413"
+
+    def test_many_small_chunks_accumulate(self):
+        """Nhiều khối nhỏ cộng lại vượt ngưỡng vẫn phải bị bắt.
+
+        Nếu chỉ so từng khối với ngưỡng thì trường hợp này lọt.
+        """
+        limit = 10 * 1024
+        received, status = self._run(limit, [b"x" * 1024] * 50)
+
+        assert status == 413
+        assert received <= limit
