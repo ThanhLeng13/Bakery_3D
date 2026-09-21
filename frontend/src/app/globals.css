@@ -6,13 +6,14 @@
    DESIGN TOKENS
    ========================================================= */
 :root {
-  --background: #fafaf9;
-  --foreground: #2b2b2a;
-  --brand: #8f8f8e;
-  --muted: #6b6b6a;
-  --surface: #fafaf9;
-  --subtle: #f5f5f4;
-  --line: #e5e5e3;
+  /* Bảng màu trích từ thiết kế Stitch, đọc bằng pixel chứ không ước lượng. */
+  --background: #faf8f5;
+  --foreground: #1f1b1a;
+  --brand: #90908f;
+  --muted: #6b6560;
+  --surface: #faf8f5;
+  --subtle: #f3efe9;
+  --line: #e8e3dc;
   --space-1: 0.5rem;
   --space-2: 1rem;
   --space-3: 1.5rem;
@@ -20,11 +21,14 @@
   --space-6: 3rem;
   --space-8: 4rem;
 
-  /* Brand palette (matches logo #8F8F8E – neutral warm grey) */
-  --brand: #8f8f8e;
-  --brand-ink: #2b2b2a;
+  --brand-ink: #1f1b1a;
   --brand-soft: #6b6b6a;
-  --brand-line: #e5e5e3;
+  --brand-line: #e8e3dc;
+  /* Vàng nhấn: nút trên nền tối, nhãn "đặc biệt", chi tiết trang trí. */
+  --brand-gold: #fedeb2;
+  --brand-gold-deep: #fab361;
+  /* Nâu đậm cho khối CTA — ấm hơn đen tuyền, hợp tông kem. */
+  --brand-cocoa: #2b2625;
 
   /* Spacing tokens */
   --page-padding-x: 1rem;           /* 16px – mobile */
@@ -188,28 +192,33 @@
     padding: 16px 32px;
     border: 1px solid transparent;
     border-radius: 12px;
-    font-size: 1.125rem;
-    font-weight: 600;
+    font-size: 1rem;
+    font-weight: 500;
+    /* Giãn chữ nhẹ: nét chữ thoáng là dấu hiệu của typography cao cấp.
+       0.04em chứ không phải 0.06em — ở chữ in hoa tiếng Việt, giãn rộng làm
+       dấu mũ tách khỏi nguyên âm, nhìn như lỗi font. */
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
     line-height: 1.4;
-    transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease;
+    transition: background-color 180ms ease, color 180ms ease,
+      border-color 180ms ease;
   }
 
   .btn-primary {
     background: var(--foreground);
-    color: white;
+    color: var(--surface);
   }
 
-  /* Hover: deepen the surface instead of lightening it.
-     #8F8F8E against white text is only ~3.5:1, below the WCAG AA 4.5:1
-     threshold for body-sized text, so hovering to brand would have made the
-     label harder to read. #6B6B6A against white is ~5.7:1. */
+  /* Hover: đậm lên thay vì nhạt đi. #90908F với chữ trắng chỉ đạt ~2.7:1,
+     dưới ngưỡng AA 4.5:1, nên hover sang màu brand sẽ làm chữ khó đọc hơn.
+     --brand-soft với nền kem đạt ~5.3:1. */
   .btn-primary:hover {
-    background: #6b6b6a;
-    color: white;
+    background: var(--brand-soft);
+    color: var(--surface);
   }
 
   .btn-secondary {
-    background: white;
+    background: transparent;
     border-color: var(--brand);
     color: var(--foreground);
   }
@@ -217,6 +226,104 @@
   .btn-secondary:hover {
     background: var(--subtle);
     border-color: var(--foreground);
+  }
+
+  /* Nút vàng — dùng trên nền nâu đậm của khối CTA.
+     Chữ nâu #2B2625 trên vàng #FEDEB2 đạt tương phản 12.4:1, rất cao. */
+  .btn-gold {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    min-height: 56px;
+    padding: 16px 32px;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    background: var(--brand-gold);
+    color: var(--brand-cocoa);
+    font-size: 1rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1.4;
+    transition: background-color 180ms ease, color 180ms ease;
+  }
+
+  .btn-gold:hover {
+    background: var(--brand-gold-deep);
+  }
+
+  /* Nút viền trắng — nút phụ khi đặt trên nền tối. */
+  .btn-outline-light {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    min-height: 56px;
+    padding: 16px 32px;
+    border: 1px solid rgba(250, 248, 245, 0.32);
+    border-radius: 12px;
+    background: transparent;
+    color: var(--surface);
+    font-size: 1rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1.4;
+    transition: background-color 180ms ease, border-color 180ms ease;
+  }
+
+  .btn-outline-light:hover {
+    background: rgba(250, 248, 245, 0.1);
+    border-color: rgba(250, 248, 245, 0.6);
+  }
+
+  /* Nhãn nhỏ in hoa trên nền tối (dùng trong khối CTA). */
+  .eyebrow-light {
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--brand-gold);
+  }
+
+  /* ─── Khối CTA nền nâu đậm ──────────────────────────────────────────── */
+  .cta-cocoa {
+    background: var(--brand-cocoa);
+    /* Chuyển sắc rất nhẹ ở góc: nền phẳng tuyệt đối trông như ô màu, còn
+       một chút sáng ở góc làm khối có chiều sâu như giấy in. */
+    background-image: radial-gradient(
+      ellipse at 80% 0%,
+      rgba(254, 222, 178, 0.07),
+      transparent 60%
+    );
+    border-radius: 24px;
+  }
+
+  /* Ô ảnh bo tròn kiểu vòm — thủ pháp của tạp chí thời trang. */
+  .arch {
+    border-radius: 160px 160px 16px 16px;
+    overflow: hidden;
+  }
+
+  @media (max-width: 640px) {
+    .arch {
+      border-radius: 100px 100px 12px 12px;
+    }
+  }
+
+  /* Nhãn "đặc biệt" màu vàng nhạt, dùng trên thẻ sản phẩm. */
+  .tag-gold {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    background: rgba(254, 222, 178, 0.5);
+    color: #6b4a1f;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
 
   .hero-title {
@@ -227,11 +334,190 @@
   }
 
   .feature-card {
-    padding: 32px;
+    /* 40px thay vì 32px: khoảng trắng rộng là dấu hiệu rõ nhất của thiết kế
+       cao cấp. Thẻ chật chội trông như bảng điều khiển, không như tiệm bánh. */
+    padding: 40px 32px;
     border: 1px solid var(--line);
     border-radius: 16px;
     background: white;
     text-align: center;
+    transition: border-color 300ms ease, box-shadow 300ms ease;
+  }
+
+  .feature-card:hover {
+    border-color: var(--brand);
+    box-shadow: 0 16px 36px -26px rgba(31, 30, 29, 0.22);
+  }
+
+  /* =========================================================
+     LUXURY DETAILS
+     Chi tiết nhỏ tạo cảm giác cao cấp. Nguyên tắc: sang trọng đến từ
+     khoảng trắng, độ mảnh của nét, và sự tiết chế — không đến từ hiệu ứng.
+     ========================================================= */
+
+  /* Nhãn nhỏ in hoa, giãn chữ rộng — đúng kiểu chữ "BAKERY" dưới logo.
+     Dùng làm nhãn mục, không dùng cho nội dung dài vì giãn chữ gây mỏi mắt.
+     0.16em thay vì 0.22em: tiếng Việt có dấu mũ và dấu thanh vươn lên trên,
+     giãn quá rộng làm các dấu tách rời khỏi nguyên âm và trông như lỗi font. */
+  .eyebrow {
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    /* Dùng --muted chứ không dùng --brand: #90908F trên nền kem chỉ đạt
+       3.01:1, dưới ngưỡng AA 4.5:1 cho chữ nhỏ. --muted (#6B6560) đạt 5.42:1.
+       Màu logo vẫn giữ cho các chi tiết trang trí, nơi không có chữ. */
+    color: var(--muted);
+  }
+
+  /* Đường kẻ mảnh dần hai đầu, dùng làm dấu phân cách giữa các mục.
+     Khác đường kẻ thường ở chỗ nó mờ dần — mắt không bị chặn đột ngột. */
+  .rule-fade {
+    height: 1px;
+    border: 0;
+    background: linear-gradient(
+      to right,
+      transparent,
+      var(--line) 20%,
+      var(--line) 80%,
+      transparent
+    );
+  }
+
+  /* Khung viền kép kiểu khung tranh: một nét ngoài mảnh, một nét trong
+     lùi vào. Thủ pháp của các thương hiệu xa xỉ để đóng khung nội dung. */
+  .frame-inset {
+    position: relative;
+    border: 1px solid var(--line);
+  }
+
+  .frame-inset::after {
+    content: "";
+    position: absolute;
+    inset: 6px;
+    border: 1px solid var(--line);
+    pointer-events: none;
+  }
+
+  /* Chữ tiêu đề serif với nét mảnh hơn và giãn dòng thoáng — Playfair
+     Display ở độ đậm 700 trông nặng nề và mất chất thanh lịch. */
+  .title-lux {
+    font-family: var(--font-playfair), serif;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+    text-wrap: balance;
+  }
+
+  /* Thẻ sản phẩm nâng lên rất nhẹ khi hover. Bóng đổ rất mờ và tản rộng:
+     bóng đậm, hẹp là dấu hiệu của giao diện rẻ tiền. */
+  .card-lux {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: box-shadow 320ms cubic-bezier(0.4, 0, 0.2, 1),
+      border-color 320ms ease, transform 320ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-lux:hover {
+    border-color: var(--brand);
+    box-shadow: 0 18px 40px -24px rgba(31, 30, 29, 0.28);
+    transform: translateY(-2px);
+  }
+
+  /* Ảnh bên trong thẻ phóng rất chậm. Chuyển động nhanh tạo cảm giác
+     "webapp"; chuyển động chậm tạo cảm giác được chăm chút. */
+  .card-lux img {
+    transition: transform 700ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-lux:hover img {
+    transform: scale(1.04);
+  }
+
+  /* Tôn trọng người dùng tắt hiệu ứng chuyển động. */
+  @media (prefers-reduced-motion: reduce) {
+    .card-lux,
+    .card-lux img,
+    .btn-primary,
+    .btn-secondary {
+      transition: none;
+    }
+
+    .card-lux:hover {
+      transform: none;
+    }
+
+    .card-lux:hover img {
+      transform: none;
+    }
+  }
+
+  /* ─── Chi tiết trang trí ───────────────────────────────────────────────
+     Mỗi chi tiết dưới đây đều có mục đích: dẫn mắt, tạo nhịp, hoặc báo trạng
+     thái. Trang trí thuần túy không có chức năng sẽ làm giao diện rối và kém
+     sang, chứ không đẹp hơn. */
+
+  /* Hoa văn chấm nhỏ, dùng làm nền cho khối cần tách khỏi nền giấy mà không
+     muốn dùng màu. Chấm thưa (24px) để không gây nhiễu khi đọc chữ trên đó. */
+  .pattern-dots {
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      var(--line) 1px,
+      transparent 0
+    );
+    background-size: 24px 24px;
+  }
+
+  /* Nhãn "từ khóa" cỡ nhỏ, viền mảnh, không tô nền. */
+  .tag-lux {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border: 1px solid var(--line);
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    background: white;
+  }
+
+  /* Gạch chân chạy ra từ trái khi hover — dùng cho liên kết văn bản.
+     Chuyển động 1 chiều, không nảy, nên không gây mất tập trung. */
+  .link-underline {
+    position: relative;
+    display: inline-block;
+  }
+
+  .link-underline::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    height: 1px;
+    width: 100%;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .link-underline:hover::after {
+    transform: scaleX(1);
+  }
+
+  /* Dấu chấm trang trí ba điểm, dùng ngăn cách các mục nhỏ cùng dòng. */
+  .dot-sep::before {
+    content: "·";
+    margin: 0 0.6em;
+    color: var(--brand);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .link-underline::after {
+      transition: none;
+    }
   }
 
   /* ---- Skeleton Loading ---- */

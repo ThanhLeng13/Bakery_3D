@@ -42,7 +42,7 @@ const STATUS_STYLES: Record<OrderStatus, string> = {
   confirmed: "bg-blue-100 text-blue-800",
   in_production: "bg-orange-100 text-orange-800",
   ready: "bg-green-100 text-green-800",
-  delivered: "bg-gray-100 text-gray-800",
+  delivered: "bg-subtle text-ink",
 };
 
 function formatPrice(price: number): string {
@@ -97,7 +97,7 @@ function OrderHistoryContent() {
   return (
     <main className="min-h-screen bg-cream">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-100 sticky top-0 z-30">
+      <header className="bg-white/80 backdrop-blur-sm border-b border-line sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => router.push("/")}

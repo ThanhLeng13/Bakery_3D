@@ -34,6 +34,7 @@ export default function Header() {
 
   const navLinks = [
     { href: "/products", label: "Menu" },
+    { href: "/tim-banh", label: "Tìm bằng ảnh" },
     { href: "/cake-builder", label: "Thiết kế bánh" },
     { href: "/orders", label: "Đơn hàng" },
     { href: "/loyalty", label: "Tích điểm" },
@@ -218,15 +219,19 @@ export default function Header() {
               <div className="flex items-center gap-2">
                 <Link
                   href="/auth/login"
-                  className="hidden sm:flex px-4 py-2 text-sm font-medium text-muted hover:text-ink transition-colors min-h-[40px] items-center"
+                  className="hidden lg:flex px-4 py-2 text-sm text-muted hover:text-ink transition-colors min-h-[40px] items-center"
                 >
                   Đăng nhập
                 </Link>
+                {/* Nút CTA chính, theo thiết kế: nền đậm, chữ in hoa giãn nhẹ.
+                    Thiết kế Stitch ở header CHỈ có "Đăng nhập" + "Thiết kế ngay",
+                    không có nút Đăng ký. Khách tạo tài khoản qua liên kết ở
+                    trang đăng nhập, nên header không cần nút đó. */}
                 <Link
-                  href="/auth/register"
-                  className="px-4 py-2 bg-action text-white text-sm font-medium rounded-full hover:bg-brand-soft transition-colors min-h-[40px] flex items-center"
+                  href="/cake-builder"
+                  className="hidden sm:flex px-5 py-2.5 bg-action text-surface text-xs font-medium tracking-[0.08em] uppercase rounded-full hover:bg-cocoa transition-colors min-h-[44px] items-center"
                 >
-                  Đăng ký
+                  Thiết kế ngay
                 </Link>
               </div>
             )}
@@ -270,13 +275,26 @@ export default function Header() {
                 </Link>
               ))}
               {!isAuthenticated && (
-                <Link
-                  href="/auth/login"
-                  className="px-4 py-3 rounded-xl text-sm font-medium text-muted hover:text-ink hover:bg-ink/5 transition-colors"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Đăng nhập
-                </Link>
+                <>
+                  <Link
+                    href="/auth/login"
+                    className="px-4 py-3 rounded-xl text-sm font-medium text-muted hover:text-ink hover:bg-ink/5 transition-colors"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Đăng nhập
+                  </Link>
+                  {/* Nút Đăng ký chỉ có ở menu mobile: phần header ẩn nút Đăng
+                      nhập dưới breakpoint lg, nên nếu không có ở đây thì khách
+                      trên điện thoại không có đường vào tài khoản. Desktop giữ
+                      đúng thiết kế (chỉ Đăng nhập). */}
+                  <Link
+                    href="/auth/register"
+                    className="px-4 py-3 rounded-xl text-sm font-medium text-muted hover:text-ink hover:bg-ink/5 transition-colors"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Đăng ký
+                  </Link>
+                </>
               )}
             </nav>
           </div>

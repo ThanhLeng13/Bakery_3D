@@ -149,7 +149,7 @@ export function CompletionPanel({
   const notesLength = design.special_notes?.length ?? 0;
 
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm space-y-5">
+    <div className="rounded-2xl border border-line bg-white p-5 shadow-sm space-y-5">
       <h3 className="font-heading text-xl font-bold text-mocha">
         Hoàn thiện thiết kế
       </h3>
@@ -168,7 +168,7 @@ export function CompletionPanel({
               className={`min-h-[44px] min-w-[44px] rounded-lg border-2 px-3 py-2 text-sm font-medium transition-all duration-100 focus:outline-none focus:ring-2 focus:ring-pink-pastel/50 ${
                 design.flavor === option.id
                   ? "border-pink-pastel bg-pink-pastel/10 text-pink-pastel"
-                  : "border-gray-200 text-mocha hover:border-pink-pastel/50 hover:bg-cream"
+                  : "border-line text-mocha hover:border-pink-pastel/50 hover:bg-cream"
               }`}
               aria-pressed={design.flavor === option.id}
               aria-label={`Hương vị: ${option.label}`}
@@ -198,7 +198,7 @@ export function CompletionPanel({
               className={`min-h-[44px] min-w-[44px] rounded-lg border-2 px-3 py-2 text-sm font-medium transition-all duration-100 focus:outline-none focus:ring-2 focus:ring-pink-pastel/50 ${
                 design.cream_type === option.id
                   ? "border-pink-pastel bg-pink-pastel/10 text-pink-pastel"
-                  : "border-gray-200 text-mocha hover:border-pink-pastel/50 hover:bg-cream"
+                  : "border-line text-mocha hover:border-pink-pastel/50 hover:bg-cream"
               }`}
               aria-pressed={design.cream_type === option.id}
               aria-label={`Loại kem: ${option.label}`}
@@ -228,7 +228,7 @@ export function CompletionPanel({
               className={`w-9 h-9 rounded-full border-2 transition-all duration-100 min-w-[44px] min-h-[44px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-pink-pastel/50 ${
                 design.cream_color === color.id
                   ? "border-pink-pastel scale-110 shadow-md"
-                  : "border-gray-300 hover:scale-105 hover:border-pink-pastel/50"
+                  : "border-line hover:scale-105 hover:border-pink-pastel/50"
               }`}
               style={{ backgroundColor: color.id }}
               aria-label={`Màu kem: ${color.label}`}
@@ -273,7 +273,7 @@ export function CompletionPanel({
           maxLength={200}
           rows={3}
           placeholder="Ví dụ: Viết chữ 'Happy Birthday' trên mặt bánh..."
-          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-mocha placeholder:text-mocha/40 focus:border-pink-pastel focus:outline-none focus:ring-2 focus:ring-pink-pastel/30 resize-none"
+          className="w-full rounded-lg border border-line px-3 py-2 text-sm text-mocha placeholder:text-mocha/40 focus:border-pink-pastel focus:outline-none focus:ring-2 focus:ring-pink-pastel/30 resize-none"
         />
         <p className="mt-1 text-xs text-mocha/50 text-right">
           {notesLength}/200

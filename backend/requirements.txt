@@ -10,3 +10,10 @@ python-dotenv>=1.0.0,<2.0.0
 httpx>=0.24.0,<0.28.0
 structlog>=24.1.0,<25.0.0
 Pillow>=10.2.0,<11.0.0
+
+# CLIP image search (trụ cột 2). Dùng torch bản CPU cho nhẹ, không cần GPU.
+# Cài torch trước để tránh pip kéo bản CUDA (~2 GB):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+open_clip_torch>=3.3.0,<4.0.0
+torch>=2.2.0
+torchvision>=0.17.0

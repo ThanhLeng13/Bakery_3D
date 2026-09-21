@@ -4,7 +4,7 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     admin_options, admin_orders, admin_products, admin_users, auth, baker_orders, staff_orders,
-    branches, catalog, chat, inventory, loyalty, orders, public_options, purchases, reviews,
+    branches, catalog, chat, inventory, loyalty, orders, public_options, purchases, reviews, search,
 )
 
 router = APIRouter()
@@ -55,3 +55,6 @@ router.include_router(loyalty.router, prefix="/loyalty", tags=["Loyalty"])
 # Cake Options — public read + admin CRUD
 router.include_router(public_options.router, prefix="/options", tags=["Cake Options"])
 router.include_router(admin_options.router, prefix="/admin/options", tags=["Admin Options"])
+
+# CLIP image search — trụ cột 2: tìm bánh bằng hình ảnh
+router.include_router(search.router, prefix="/search", tags=["Image Search"])

@@ -9,26 +9,38 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        brand: "#8F8F8E",
-        // Slightly darker brand grey: keeps white text at AA contrast on hover.
+        // ─── Bảng màu lấy từ thiết kế Stitch ──────────────────────────────
+        // Trích trực tiếp bằng cách đọc pixel ảnh thiết kế, không ước lượng:
+        //   nền #FAF8F5 · nền phụ #F3EFE9 · mực #1F1B1A
+        //   khối CTA #2B2625 · vàng nhấn #FEDEB2 / #FAB361
+        //
+        // Tông kem ấm thay cho xám trung tính: màu kem gợi giấy, bơ và kem
+        // tươi — đúng chất tiệm bánh — trong khi xám trung tính đọc ra như
+        // giao diện phần mềm.
+        brand: "#90908F", // màu logo, vẫn dùng cho chi tiết phụ
         "brand-soft": "#6B6B6A",
-        ink: "#2B2B2A",
-        muted: "#6B6B6A",
-        action: "#2B2B2A",
-        surface: "#FAFAF9",
-        subtle: "#F5F5F4",
-        line: "#E5E5E3",
+        ink: "#1F1B1A",
+        muted: "#6B6560", // xám ngả nâu cho hợp nền kem
+        action: "#1F1B1A",
+        surface: "#FAF8F5", // nền chính
+        subtle: "#F3EFE9", // nền phụ
+        line: "#E8E3DC", // đường kẻ ngả kem
+        // Vàng nhấn: dùng cho nút nổi bật trên nền tối và nhãn "đặc biệt".
+        gold: "#FEDEB2",
+        "gold-deep": "#FAB361",
+        // Khối tối (CTA, footer tối)
+        cocoa: "#2B2625",
         gray: {
-          50: "#FAFAF9",
-          100: "#F5F5F4",
-          200: "#E5E5E3",
-          300: "#C5C5C3",
-          400: "#8F8F8E",
-          500: "#6B6B6A",
-          600: "#595958",
-          700: "#454544",
-          800: "#2B2B2A",
-          900: "#20201F",
+          50: "#FAF8F5",
+          100: "#F3EFE9",
+          200: "#E8E3DC",
+          300: "#CFC8C0",
+          400: "#90908F",
+          500: "#6B6560",
+          600: "#595350",
+          700: "#403A38",
+          800: "#2B2625",
+          900: "#1F1B1A",
         },
         // ─── LEGACY ALIASES ────────────────────────────────────────────────
         // The old warm bakery palette (cream / coral / mocha) was replaced by
@@ -36,15 +48,17 @@ const config: Config = {
         // legacy class usages visually correct while files are migrated one
         // by one. REMOVE THIS BLOCK once `grep -r "mocha|pink-pastel|cream"`
         // returns zero matches across src/.
-        mocha: "#2B2B2A", // was #5C3D2E (brown)  -> ink
-        "pink-pastel": "#2B2B2A", // was #E8837A (coral)  -> action
-        cream: "#FAFAF9", // was #FDF6EE (cream)  -> surface
+        mocha: "#1F1B1A", // was #5C3D2E (brown)  -> ink
+        "pink-pastel": "#1F1B1A", // was #E8837A (coral)  -> action
+        cream: "#FAF8F5", // was #FDF6EE (cream)  -> surface
         background: "var(--background)",
         foreground: "var(--foreground)",
       },
       fontFamily: {
-        heading: ["var(--font-playfair)", "serif"],
-        body: ["var(--font-dm-sans)", "sans-serif"],
+        heading: ["var(--font-playfair)", "Georgia", "serif"],
+        // Be Vietnam Pro thay cho DM Sans: DM Sans không có subset tiếng Việt
+        // trên Google Fonts, khiến chữ có dấu bị vỡ nét.
+        body: ["var(--font-body)", "system-ui", "sans-serif"],
       },
     },
   },

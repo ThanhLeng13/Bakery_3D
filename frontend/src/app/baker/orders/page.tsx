@@ -187,7 +187,7 @@ function BakerDashboardContent() {
   return (
     <main className="min-h-screen bg-cream">
       {/* Header */}
-      <header className="bg-white/90 backdrop-blur-sm border-b border-gray-100 sticky top-0 z-40">
+      <header className="bg-white/90 backdrop-blur-sm border-b border-line sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
             <h1 className="font-heading text-xl md:text-2xl text-mocha font-bold">
@@ -353,7 +353,7 @@ function BakerDashboardContent() {
                   <div className="flex items-center justify-between flex-wrap gap-3">
                     <div>
                       <p className="text-xs text-mocha/50 mb-1">Trạng thái hiện tại</p>
-                      <span className={`px-3 py-1.5 rounded-full text-sm font-medium border ${STATUS_STYLES[selectedOrder.status] || "bg-gray-100 text-gray-700"}`}>
+                      <span className={`px-3 py-1.5 rounded-full text-sm font-medium border ${STATUS_STYLES[selectedOrder.status] || "bg-subtle text-ink"}`}>
                         {STATUS_LABELS[selectedOrder.status] || selectedOrder.status}
                       </span>
                     </div>

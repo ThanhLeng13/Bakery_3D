@@ -713,7 +713,7 @@ export default function AdminProductEditPage() {
               onClick={() => updateField("is_active", !formData.is_active)}
               className="relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand/30"
               style={{
-                backgroundColor: formData.is_active ? "#2B2B2A" : "#d1d5db",
+                backgroundColor: formData.is_active ? "var(--foreground)" : "#d1d5db",
               }}
               aria-label="Bật/tắt trạng thái hoạt động"
             >

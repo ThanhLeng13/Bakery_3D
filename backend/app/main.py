@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.core.body_limit import BodySizeLimitMiddleware
 from app.core.config import settings
 from app.core.logging import (
     generate_request_id,
@@ -106,6 +107,15 @@ def create_app() -> FastAPI:
     async def health_check():
         """Health check endpoint for container orchestration."""
         return {"status": "healthy", "app": settings.APP_NAME, "env": settings.APP_ENV}
+
+    # Giới hạn kích thước body ở tầng ASGI — chặn TRƯỚC khi FastAPI phân tích
+    # multipart, vì bộ phân tích đó gom trọn phần thân vào RAM. Không có lớp này
+    # thì một upload rất lớn vẫn làm cạn bộ nhớ trước khi endpoint kịp từ chối.
+    # Xem app/core/body_limit.py để biết vì sao phải là ASGI thuần.
+    app.add_middleware(
+        BodySizeLimitMiddleware,
+        max_body_bytes=settings.MAX_REQUEST_BODY_BYTES,
+    )
 
     # Include API v1 router
     from app.api.v1.router import router as api_v1_router

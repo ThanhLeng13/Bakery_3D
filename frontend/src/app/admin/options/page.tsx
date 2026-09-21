@@ -259,7 +259,7 @@ export default function AdminOptionsPage() {
             </div>
           ) : (
             <table className="w-full">
-              <thead className="bg-cream/50 border-b border-gray-100">
+              <thead className="bg-cream/50 border-b border-line">
                 <tr>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-mocha/50 uppercase tracking-wide">Tên / Nhãn</th>
                   {activeTab === "color" && (
@@ -271,7 +271,7 @@ export default function AdminOptionsPage() {
                   <th className="text-right px-5 py-3 text-xs font-semibold text-mocha/50 uppercase tracking-wide">Hành động</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-line">
                 {options.map((option) => (
                   <tr key={option.id} className={`hover:bg-cream/30 transition-colors ${!option.is_active ? "opacity-50" : ""}`}>
                     <td className="px-5 py-3">
@@ -288,7 +288,7 @@ export default function AdminOptionsPage() {
                         {option.hex_color && (
                           <div className="flex items-center gap-2">
                             <div
-                              className="w-6 h-6 rounded-full border border-gray-200"
+                              className="w-6 h-6 rounded-full border border-line"
                               style={{ backgroundColor: option.hex_color }}
                             />
                             <span className="text-xs text-mocha/50 font-mono">{option.hex_color}</span>
@@ -308,7 +308,7 @@ export default function AdminOptionsPage() {
                         className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                           option.is_active
                             ? "bg-green-100 text-green-700 hover:bg-green-200"
-                            : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                            : "bg-subtle text-muted hover:bg-subtle"
                         }`}
                       >
                         {option.is_active ? "Đang hiện" : "Đã ẩn"}
@@ -359,7 +359,7 @@ export default function AdminOptionsPage() {
       {showModal && (
         <div className="fixed inset-0 bg-mocha/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
-            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+            <div className="flex items-center justify-between p-5 border-b border-line">
               <h2 className="font-heading text-lg font-bold text-mocha">
                 {editingOption ? "Sửa thuộc tính" : "Thêm thuộc tính mới"}
               </h2>
@@ -391,7 +391,7 @@ export default function AdminOptionsPage() {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
                     placeholder="vd: 6_inch, matcha..."
-                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-mocha focus:outline-none focus:ring-2 focus:ring-pink-pastel/30 focus:border-pink-pastel"
+                    className="w-full px-3 py-2.5 rounded-xl border border-line text-sm text-mocha focus:outline-none focus:ring-2 focus:ring-pink-pastel/30 focus:border-pink-pastel"
                   />
                 </div>
                 <div>
@@ -404,7 +404,7 @@ export default function AdminOptionsPage() {
                     onChange={(e) => setFormData({ ...formData, label: e.target.value })}
                     required
                     placeholder="vd: 6 inch (4-8 người)..."
-                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-mocha focus:outline-none focus:ring-2 focus:ring-pink-pastel/30 focus:border-pink-pastel"
+                    className="w-full px-3 py-2.5 rounded-xl border border-line text-sm text-mocha focus:outline-none focus:ring-2 focus:ring-pink-pastel/30 focus:border-pink-pastel"
                   />
                 </div>
               </div>
@@ -419,7 +419,7 @@ export default function AdminOptionsPage() {
                     min={0}
                     step={1000}
                     placeholder="0"
-                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-mocha focus:outline-none focus:ring-2 focus:ring-pink-pastel/30 focus:border-pink-pastel"
+                    className="w-full px-3 py-2.5 rounded-xl border border-line text-sm text-mocha focus:outline-none focus:ring-2 focus:ring-pink-pastel/30 focus:border-pink-pastel"
                   />
                 </div>
                 <div>
@@ -429,7 +429,7 @@ export default function AdminOptionsPage() {
                     value={formData.sort_order}
                     onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })}
                     min={0}
-                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-mocha focus:outline-none focus:ring-2 focus:ring-pink-pastel/30 focus:border-pink-pastel"
+                    className="w-full px-3 py-2.5 rounded-xl border border-line text-sm text-mocha focus:outline-none focus:ring-2 focus:ring-pink-pastel/30 focus:border-pink-pastel"
                   />
                 </div>
               </div>
@@ -443,7 +443,7 @@ export default function AdminOptionsPage() {
                     onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
                     placeholder="vd: 🌸"
                     maxLength={5}
-                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-mocha focus:outline-none focus:ring-2 focus:ring-pink-pastel/30 focus:border-pink-pastel"
+                    className="w-full px-3 py-2.5 rounded-xl border border-line text-sm text-mocha focus:outline-none focus:ring-2 focus:ring-pink-pastel/30 focus:border-pink-pastel"
                   />
                 </div>
                 {activeTab === "color" && (
@@ -454,14 +454,14 @@ export default function AdminOptionsPage() {
                         type="color"
                         value={formData.hex_color || "#000000"}
                         onChange={(e) => setFormData({ ...formData, hex_color: e.target.value })}
-                        className="w-12 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5"
+                        className="w-12 h-10 rounded-lg border border-line cursor-pointer p-0.5"
                       />
                       <input
                         type="text"
                         value={formData.hex_color}
                         onChange={(e) => setFormData({ ...formData, hex_color: e.target.value })}
                         placeholder="#F4A7B9"
-                        className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-mocha focus:outline-none focus:ring-2 focus:ring-pink-pastel/30 focus:border-pink-pastel"
+                        className="flex-1 px-3 py-2.5 rounded-xl border border-line text-sm text-mocha focus:outline-none focus:ring-2 focus:ring-pink-pastel/30 focus:border-pink-pastel"
                       />
                     </div>
                   </div>
@@ -485,7 +485,7 @@ export default function AdminOptionsPage() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 py-2.5 border border-gray-200 text-mocha rounded-xl text-sm font-medium hover:bg-cream transition-colors"
+                  className="flex-1 py-2.5 border border-line text-mocha rounded-xl text-sm font-medium hover:bg-cream transition-colors"
                 >
                   Hủy
                 </button>

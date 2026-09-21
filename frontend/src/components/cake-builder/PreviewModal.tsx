@@ -115,7 +115,7 @@ export function PreviewModal({
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/80 hover:bg-gray-100 transition-colors min-w-[44px] min-h-[44px]"
+          className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/80 hover:bg-subtle transition-colors min-w-[44px] min-h-[44px]"
           aria-label="Đóng"
         >
           <svg
@@ -168,7 +168,7 @@ export function PreviewModal({
               <span className="flex items-center gap-2">
                 {creamColorLabel}
                 <span
-                  className="inline-block w-4 h-4 rounded-full border border-gray-300"
+                  className="inline-block w-4 h-4 rounded-full border border-line"
                   style={{ backgroundColor: design.cream_color }}
                 />
               </span>
@@ -186,7 +186,7 @@ export function PreviewModal({
               </div>
             )}
             {design.special_notes && (
-              <div className="pt-2 border-t border-gray-100">
+              <div className="pt-2 border-t border-line">
                 <span className="font-medium text-mocha">Ghi chú:</span>
                 <p className="mt-1 text-mocha/70 italic">
                   {design.special_notes}
@@ -196,7 +196,7 @@ export function PreviewModal({
           </div>
 
           {/* Price */}
-          <div className="border-t border-gray-100 pt-3">
+          <div className="border-t border-line pt-3">
             <div className="flex justify-between items-center">
               <span className="text-base font-semibold text-mocha">
                 Tổng cộng
@@ -212,7 +212,7 @@ export function PreviewModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 min-h-[44px] rounded-lg border-2 border-gray-200 px-4 py-2.5 text-sm font-semibold text-mocha transition-all duration-150 hover:border-pink-pastel/50 hover:bg-cream focus:outline-none focus:ring-2 focus:ring-pink-pastel/50"
+              className="flex-1 min-h-[44px] rounded-lg border-2 border-line px-4 py-2.5 text-sm font-semibold text-mocha transition-all duration-150 hover:border-pink-pastel/50 hover:bg-cream focus:outline-none focus:ring-2 focus:ring-pink-pastel/50"
             >
               Chỉnh sửa
             </button>
