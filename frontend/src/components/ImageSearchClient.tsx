@@ -161,6 +161,9 @@ export default function ImageSearchClient() {
       const form = new FormData();
       form.append("file", file);
       form.append("match_count", "6");
+      // Tìm trong nhóm bánh sinh nhật — đúng nhu cầu khách tìm theo kiểu mẫu.
+      // Đổi thành "all" nếu muốn tìm cả bánh ngọt.
+      form.append("product_type", "cake");
 
       const response = await fetch(`${API_BASE_URL}/api/v1/search/by-image`, {
         method: "POST",
@@ -336,10 +339,21 @@ export default function ImageSearchClient() {
               </div>
 
               {results.length === 0 ? (
-                <p className="text-muted text-sm rounded-2xl border border-line bg-white px-5 py-4">
-                  Chưa tìm được mẫu bánh nào giống ảnh của bạn. Bạn thử tải ảnh
-                  chụp rõ hơn, hoặc xem toàn bộ menu bánh.
-                </p>
+                <div className="rounded-2xl border border-line bg-white px-5 py-5">
+                  <p className="text-ink text-sm font-medium mb-2">
+                    Chưa tìm được mẫu bánh sinh nhật nào giống ảnh của bạn
+                  </p>
+                  <p className="text-muted text-sm leading-relaxed">
+                    Kho mẫu bánh sinh nhật đang được bổ sung ảnh. Trong lúc chờ,
+                    bạn xem menu bánh hoặc liên hệ tiệm để được tư vấn mẫu gần
+                    giống nhất.
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <Link href="/products" className="btn-secondary">
+                      Xem menu bánh
+                    </Link>
+                  </div>
+                </div>
               ) : (
                 <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                   {results.map((item) => (

@@ -58,14 +58,22 @@ async def search_by_image(
     match_threshold: float = Form(
         default=0.0, ge=0.0, le=1.0, description="Ngưỡng tương đồng tối thiểu"
     ),
+    product_type: str | None = Form(
+        default="cake",
+        description="Lọc theo loại: 'cake' = bánh sinh nhật (mặc định), "
+        "'sweet' = bánh ngọt, 'all' = tất cả",
+    ),
 ):
     """Tìm sản phẩm trong kho gần giống nhất với ảnh khách tải lên.
+
+    Mặc định chỉ tìm trong nhóm bánh sinh nhật (`product_type='cake'`), vì đây
+    là nhóm khách tìm theo kiểu mẫu. Truyền `product_type='all'` để tìm toàn kho.
 
     Quy trình:
         1. Đọc bytes ảnh, kiểm tra hợp lệ (định dạng, kích thước, dung lượng)
         2. Sinh vector 512 chiều bằng CLIP ViT-B-32
-        3. So sánh cosine với toàn bộ embedding trong kho qua RPC match_cakes
-        4. Trả về top-K kèm % tương đồng
+        3. So sánh cosine với embedding trong kho qua RPC match_cakes
+        4. Lọc theo loại sản phẩm, trả về top-K kèm % tương đồng
 
     Lỗi trả về:
         400 - ảnh không hợp lệ hoặc quá nhỏ
@@ -83,6 +91,14 @@ async def search_by_image(
             detail=f"Ảnh quá lớn. Tối đa {MAX_UPLOAD_BYTES // (1024 * 1024)} MB.",
         )
 
+    # Quy ước: "cake" = bánh sinh nhật (mặc định), "sweet" = bánh ngọt,
+    # "all" = toàn kho.
+    #
+    # Lưu ý: chuỗi RỖNG bị FastAPI coi như không gửi field và thay bằng giá trị
+    # mặc định "cake" — đã kiểm chứng bằng test. Nên "" KHÔNG có nghĩa là
+    # "không lọc"; muốn không lọc thì phải gửi đúng chữ "all".
+    filter_type = None if product_type == "all" else product_type
+
     service = ClipSearchService()
     try:
         # search_by_image là hàm ĐỒNG BỘ: nó chạy suy luận CLIP trên CPU (~70ms)
@@ -94,6 +110,7 @@ async def search_by_image(
             raw,
             match_count=match_count,
             match_threshold=match_threshold,
+            product_type=filter_type,
         )
     except ClipServiceError as exc:
         # exc.message là thông báo đã được viết cho người dùng; chi tiết kỹ thuật

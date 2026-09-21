@@ -252,8 +252,16 @@ class ClipSearchService:
         raw: bytes,
         match_count: int = 6,
         match_threshold: float = 0.0,
+        product_type: str | None = None,
     ) -> dict[str, Any]:
         """Trả về danh sách sản phẩm giống nhất kèm độ tương đồng.
+
+        Args:
+            product_type: Lọc theo loại sản phẩm. `"cake"` = chỉ bánh sinh nhật
+                (bánh thiết kế theo kiểu mẫu). None = tìm trong toàn kho.
+                Lọc ở Python chứ không ở SQL vì RPC `match_cakes` không nhận
+                tham số này; phải lấy dư kết quả rồi mới cắt, nếu không sẽ trả
+                về ít hơn `match_count` dù kho còn hàng.
 
         Raises:
             InvalidImageError: ảnh hỏng / không phải ảnh.
@@ -270,6 +278,11 @@ class ClipSearchService:
         match_count = max(1, min(int(match_count), 20))
         match_threshold = max(0.0, min(float(match_threshold), 1.0))
 
+        # Khi lọc theo loại, phải hỏi nhiều hơn để sau khi lọc vẫn đủ kết quả.
+        # Kho hiện có 18 sản phẩm `sweet` và 19 `cake`, nên lấy 60 là dư cho cả
+        # hai trường hợp; vẫn có trần để không kéo cả kho khi dữ liệu phình to.
+        fetch_count = min(match_count * 10, 60) if product_type else match_count
+
         search_started = time.perf_counter()
         try:
             response = self.client.rpc(
@@ -277,7 +290,7 @@ class ClipSearchService:
                 {
                     "query_embedding": vector,
                     "match_threshold": match_threshold,
-                    "match_count": match_count,
+                    "match_count": fetch_count,
                 },
             ).execute()
         except Exception:
@@ -287,8 +300,13 @@ class ClipSearchService:
             )
         search_ms = (time.perf_counter() - search_started) * 1000
 
+        rows = response.data or []
+        if product_type:
+            rows = [r for r in rows if r.get("product_type") == product_type]
+        rows = rows[:match_count]
+
         results = []
-        for row in response.data or []:
+        for row in rows:
             similarity = float(row.get("similarity") or 0.0)
             results.append(
                 {
