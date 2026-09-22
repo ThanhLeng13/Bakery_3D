@@ -39,7 +39,6 @@ logger = logging.getLogger(__name__)
 MODEL_NAME = "ViT-B-32"
 PRETRAINED = "laion2b_s34b_b79k"
 EMBEDDING_DIM = 512
-
 # Kích thước tối đa của ảnh khách tải lên (10 MB).
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
@@ -48,6 +47,15 @@ MIN_IMAGE_SIDE = 32
 
 # CLIP chuẩn hóa ảnh về 224×224 (khớp preprocess của ViT-B-32).
 CLIP_INPUT_SIZE = 224
+
+# Phân trang khi lọc theo loại sản phẩm (xem ClipSearchService._fetch_ranked).
+# Trang đầu không nhỏ hơn ngần này để đỡ phải gọi RPC nhiều lần.
+_MIN_PAGE = 20
+# Trần số dòng quét qua: đủ rộng cho kho vài nghìn sản phẩm, nhưng vẫn chặn
+# được vòng lặp vô hạn nếu RPC hành xử bất thường.
+_MAX_SCAN = 500
+# Trần số lần gọi RPC cho một lượt tìm kiếm.
+_MAX_PAGES = 6
 
 # ─── Cache Supabase client ───────────────────────────────────────────────────
 # create_client() tốn ~216ms (bắt tay TLS + nạp OpenAPI schema PostgREST).
@@ -247,13 +255,97 @@ class ClipSearchService:
             self._client = _client()
         return self._client
 
+    def _fetch_ranked(
+        self,
+        vector: list[float],
+        match_threshold: float,
+        match_count: int,
+        product_type: str | None,
+    ) -> list[dict[str, Any]]:
+        """Lấy `match_count` dòng khớp `product_type`, xếp theo similarity.
+
+        Hỏi RPC theo từng trang và tăng dần kích thước trang cho tới khi đủ kết
+        quả hoặc hết dữ liệu. Cách này đúng cho mọi phân bố: dù nhóm cần tìm nằm
+        cuối bảng điểm, ta vẫn lấy tới khi tìm đủ, thay vì đoán một con số.
+
+        Không lọc (`product_type is None`) thì chỉ gọi RPC một lần đúng
+        `match_count` — giữ nguyên hành vi cũ, không tốn thêm request.
+
+        Trần `_MAX_PAGES` để một kho rất lớn cũng không quét vô hạn: sau khi vét
+        cạn `_MAX_SCAN` dòng mà vẫn không đủ thì trả về những gì đang có.
+        """
+        if not product_type:
+            # Cắt lại tại đây thay vì tin RPC tôn trọng `match_count`: một số
+            # backend bỏ qua giới hạn, và trả nhiều hơn số khách xin là sai.
+            return self._rpc(vector, match_threshold, match_count)[:match_count]
+
+        collected: list[dict[str, Any]] = []
+        page = max(match_count * 2, _MIN_PAGE)
+        scanned = 0
+
+        for _ in range(_MAX_PAGES):
+            batch = self._rpc(vector, match_threshold, page)
+            # RPC trả về ít hơn số xin = đã hết dữ liệu, dừng ngay.
+            exhausted = len(batch) < page
+            scanned = len(batch)
+
+            # THAY THẾ, không cộng dồn.
+            #
+            # `match_cakes` chỉ nhận `match_count`, KHÔNG có offset: xin 40 dòng
+            # nghĩa là "lấy 40 dòng đầu", chứ không phải "lấy 40 dòng tiếp theo".
+            # Đo trên CSDL thật: cả 20 id của trang 1 đều nằm trong trang 2.
+            # Nếu extend() thì kết quả bị trùng — đo được 60 dòng nhưng chỉ có
+            # 40 id duy nhất.
+            #
+            # Tệ hơn, thứ tự giữa các dòng CÙNG ĐIỂM không ổn định giữa hai lần
+            # gọi (đã đo: `b[:20] == a` là False dù 5 dòng đầu giống nhau). Nên
+            # cộng dồn vừa trùng vừa có thể SÓT sản phẩm.
+            #
+            # Trang sau luôn là tập cha của trang trước, nên chỉ cần giữ lại kết
+            # quả mới nhất — vừa đúng, vừa không cần khử trùng lặp.
+            collected = [r for r in batch if r.get("product_type") == product_type]
+
+            if len(collected) >= match_count or exhausted or scanned >= _MAX_SCAN:
+                break
+            page = min(page * 2, _MAX_SCAN)
+
+        return collected[:match_count]
+
+    def _rpc(
+        self, vector: list[float], match_threshold: float, count: int
+    ) -> list[dict[str, Any]]:
+        """Gọi match_cakes một lần. Lỗi mạng/DB → ClipServiceError."""
+        try:
+            response = self.client.rpc(
+                "match_cakes",
+                {
+                    "query_embedding": vector,
+                    "match_threshold": match_threshold,
+                    "match_count": count,
+                },
+            ).execute()
+        except Exception:
+            logger.exception("match_cakes RPC failed")
+            raise ClipServiceError(
+                "Không thể tìm kiếm trong kho mẫu bánh.", status_code=503
+            )
+        return response.data or []
+
     def search_by_image(
         self,
         raw: bytes,
         match_count: int = 6,
         match_threshold: float = 0.0,
+        product_type: str | None = None,
     ) -> dict[str, Any]:
         """Trả về danh sách sản phẩm giống nhất kèm độ tương đồng.
+
+        Args:
+            product_type: Lọc theo loại sản phẩm. `"cake"` = chỉ bánh sinh nhật
+                (bánh thiết kế theo kiểu mẫu). None = tìm trong toàn kho.
+                Lọc ở Python chứ không ở SQL vì RPC `match_cakes` không nhận
+                tham số này; phải lấy dư kết quả rồi mới cắt, nếu không sẽ trả
+                về ít hơn `match_count` dù kho còn hàng.
 
         Raises:
             InvalidImageError: ảnh hỏng / không phải ảnh.
@@ -270,25 +362,28 @@ class ClipSearchService:
         match_count = max(1, min(int(match_count), 20))
         match_threshold = max(0.0, min(float(match_threshold), 1.0))
 
+        # Lọc theo loại sản phẩm.
+        #
+        # RPC `match_cakes` không nhận tham số lọc và luôn xếp hạng theo similarity
+        # trên TOÀN kho, nên phải tự lọc ở đây. Cách làm cũ (xin match_count * 10,
+        # trần 60) là SAI: nó giả định nhóm cần tìm phân bố đều trong bảng điểm.
+        # Đo thật trên kho 105 `cake` + 18 `sweet`: xin 10 dòng chỉ được 3 `cake`,
+        # vì `sweet` chen lên đầu. Khách xin 6 bánh sinh nhật có thể chỉ nhận 3.
+        #
+        # Cách đúng: hỏi từng trang cho tới khi đủ `match_count` dòng khớp, hoặc
+        # tới khi RPC trả về ít hơn số đã xin (hết dữ liệu). Như vậy kết quả không
+        # còn phụ thuộc vào việc nhóm khác xếp hạng cao hay thấp.
         search_started = time.perf_counter()
-        try:
-            response = self.client.rpc(
-                "match_cakes",
-                {
-                    "query_embedding": vector,
-                    "match_threshold": match_threshold,
-                    "match_count": match_count,
-                },
-            ).execute()
-        except Exception:
-            logger.exception("match_cakes RPC failed")
-            raise ClipServiceError(
-                "Không thể tìm kiếm trong kho mẫu bánh.", status_code=503
-            )
+        rows = self._fetch_ranked(
+            vector=vector,
+            match_threshold=match_threshold,
+            match_count=match_count,
+            product_type=product_type,
+        )
         search_ms = (time.perf_counter() - search_started) * 1000
 
         results = []
-        for row in response.data or []:
+        for row in rows:
             similarity = float(row.get("similarity") or 0.0)
             results.append(
                 {

@@ -1,0 +1,8 @@
+{
+  "measured": false,
+  "reason": "moi san pham chi co 1 anh, khong the bo anh test ra khoi kho",
+  "skipped_single_image_products": 101,
+  "images_available": 101,
+  "method": "loai anh test theo image_url; san pham chi co 1 anh bi bo qua",
+  "how_to_fix": "chup them it nhat 1 anh cho moi banh, o goc/anh sang khac"
+}

@@ -333,6 +333,276 @@ class TestSearchEndpoint:
         response = client.post("/api/v1/search/by-image")
         assert response.status_code == 422
 
+
+class TestProductTypeFilter:
+    """Lọc kết quả theo loại sản phẩm.
+
+    Mặc định chỉ tìm bánh sinh nhật (`cake`), vì đó là nhóm khách tìm theo kiểu
+    mẫu. Lọc sai chỗ này sẽ khiến khách tìm bánh sinh nhật nhưng nhận về
+    tiramisu, mà test cũ vẫn xanh vì endpoint vẫn trả 200.
+    """
+
+    @staticmethod
+    def _fake_rows():
+        """Giả lập match_cakes trả về lẫn lộn cake và sweet, xếp theo similarity."""
+        rows = []
+        # sweet có similarity cao hơn — đây chính là ca dễ lọc nhầm.
+        for i in range(6):
+            rows.append({
+                "product_id": f"sweet-{i}",
+                "product_name": f"Bánh ngọt {i}",
+                "image_url": None,
+                "category": "bánh ngọt",
+                "product_type": "sweet",
+                "base_price": 50000,
+                "similarity": 0.9 - i * 0.01,
+            })
+        for i in range(6):
+            rows.append({
+                "product_id": f"cake-{i}",
+                "product_name": f"Bánh kem {i}",
+                "image_url": None,
+                "category": "bánh âu",
+                "product_type": "cake",
+                "base_price": 350000,
+                "similarity": 0.7 - i * 0.01,
+            })
+        return rows
+
+    def _run(self, product_type):
+        from unittest.mock import MagicMock
+
+        from app.services.clip_service import ClipSearchService
+
+        fake_client = MagicMock()
+        fake_client.rpc.return_value.execute.return_value.data = self._fake_rows()
+        service = ClipSearchService(client=fake_client)
+
+        with patch(
+            "app.services.clip_service.embed_image_bytes",
+            return_value=[0.0] * 512,
+        ):
+            result = service.search_by_image(
+                b"x", match_count=4, product_type=product_type
+            )
+        # Tham số đã truyền cho RPC — cần biết đã xin dư kết quả chưa.
+        rpc_args = fake_client.rpc.call_args[0]
+        return result, rpc_args
+
+    def test_filters_to_cake_only(self):
+        """product_type='cake' chỉ trả về bánh kem, dù sweet có điểm cao hơn."""
+        result, _ = self._run("cake")
+
+        assert result["count"] == 4
+        assert all(r["product_type"] == "cake" for r in result["results"])
+        # Và phải là những cái điểm cao nhất TRONG nhóm cake.
+        assert result["results"][0]["name"] == "Bánh kem 0"
+
+    def test_filters_to_sweet_only(self):
+        result, _ = self._run("sweet")
+
+        assert result["count"] == 4
+        assert all(r["product_type"] == "sweet" for r in result["results"])
+
+    def test_no_filter_returns_everything(self):
+        """product_type=None tìm toàn kho, không lọc."""
+        result, _ = self._run(None)
+
+        assert result["count"] == 4
+        # Không lọc thì sweet điểm cao nhất phải đứng đầu.
+        assert result["results"][0]["product_type"] == "sweet"
+
+    def test_filter_requests_extra_rows_from_rpc(self):
+        """Khi lọc, phải xin RPC nhiều hơn match_count.
+
+        Nếu chỉ xin đúng match_count rồi lọc ở Python, kho mà nhóm cần tìm nằm
+        cuối bảng điểm sẽ trả về ít hơn số khách yêu cầu — có khi rỗng — dù kho
+        còn hàng.
+        """
+        _, rpc_args = self._run("cake")
+
+        assert rpc_args[0] == "match_cakes"
+        assert rpc_args[1]["match_count"] > 4, "phai xin du de sau khi loc con du"
+
+    def test_filter_pages_until_enough(self):
+        """Phải lấy đủ kết quả dù nhóm khác xếp hạng cao hơn hẳn.
+
+        Đây là lỗi đã đo được trên kho thật: xin 10 dòng từ match_cakes chỉ nhận
+        về 3 dòng `cake`, vì `sweet` chen lên đầu bảng điểm. Cách cũ (xin
+        match_count * 10 rồi lọc) khiến khách xin 6 bánh sinh nhật chỉ nhận 3.
+
+        Mock ở đây mô phỏng ĐÚNG hành vi thật của match_cakes: RPC không có
+        offset, nên trang sau là TẬP CHA của trang trước (20 dòng đầu giống hệt,
+        chỉ thêm dòng mới ở cuối). Nếu mock trả về tập hoàn toàn khác thì test sẽ
+        không phát hiện được lỗi cộng dồn trùng lặp.
+        """
+        from unittest.mock import MagicMock, patch
+
+        from app.services.clip_service import ClipSearchService
+
+        def row(prefix, group, score):
+            return {
+                "product_id": f"{prefix}", "product_name": f"{group} {prefix}",
+                "product_type": group, "similarity": score,
+                "base_price": 1, "category": "x", "image_url": None,
+            }
+
+        # Trang 1 (20 dòng): 3 `cake` ở đầu rồi toàn `sweet`. Có sẵn `cake` ngay
+        # từ trang 1 để CẢ HAI trang đều đóng góp kết quả khớp — nếu không, phép
+        # cộng dồn trùng lặp sẽ không lộ ra.
+        page1 = ([row(f"c{i}", "cake", 0.9 - i * 0.01) for i in range(3)]
+                 + [row(f"s{i}", "sweet", 0.5 - i * 0.01) for i in range(17)])
+
+        fake_client = MagicMock()
+        # Trang 2 (40 dòng) = trang 1 + 20 dòng `cake` nữa ở cuối. Đây là
+        # superset, giống hệt cách match_cakes trả về khi xin nhiều hơn.
+        page2 = page1 + [row(f"d{i}", "cake", 0.4 - i * 0.01) for i in range(20)]
+        fake_client.rpc.return_value.execute.side_effect = [
+            MagicMock(data=page1),
+            MagicMock(data=page2),
+            MagicMock(data=page2),
+            MagicMock(data=page2),
+        ]
+        service = ClipSearchService(client=fake_client)
+
+        with patch("app.services.clip_service.embed_image_bytes", return_value=[0.0] * 512):
+            result = service.search_by_image(b"x", match_count=10, product_type="cake")
+
+        assert result["count"] == 10, "phai lay du ket qua du nhom khac xep truoc"
+        assert all(r["product_type"] == "cake" for r in result["results"])
+        assert fake_client.rpc.call_count >= 2, "phai goi lai RPC chu khong bo cuoc"
+
+        # Không được trùng: trang 2 là superset của trang 1, nên cộng dồn sẽ cho
+        # ra cùng một sản phẩm nhiều lần ('c0'..'c2' xuất hiện ở cả hai trang).
+        ids = [r["product_id"] for r in result["results"]]
+        assert len(ids) == len(set(ids)), f"ket qua bi trung: {ids}"
+
+    def test_filter_stops_when_rpc_exhausted(self):
+        """RPC hết dữ liệu thì dừng, không gọi lặp vô hạn."""
+        from unittest.mock import MagicMock, patch
+
+        from app.services.clip_service import ClipSearchService
+
+        fake_client = MagicMock()
+        # Trả về ít hơn số xin -> hết dữ liệu.
+        fake_client.rpc.return_value.execute.return_value = MagicMock(
+            data=[{"product_id": "s1", "product_name": "Ngọt", "product_type": "sweet",
+                   "similarity": 0.9, "base_price": 1, "category": "x", "image_url": None}]
+        )
+        service = ClipSearchService(client=fake_client)
+        with patch("app.services.clip_service.embed_image_bytes", return_value=[0.0] * 512):
+            result = service.search_by_image(b"x", match_count=5, product_type="cake")
+
+        assert result["count"] == 0
+        assert fake_client.rpc.call_count == 1
+
+    def test_unfiltered_result_is_capped(self):
+        """Không lọc vẫn phải cắt đúng match_count dù RPC trả nhiều hơn."""
+        from unittest.mock import MagicMock, patch
+
+        from app.services.clip_service import ClipSearchService
+
+        fake_client = MagicMock()
+        fake_client.rpc.return_value.execute.return_value = MagicMock(
+            data=[{"product_id": f"p{i}", "product_name": f"Bánh {i}",
+                   "product_type": "sweet", "similarity": 0.9, "base_price": 1,
+                   "category": "x", "image_url": None} for i in range(30)]
+        )
+        service = ClipSearchService(client=fake_client)
+        with patch("app.services.clip_service.embed_image_bytes", return_value=[0.0] * 512):
+            result = service.search_by_image(b"x", match_count=4, product_type=None)
+
+        assert result["count"] == 4, "khong duoc tra nhieu hon so khach xin"
+
+    def test_filter_does_not_overfetch_when_unfiltered(self):
+        """Không lọc thì không xin dư — tránh kéo cả kho vô ích."""
+        _, rpc_args = self._run(None)
+
+        assert rpc_args[1]["match_count"] == 4
+
+    def test_filter_returns_empty_when_no_match(self):
+        """Lọc ra nhóm không có sản phẩm nào thì trả rỗng, không lỗi."""
+        result, _ = self._run("khong-ton-tai")
+
+        assert result["count"] == 0
+        assert result["results"] == []
+
+    def test_endpoint_defaults_to_cake(self):
+        """Endpoint phải mặc định lọc bánh sinh nhật."""
+        import inspect
+
+        from fastapi.params import Form
+
+        from app.api.v1.endpoints.search import search_by_image
+
+        sig = inspect.signature(search_by_image)
+        default = sig.parameters["product_type"].default
+        # FastAPI bọc giá trị mặc định trong Form(...), nên phải lấy .default
+        # chứ không so trực tiếp với chuỗi.
+        assert isinstance(default, Form)
+        assert default.default == "cake", "mac dinh phai la banh sinh nhat"
+
+    def test_endpoint_treats_all_as_no_filter(self):
+        """'all' nghĩa là không lọc; chuỗi rỗng KHÔNG có nghĩa đó.
+
+        FastAPI coi chuỗi rỗng như field không được gửi và thay bằng mặc định
+        "cake". Hành vi này đã kiểm chứng, nên test ghi lại đúng như thật thay
+        vì mong đợi điều không xảy ra.
+        """
+        from unittest.mock import patch as _patch
+
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+        from app.services.clip_service import ClipSearchService
+
+        captured = {}
+
+        def fake_search(self, raw, match_count=6, match_threshold=0.0, product_type=None):
+            captured["product_type"] = product_type
+            return {"results": [], "count": 0, "timing_ms": {}, "model": "test"}
+
+        client = TestClient(app)
+        with _patch.object(ClipSearchService, "search_by_image", fake_search), \
+             _patch("app.services.clip_service.embed_image_bytes", return_value=[0.0] * 512):
+            # "all" -> không lọc
+            client.post("/api/v1/search/by-image",
+                        files={"file": ("t.jpg", b"x" * 100, "image/jpeg")},
+                        data={"product_type": "all"})
+            assert captured["product_type"] is None
+
+            # Không gửi -> mặc định bánh sinh nhật
+            client.post("/api/v1/search/by-image",
+                        files={"file": ("t.jpg", b"x" * 100, "image/jpeg")})
+            assert captured["product_type"] == "cake"
+
+            # "sweet" -> lọc bánh ngọt
+            client.post("/api/v1/search/by-image",
+                        files={"file": ("t.jpg", b"x" * 100, "image/jpeg")},
+                        data={"product_type": "sweet"})
+            assert captured["product_type"] == "sweet"
+
+    def test_filter_actually_reaches_service(self):
+        """Lọc phải đi tới tận service, không bị nuốt ở tầng endpoint."""
+        from unittest.mock import MagicMock, patch as _patch
+
+        from app.services.clip_service import ClipSearchService
+
+        fake_client = MagicMock()
+        # Trả về lẫn lộn để chắc chắn việc lọc có tác dụng.
+        fake_client.rpc.return_value.execute.return_value.data = [
+            {"product_id": "s1", "product_name": "Ngọt", "product_type": "sweet",
+             "similarity": 0.9, "base_price": 1, "category": "x", "image_url": None},
+            {"product_id": "c1", "product_name": "Kem", "product_type": "cake",
+             "similarity": 0.8, "base_price": 2, "category": "y", "image_url": None},
+        ]
+        service = ClipSearchService(client=fake_client)
+        with _patch("app.services.clip_service.embed_image_bytes", return_value=[0.0] * 512):
+            result = service.search_by_image(b"x", match_count=5, product_type="cake")
+
+        assert result["count"] == 1
+        assert result["results"][0]["name"] == "Kem"
+
     def test_rejects_oversized_upload_at_endpoint(self):
         """Ảnh vượt 10 MB phải bị chặn ở tầng endpoint với HTTP 413.
 

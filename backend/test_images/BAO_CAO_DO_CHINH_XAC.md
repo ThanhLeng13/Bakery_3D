@@ -104,17 +104,36 @@ khác ngoài cái bánh.
 
 ### Kiểm chứng bằng cách cắt bỏ phần thương hiệu
 
-Cắt phần trung tâm ảnh (bỏ logo trên, watermark dưới) rồi đo lại:
+Giả thuyết: nếu vector bị pha loãng bởi logo và chữ, thì cắt bỏ chúng phải làm
+vector tập trung vào bánh hơn, và accuracy phải tăng.
 
-| Món | sim gốc | sim sau khi cắt |
+Đã thử **8 cách tiền xử lý** khác nhau trên ảnh kho, đo lại toàn bộ bằng chính bộ
+test ngoài kho (`scripts/try_preprocessing.py`):
+
+| Cách xử lý ảnh kho | Top-1 | Top-3 |
 |---|---|---|
-| Bánh tiramisu truyền thống | 0.633 | **0.772** (+0.139) |
-| Bánh su kem | 0.577 | **0.652** (+0.075) |
-| Bánh crepe sầu riêng | 0.581 | 0.518 (−0.063) |
-| Bánh Brownie | 0.542 | 0.426 (−0.116) |
+| **Không xử lý (baseline)** | **22.2%** | **55.6%** |
+| Cắt 70% giữa | 16.7% | 44.4% |
+| Cắt 55% giữa | 22.2% | 33.3% |
+| Cắt 45% giữa | 22.2% | 50.0% |
+| Cắt 70% phần dưới (bỏ logo) | 16.7% | 50.0% |
+| Bỏ 20% trên + 12% dưới | 27.8% | 44.4% |
+| Bỏ 26% trên + 12% dưới | 22.2% | 44.4% |
+| Bỏ 32% trên + 14% dưới | 11.1% | 55.6% |
 
-Kết quả **không đồng nhất**: cắt giúp 2 món, làm tệ 2 món. Nên **không thể kết
-luận đơn giản rằng "cắt logo là xong"**. Cần thử nghiệm đầy đủ trước khi kết luận.
+**Kết luận: tiền xử lý KHÔNG cải thiện được gì.**
+
+Cách tốt nhất theo top-1 ("bỏ 20% trên + 12% dưới") đạt 27.8%, tức **+5.6 điểm**.
+Nhưng chính cách đó lại làm **top-3 GIẢM 11.2 điểm** (55.6% → 44.4%). Với bộ test
+18 ảnh, **một ảnh đổi kết quả = 5.6 điểm**, nên mức +5.6 này **nằm trong nhiễu**,
+không phải tiến bộ thật.
+
+Đây là lý do báo cáo này **không** khuyến nghị cắt logo như một giải pháp. Giả
+thuyết "vector bị pha loãng bởi thương hiệu" có bằng chứng gián tiếp mạnh (mục
+4), nhưng **cách sửa bằng cắt ảnh đã bị thực nghiệm bác bỏ**.
+
+Nguyên nhân có thể: cắt ảnh làm mất luôn ngữ cảnh (khay, nền, bố cục) — những
+thứ giúp ích cho việc nhận diện — trong khi phần chữ chỉ chiếm một phần nhỏ vector.
 
 ---
 
@@ -134,37 +153,132 @@ Cần nói rõ để không báo cáo quá mức:
 
 ---
 
+## 5B. CẢNH BÁO: CON SỐ "100%" CỦA KHO MỚI CŨNG LÀ LỖI ĐO
+
+Sau khi nhập 101 bánh mới, một lần đo hold-out từng báo **top-1 100%** (101/101).
+**Con số đó SAI** và không được dùng trong luận văn. Đây là lỗi ở khâu đo, không
+phải kết quả thật.
+
+**Nguyên nhân:** mỗi sản phẩm trong kho chỉ có **đúng 1 ảnh** (117/119 sản phẩm).
+Script đo cũ, khi gặp sản phẩm chỉ có một embedding, đã lấy `sims[0]` — mà `sims[0]`
+chính là **ảnh test so với chính nó**, nên cosine ≈ 1.0. Nói cách khác nó không hề
+bỏ ảnh test ra khỏi kho, mà so ảnh với chính nó rồi báo "tìm đúng". Kết quả 100% là
+**hiển nhiên**, không phải thành tích.
+
+**Đã sửa:** `evaluate_new_catalog.py` giờ loại ảnh test theo **khoá ảnh
+(`image_url`)**, không theo vị trí. Chạy lại thì script **từ chối in số** và báo:
+
+```
+KHONG cham duoc anh nao — dung lai, khong ghi bao cao.
+Da bo qua 101 san pham vi chi co 1 anh duy nhat.
+```
+
+Đó là hành vi đúng: khi mỗi sản phẩm chỉ có 1 ảnh, **không tồn tại** phép đo
+hold-out công bằng nào. Bỏ ảnh test ra thì kho của sản phẩm đó rỗng.
+
+**Cần gì để đo được thật:** mỗi sản phẩm phải có **từ 2 ảnh trở lên** — một ảnh để
+trong kho làm mẫu, một ảnh làm "ảnh khách chụp". Với 101 bánh thì cần chụp thêm
+101 ảnh nữa, lý tưởng là ở điều kiện khác (góc khác, ánh sáng khác, nền khác).
+
+**Con số duy nhất còn dùng được** là phép đo trên kho CŨ (mục 3): **top-1 22,2%**,
+top-3 55,6%. Phép đo đó dùng ảnh Wikimedia khác nguồn hoàn toàn, nên hợp lệ — dù
+bộ test nhỏ và kho cũ có ảnh mang thương hiệu (mục 4).
+
+---
+
 ## 6. KHUYẾN NGHỊ
 
-### Ưu tiên 1 — Sửa dữ liệu kho (tác động lớn nhất)
+Thứ tự dưới đây xếp theo **tác động đã đo được**, không theo mức độ dễ làm.
 
-Ảnh kho cần là **ảnh chụp sản phẩm thuần**, không logo, không chữ, không
-watermark. Đây là nguyên nhân gốc đã kiểm chứng. Cách làm:
-- Chụp lại ảnh sản phẩm trên nền trung tính, không chèn chữ
-- Hoặc cắt bỏ phần chữ/logo trước khi embed — **nhưng phải đo lại đầy đủ**, vì
-  thử nghiệm sơ bộ cho thấy cắt không phải lúc nào cũng tốt hơn
+### Ưu tiên 1 — Sửa dữ liệu kho (tác động lớn nhất, CHƯA đo được mức cải thiện)
+
+Ảnh kho cần là **ảnh chụp sản phẩm thuần**: không logo, không chữ, không
+watermark. Đây là nguyên nhân gốc (mục 4).
+
+**Nhưng phải nói thật:** giả thuyết này **chưa được chứng minh là sửa được**.
+Cách sửa rẻ nhất — cắt ảnh — đã bị thực nghiệm **bác bỏ** (mục 4). Cách còn lại là
+**chụp lại ảnh mới**, và chưa có dữ liệu để biết nó cải thiện bao nhiêu.
+
+Đây là việc nên làm, nhưng **không nên hứa hẹn con số** trước khi đo.
 
 ### Ưu tiên 2 — Bổ sung ảnh cho 4 bánh kem còn thiếu
 
 Hiện CLIP **không thể** match nhóm này. Đây là nhóm khách tìm nhiều nhất (bánh
-sinh nhật).
+sinh nhật). Việc này chắc chắn có tác động, vì hiện tại 4 sản phẩm này chắc chắn
+0% — thêm ảnh là từ 0 lên có.
 
-### Ưu tiên 3 — Thêm ảnh mỗi sản phẩm (nhiều góc)
+### Ưu tiên 3 — Nâng lên ViT-L-14 (đã đo, +22.2 điểm top-1)
 
-Mỗi sản phẩm nên có 3–5 ảnh ở các góc/ánh sáng khác nhau, để embedding phủ được
-nhiều biến thể. Hiện chỉ 2 sản phẩm có 2 ảnh.
+Đây là cải thiện **đã đo được, không phải phỏng đoán**. Đánh đổi:
+- Chậm hơn 9,2 lần (97ms → 894ms/ảnh)
+- RAM 1,4 GB → 3,6 GB
+- Cần đổi cột `embedding` từ `vector(512)` sang `vector(768)` và **nhúng lại
+  toàn bộ kho**
+- **Vẫn không sửa được vấn đề gốc** và vẫn không đủ tách nhóm để đặt ngưỡng
 
-### Ưu tiên 4 — Đặt ngưỡng từ chối
+### Ưu tiên 4 — Thêm ảnh mỗi sản phẩm (nhiều góc) — **giờ là ưu tiên BẮT BUỘC**
 
-Với khoảng cách hai nhóm chỉ +0.103, **chưa nên** đặt ngưỡng tự tin. Nên:
-- Hiển thị top-3 kèm **phần trăm giống** để khách tự chọn, thay vì chỉ trả 1 kết quả
-- Ghi rõ "kết quả gần đúng" thay vì khẳng định đây là bánh khách muốn
+Mỗi sản phẩm nên có 3–5 ảnh ở các góc/ánh sáng khác nhau. Hiện **117/119 sản phẩm
+chỉ có 1 ảnh**.
+
+Trước đây mục này chỉ là "nên làm cho tốt hơn". Sau khi phát hiện lỗi đo ở mục 5B,
+nó thành **điều kiện bắt buộc để có bất kỳ con số accuracy thật nào**: với 1 ảnh mỗi
+sản phẩm thì không thể bỏ ảnh test ra khỏi kho, nên không thể đo hold-out.
+
+Đây là việc tốn công nhất nhưng cũng là việc duy nhất mở khoá được con số đáng
+trích dẫn. Chụp thêm 1 ảnh cho mỗi bánh, ở điều kiện khác ảnh đang có.
+
+### Ưu tiên 5 — Hiển thị top-3 kèm phần trăm, đừng khẳng định
+
+Với khoảng cách hai nhóm gần bằng 0 (−0.006 với ViT-B-32, +0.021 với ViT-L-14),
+**không ngưỡng nào tách sạch được**. Nên:
+- Hiển thị **top-3 kèm % giống** để khách tự chọn
+- Ghi rõ **"kết quả gần đúng"**, không khẳng định "đây là bánh bạn muốn"
+- Đây là cách trung thực với người dùng khi model chưa đủ tin cậy
 
 ### Hướng cải thiện model (nếu còn thời gian)
 
-- Thử model lớn hơn: `ViT-L-14` (vector 768) — thường tốt hơn `ViT-B-32` rõ rệt
-- Thử `SigLIP` — huấn luyện trên dữ liệu lớn hơn, nhạy với ảnh sản phẩm hơn
-- **Nhưng phải sửa dữ liệu trước**, vì model tốt hơn vẫn bị ảnh có logo làm nhiễu
+Đã thử nghiệm thật, không chỉ đề xuất suông (`scripts/compare_models.py`):
+
+| Model | Vector | Top-1 | Top-3 | ms/ảnh | RAM |
+|---|---|---|---|---|---|
+| **ViT-B-32** (đang dùng) | 512 | 22.2% | 55.6% | **97** | **1.4 GB** |
+| **ViT-L-14** | 768 | **44.4%** | **66.7%** | 894 | 3.6 GB |
+
+**ViT-L-14 gấp đôi top-1 (+22.2 điểm) và tăng top-3 (+11.1 điểm).**
+
+Nhưng phải đọc con số này cho đúng — ba điều cần lưu ý:
+
+1. **Chậm hơn 9,2 lần** (97ms → 894ms mỗi ảnh trên CPU). Tìm kiếm ảnh sẽ từ
+   ~0,4 giây thành ~4 giây.
+2. **Tốn RAM gấp 2,6 lần** (1,4 GB → 3,6 GB). Cần kiểm tra máy chủ triển khai
+   có đủ không.
+3. **KHÔNG sửa được vấn đề gốc.** Kiểm tra lại từng món với ViT-L-14:
+
+   | Món | sim với CHÍNH nó | sim với món KHÁC |
+   |---|---|---|
+   | Bánh tiramisu | 0.376 | 0.608 (Dark Oreo) — **vẫn nhầm** |
+   | Bánh crepe sầu riêng | 0.374 | 0.613 (Rau câu flan) — **vẫn nhầm** |
+   | Bánh su kem | 0.513 | 0.615 (Bánh tart trứng) — **vẫn nhầm** |
+
+   Đúng những món thất bại với ViT-B-32 **vẫn thất bại** với ViT-L-14. Model to
+   hơn chỉ **may mắn đúng ở nhiều món khác hơn**, chứ không tạo ra ranh giới rõ
+   ràng hơn giữa "có trong kho" và "không có".
+
+   Bằng chứng: khoảng cách similarity giữa nhóm trong kho và ngoài kho chỉ đi từ
+   **−0.006** lên **+0.021**. Vẫn gần như bằng 0. Nghĩa là **vẫn không thể đặt
+   ngưỡng từ chối đáng tin cậy** dù dùng model nào.
+
+**Kết luận về model:** nâng lên ViT-L-14 là một cải thiện **có thật và đo được**,
+đáng làm **nếu** máy chủ chịu được 3,6 GB RAM và độ trễ 4 giây. Nhưng nó **không
+thay thế được việc sửa dữ liệu** — vẫn phải làm Khuyến nghị 1 và 2 bên dưới.
+
+### Hướng khác chưa thử
+
+- `ViT-H-14` (vector 1024) — còn lớn hơn nữa, RAM có thể vượt 6 GB
+- `SigLIP` — huấn luyện trên dữ liệu lớn hơn, có thể nhạy với ảnh sản phẩm hơn
+- Fine-tune trên chính ảnh của tiệm — hiệu quả nhất nhưng cần nhiều ảnh có nhãn,
+  mà hiện kho chỉ có 20 ảnh
 
 ---
 
@@ -173,7 +287,14 @@ Với khoảng cách hai nhóm chỉ +0.103, **chưa nên** đặt ngưỡng t�
 ```bash
 cd backend
 python scripts/collect_test_images.py      # tải bộ ảnh test (cần mạng)
-python scripts/evaluate_clip_accuracy.py   # đo accuracy
+python scripts/evaluate_clip_accuracy.py   # đo accuracy: top-1 22.2%
+python scripts/try_preprocessing.py        # thử 8 cách tiền xử lý ảnh
+python scripts/compare_models.py           # so ViT-B-32 với ViT-L-14
 ```
 
-Kết quả chi tiết lưu ở `backend/test_images/accuracy_report.json`.
+Kết quả chi tiết:
+- `backend/test_images/accuracy_report.json` — từng ảnh, top-1/top-3
+- `backend/test_images/preprocessing_results.json` — 8 chiến lược tiền xử lý
+- `backend/test_images/model_comparison.json` — so sánh hai model
+
+Lưu ý: `compare_models.py` tải ViT-L-14 (~1,6 GB) ở lần chạy đầu.
