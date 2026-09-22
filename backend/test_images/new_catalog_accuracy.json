@@ -1,11 +1,8 @@
 {
-  "n": 101,
-  "top1_pct": 100.0,
-  "top3_pct": 100.0,
-  "top5_pct": 100.0,
-  "mean_gap": 0.2237,
-  "min_gap": 0.1245,
-  "max_gap": 0.4003,
-  "false_accept": 0,
-  "limitation": "anh test chup cung buoi voi anh kho; khach chup tai nha se kho hon"
+  "measured": false,
+  "reason": "moi san pham chi co 1 anh, khong the bo anh test ra khoi kho",
+  "skipped_single_image_products": 101,
+  "images_available": 101,
+  "method": "loai anh test theo image_url; san pham chi co 1 anh bi bo qua",
+  "how_to_fix": "chup them it nhat 1 anh cho moi banh, o goc/anh sang khac"
 }

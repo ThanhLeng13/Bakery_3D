@@ -226,6 +226,20 @@ def main() -> int:
         print(f"  Da bo qua {skipped_single} san pham vi chi co 1 anh duy nhat.")
         print("  Muon do duoc thi moi san pham can TU 2 ANH tro len:")
         print("  mot anh de trong kho, mot anh lam anh khach.")
+
+        # Ghi lai LY DO khong do duoc. Neu chi thoat ma khong de lai gi thi lan
+        # sau kho tai lap lai tu dau. File nay KHONG chua so accuracy — ghi ro
+        # `measured: false` de khong ai doc nham thanh ket qua.
+        OUT_JSON.parent.mkdir(exist_ok=True)
+        OUT_JSON.write_text(json.dumps({
+            "measured": False,
+            "reason": "moi san pham chi co 1 anh, khong the bo anh test ra khoi kho",
+            "skipped_single_image_products": skipped_single,
+            "images_available": len(query_vecs),
+            "method": "loai anh test theo image_url; san pham chi co 1 anh bi bo qua",
+            "how_to_fix": "chup them it nhat 1 anh cho moi banh, o goc/anh sang khac",
+        }, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"  Da ghi ly do (khong co so accuracy): {OUT_JSON}")
         return 1
 
     print("=" * 74)
