@@ -94,12 +94,6 @@ def main() -> int:
                         help="Chỉ xem trước, không ghi lên Supabase")
     args = parser.parse_args()
 
-    url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-    if not url or not key:
-        print("LOI: Thieu SUPABASE_URL hoac SUPABASE_SERVICE_ROLE_KEY trong backend/.env")
-        return 2
-
     rows = read_sheet(args.sheet)
 
     # Gộp theo tên: nhiều ảnh cùng tên = nhiều góc của cùng một sản phẩm.
@@ -146,6 +140,14 @@ def main() -> int:
         print()
         print("  DRY RUN: khong ghi gi. Bo --dry-run de chay that.")
         return 0
+
+    # Chỉ cần thông tin đăng nhập khi THỰC SỰ ghi lên Supabase. Kiểm tra sớm
+    # (trước cả --dry-run) sẽ khiến xem trước vô dụng khi chưa cấu hình .env.
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    if not url or not key:
+        print("LOI: Thieu SUPABASE_URL hoac SUPABASE_SERVICE_ROLE_KEY trong backend/.env")
+        return 2
 
     client = create_client(url, key)
 

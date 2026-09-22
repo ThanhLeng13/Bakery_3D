@@ -153,6 +153,39 @@ Cần nói rõ để không báo cáo quá mức:
 
 ---
 
+## 5B. CẢNH BÁO: CON SỐ "100%" CỦA KHO MỚI CŨNG LÀ LỖI ĐO
+
+Sau khi nhập 101 bánh mới, một lần đo hold-out từng báo **top-1 100%** (101/101).
+**Con số đó SAI** và không được dùng trong luận văn. Đây là lỗi ở khâu đo, không
+phải kết quả thật.
+
+**Nguyên nhân:** mỗi sản phẩm trong kho chỉ có **đúng 1 ảnh** (117/119 sản phẩm).
+Script đo cũ, khi gặp sản phẩm chỉ có một embedding, đã lấy `sims[0]` — mà `sims[0]`
+chính là **ảnh test so với chính nó**, nên cosine ≈ 1.0. Nói cách khác nó không hề
+bỏ ảnh test ra khỏi kho, mà so ảnh với chính nó rồi báo "tìm đúng". Kết quả 100% là
+**hiển nhiên**, không phải thành tích.
+
+**Đã sửa:** `evaluate_new_catalog.py` giờ loại ảnh test theo **khoá ảnh
+(`image_url`)**, không theo vị trí. Chạy lại thì script **từ chối in số** và báo:
+
+```
+KHONG cham duoc anh nao — dung lai, khong ghi bao cao.
+Da bo qua 101 san pham vi chi co 1 anh duy nhat.
+```
+
+Đó là hành vi đúng: khi mỗi sản phẩm chỉ có 1 ảnh, **không tồn tại** phép đo
+hold-out công bằng nào. Bỏ ảnh test ra thì kho của sản phẩm đó rỗng.
+
+**Cần gì để đo được thật:** mỗi sản phẩm phải có **từ 2 ảnh trở lên** — một ảnh để
+trong kho làm mẫu, một ảnh làm "ảnh khách chụp". Với 101 bánh thì cần chụp thêm
+101 ảnh nữa, lý tưởng là ở điều kiện khác (góc khác, ánh sáng khác, nền khác).
+
+**Con số duy nhất còn dùng được** là phép đo trên kho CŨ (mục 3): **top-1 22,2%**,
+top-3 55,6%. Phép đo đó dùng ảnh Wikimedia khác nguồn hoàn toàn, nên hợp lệ — dù
+bộ test nhỏ và kho cũ có ảnh mang thương hiệu (mục 4).
+
+---
+
 ## 6. KHUYẾN NGHỊ
 
 Thứ tự dưới đây xếp theo **tác động đã đo được**, không theo mức độ dễ làm.
@@ -183,10 +216,17 @@ sinh nhật). Việc này chắc chắn có tác động, vì hiện tại 4 s�
   toàn bộ kho**
 - **Vẫn không sửa được vấn đề gốc** và vẫn không đủ tách nhóm để đặt ngưỡng
 
-### Ưu tiên 4 — Thêm ảnh mỗi sản phẩm (nhiều góc)
+### Ưu tiên 4 — Thêm ảnh mỗi sản phẩm (nhiều góc) — **giờ là ưu tiên BẮT BUỘC**
 
-Mỗi sản phẩm nên có 3–5 ảnh ở các góc/ánh sáng khác nhau. Hiện chỉ 2 sản phẩm có
-2 ảnh. Chưa đo được tác động vì kho hiện quá ít ảnh.
+Mỗi sản phẩm nên có 3–5 ảnh ở các góc/ánh sáng khác nhau. Hiện **117/119 sản phẩm
+chỉ có 1 ảnh**.
+
+Trước đây mục này chỉ là "nên làm cho tốt hơn". Sau khi phát hiện lỗi đo ở mục 5B,
+nó thành **điều kiện bắt buộc để có bất kỳ con số accuracy thật nào**: với 1 ảnh mỗi
+sản phẩm thì không thể bỏ ảnh test ra khỏi kho, nên không thể đo hold-out.
+
+Đây là việc tốn công nhất nhưng cũng là việc duy nhất mở khoá được con số đáng
+trích dẫn. Chụp thêm 1 ảnh cho mỗi bánh, ở điều kiện khác ảnh đang có.
 
 ### Ưu tiên 5 — Hiển thị top-3 kèm phần trăm, đừng khẳng định
 

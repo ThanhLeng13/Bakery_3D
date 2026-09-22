@@ -424,6 +424,76 @@ class TestProductTypeFilter:
         assert rpc_args[0] == "match_cakes"
         assert rpc_args[1]["match_count"] > 4, "phai xin du de sau khi loc con du"
 
+    def test_filter_pages_until_enough(self):
+        """Phải lấy đủ kết quả dù nhóm khác xếp hạng cao hơn hẳn.
+
+        Đây là lỗi đã đo được trên kho thật: xin 10 dòng từ match_cakes chỉ nhận
+        về 3 dòng `cake`, vì `sweet` chen lên đầu bảng điểm. Cách cũ (xin
+        match_count * 10 rồi lọc) khiến khách xin 6 bánh sinh nhật chỉ nhận 3.
+        """
+        from unittest.mock import MagicMock, patch
+
+        from app.services.clip_service import ClipSearchService
+
+        def row(prefix, group, score):
+            return {
+                "product_id": f"{prefix}", "product_name": f"{group} {prefix}",
+                "product_type": group, "similarity": score,
+                "base_price": 1, "category": "x", "image_url": None,
+            }
+
+        fake_client = MagicMock()
+        # Trang 1: toàn `sweet`. Trang 2: mới có `cake`.
+        fake_client.rpc.return_value.execute.side_effect = [
+            MagicMock(data=[row(f"s{i}", "sweet", 0.9 - i * 0.01) for i in range(20)]),
+            MagicMock(data=[row(f"c{i}", "cake", 0.5 - i * 0.01) for i in range(20)]),
+        ]
+        service = ClipSearchService(client=fake_client)
+
+        with patch("app.services.clip_service.embed_image_bytes", return_value=[0.0] * 512):
+            result = service.search_by_image(b"x", match_count=3, product_type="cake")
+
+        assert result["count"] == 3, "phai lay du ket qua du nhom khac xep truoc"
+        assert all(r["product_type"] == "cake" for r in result["results"])
+        assert fake_client.rpc.call_count >= 2, "phai goi lai RPC chu khong bo cuoc"
+
+    def test_filter_stops_when_rpc_exhausted(self):
+        """RPC hết dữ liệu thì dừng, không gọi lặp vô hạn."""
+        from unittest.mock import MagicMock, patch
+
+        from app.services.clip_service import ClipSearchService
+
+        fake_client = MagicMock()
+        # Trả về ít hơn số xin -> hết dữ liệu.
+        fake_client.rpc.return_value.execute.return_value = MagicMock(
+            data=[{"product_id": "s1", "product_name": "Ngọt", "product_type": "sweet",
+                   "similarity": 0.9, "base_price": 1, "category": "x", "image_url": None}]
+        )
+        service = ClipSearchService(client=fake_client)
+        with patch("app.services.clip_service.embed_image_bytes", return_value=[0.0] * 512):
+            result = service.search_by_image(b"x", match_count=5, product_type="cake")
+
+        assert result["count"] == 0
+        assert fake_client.rpc.call_count == 1
+
+    def test_unfiltered_result_is_capped(self):
+        """Không lọc vẫn phải cắt đúng match_count dù RPC trả nhiều hơn."""
+        from unittest.mock import MagicMock, patch
+
+        from app.services.clip_service import ClipSearchService
+
+        fake_client = MagicMock()
+        fake_client.rpc.return_value.execute.return_value = MagicMock(
+            data=[{"product_id": f"p{i}", "product_name": f"Bánh {i}",
+                   "product_type": "sweet", "similarity": 0.9, "base_price": 1,
+                   "category": "x", "image_url": None} for i in range(30)]
+        )
+        service = ClipSearchService(client=fake_client)
+        with patch("app.services.clip_service.embed_image_bytes", return_value=[0.0] * 512):
+            result = service.search_by_image(b"x", match_count=4, product_type=None)
+
+        assert result["count"] == 4, "khong duoc tra nhieu hon so khach xin"
+
     def test_filter_does_not_overfetch_when_unfiltered(self):
         """Không lọc thì không xin dư — tránh kéo cả kho vô ích."""
         _, rpc_args = self._run(None)

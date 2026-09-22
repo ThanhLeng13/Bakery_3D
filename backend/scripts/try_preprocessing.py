@@ -150,10 +150,22 @@ def main() -> int:
             top1 += int(ranked[0] == expected)
             top3 += int(expected in ranked[:3])
         n = len(test_vecs)
+        if n == 0:
+            # Chia cho 0 se no ra ZeroDivisionError. Bao ro nguyen nhan.
+            print("  KHONG co anh test nao dung duoc — dung lai.")
+            print("  Kiem tra manifest.json va thu muc test_images/ con du khong?")
+            return 1
         acc1, acc3 = top1 / n * 100, top3 / n * 100
         results.append((name, acc1, acc3, errors))
         print(f"  {name:28s} top-1 {acc1:5.1f}%   top-3 {acc3:5.1f}%"
               + (f"   ({errors} loi)" if errors else ""))
+
+    if not results:
+        # Khong chien luoc nao ra ket qua: `results[0]` ben duoi se IndexError.
+        print()
+        print("  KHONG co chien luoc nao tao duoc embedding — dung lai.")
+        print("  Thuong do khong tai duoc anh kho. Kiem tra ket noi Supabase.")
+        return 1
 
     print()
     print("=" * 74)

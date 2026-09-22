@@ -29,6 +29,7 @@ LƯU Ý VỀ ẢNH
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
 import os
 import sys
@@ -180,16 +181,36 @@ def main() -> int:
     # ─── Tải lên Storage + ghi product_images ────────────────────────────────
     print()
     print("  Dang tai len Storage...")
-    added = failed = 0
+    added = failed = reused = 0
     for image, product in planned:
         ext = image.suffix.lower().lstrip(".")
-        object_path = f"{product['id']}/{image.stem}-{abs(hash(str(image))) % 100000}.{ext}"
+        # Băm ĐƯỜNG DẪN TƯƠNG ĐỐI bằng sha1, KHÔNG dùng hash() của Python.
+        # hash() của str bị đổi theo tiến trình (PYTHONHASHSEED ngẫu nhiên), nên
+        # mỗi lần chạy lại ra một đường dẫn khác -> tải lên trùng lặp, Storage
+        # đầy rác và không thể chạy lại an toàn. Đã đo: 3 lần chạy ra 3 số khác
+        # nhau. sha1 thì luôn cho cùng kết quả.
+        try:
+            rel = image.relative_to(IMAGE_ROOT).as_posix()
+        except ValueError:
+            rel = image.name
+        digest = hashlib.sha1(rel.encode("utf-8")).hexdigest()[:10]
+        object_path = f"{product['id']}/{image.stem}-{digest}.{ext}"
         try:
             client.storage.from_(BUCKET).upload(
                 object_path,
                 image.read_bytes(),
                 {"content-type": f"image/{'jpeg' if ext in ('jpg', 'jpeg') else ext}"},
             )
+        except Exception as exc:
+            # Đường dẫn đã tồn tại = lần chạy trước đã tải lên rồi. Đây là chạy
+            # lại, không phải lỗi — dùng lại file cũ thay vì báo thất bại.
+            if "already exists" in str(exc).lower() or "duplicate" in str(exc).lower():
+                reused += 1
+            else:
+                failed += 1
+                print(f"    ! {product['name']}/{image.name}: {type(exc).__name__}")
+                continue
+        try:
             public_url = client.storage.from_(BUCKET).get_public_url(object_path)
             if public_url in have_url:
                 print(f"    = {product['name']}/{image.name} (da co, bo qua)")
@@ -207,6 +228,7 @@ def main() -> int:
     print()
     print("=" * 74)
     print(f"  Da them : {added}")
+    print(f"  Dung lai: {reused} (da co tren Storage tu lan chay truoc)")
     print(f"  That bai: {failed}")
     print("=" * 74)
 

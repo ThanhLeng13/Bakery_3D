@@ -100,64 +100,94 @@ def main() -> int:
     print(f"  Anh test (bi bo khoi kho): {len(queries)}")
     print()
 
-    # Nhung embedding anh test
+    # Nhung embedding anh test. Mang theo image_url de biet chinh xac anh nao
+    # can bi loai khoi kho — day la khoa on dinh, khong phu thuoc thu tu.
     print("  Dang nhung anh test...")
     t0 = time.perf_counter()
+    url_by_product: dict[str, str] = {}
+    for row in rows:
+        url_by_product.setdefault(row["product_id"], row.get("image_url") or "")
+
     query_vecs = []
     for pid, item in queries:
         path = IMAGE_ROOT / item["thu_muc"] / item["file"]
         if not path.exists():
             continue
         try:
-            query_vecs.append((pid, item["ten_banh"], embed(path.read_bytes())))
+            query_vecs.append((pid, item["ten_banh"], embed(path.read_bytes()),
+                               url_by_product.get(pid, "")))
         except Exception as exc:
             print(f"    ! {item['file'][:34]}: {type(exc).__name__}")
     print(f"  {len(query_vecs)} anh, {time.perf_counter()-t0:.1f}s")
     print()
 
-    # Nhung lai toan bo kho (tru 1 anh moi san pham)
-    print("  Dang nhung lai kho (da bo anh test)...")
+    # Nhung lai toan bo kho, giu khoa anh de lat nua loai dung anh test.
+    print("  Dang nhung lai kho (de loai anh test ra)...")
     t0 = time.perf_counter()
-    holdout = {pid for pid, _ in queries}
-    catalog: dict[str, list[np.ndarray]] = {}
+    catalog_by_image: dict[str, list[tuple[str, np.ndarray]]] = {}
     for row in rows:
         pid = row["product_id"]
+        url = row.get("image_url") or ""
         try:
-            req = urllib.request.Request(row["image_url"], headers={"User-Agent": "BakeryThesis/1.0"})
+            req = urllib.request.Request(url, headers={"User-Agent": "BakeryThesis/1.0"})
             with urllib.request.urlopen(req, timeout=60) as resp:
                 raw = resp.read()
             vec = embed(raw)
         except Exception:
             continue
-        catalog.setdefault(pid, []).append(vec)
-    print(f"  {sum(len(v) for v in catalog.values())} embedding / {len(catalog)} mon, "
-          f"{time.perf_counter()-t0:.1f}s")
+        catalog_by_image.setdefault(pid, []).append((url, vec))
+    print(f"  {sum(len(v) for v in catalog_by_image.values())} embedding / "
+          f"{len(catalog_by_image)} mon, {time.perf_counter()-t0:.1f}s")
     print()
 
-    # Đo: bỏ embedding của chính ảnh test ra khỏi kho.
-    # Vì không biết embedding nào ứng với ảnh nào, ta mô phỏng bằng cách so ảnh
-    # test với TẤT CẢ embedding của sản phẩm khác, và với embedding của chính
-    # sản phẩm đó TRỪ ĐI cái gần nhất (chính là chính nó).
+    # Đo hold-out: bỏ ĐÚNG ảnh đang test ra khỏi kho, rồi mới tìm.
+    #
+    # Cách cũ SAI: khi sản phẩm chỉ có 1 embedding, nó lấy sims[0] — mà sims[0]
+    # chính là ảnh test so với chính nó, nên luôn ~1.0 và cho ra 100% giả. Bản
+    # trước báo "top-1 100%" nhưng thực chất chỉ là ảnh so với chính nó.
+    #
+    # Lần này loại theo KHOÁ ẢNH (image_url), không theo vị trí, và chỉ chấm điểm
+    # khi sản phẩm còn ít nhất 1 ảnh khác. Sản phẩm chỉ có 1 ảnh thì BỎ QUA, vì
+    # không còn gì để so — đưa vào sẽ thổi phồng kết quả.
     top1 = top3 = top5 = 0
     gaps = []
     details = []
-    for pid, name, tv in query_vecs:
+    skipped_single = 0
+
+    for pid, name, tv, query_url in query_vecs:
+        entries = catalog_by_image.get(pid, [])
+        # Bỏ ảnh đang test khỏi kho của chính sản phẩm đó.
+        remaining = [(u, v) for (u, v) in entries if u != query_url]
+        if not remaining:
+            # Không còn ảnh nào khác -> không thể chấm điểm công bằng.
+            skipped_single += 1
+            continue
+
         scored = []
-        for p, vecs in catalog.items():
-            sims = sorted((float(np.dot(tv, v)) for v in vecs), reverse=True)
-            if p == pid and len(sims) > 1:
-                # Bỏ cái cao nhất = chính ảnh test
-                best = sims[1]
-            elif p == pid:
-                best = sims[0]
+        for p, items in catalog_by_image.items():
+            if p == pid:
+                pool = [v for (u, v) in items if u != query_url]
+                if not pool:
+                    continue
             else:
-                best = sims[0]
-            scored.append((best, p))
+                pool = [v for (_u, v) in items]
+            if not pool:
+                continue
+            scored.append((max(float(np.dot(tv, v)) for v in pool), p))
+
+        if not scored:
+            skipped_single += 1
+            continue
+
         scored.sort(reverse=True)
         ranked = [p for _, p in scored]
 
-        own = next(s for s, p in scored if p == pid)
-        other = max(s for s, p in scored if p != pid)
+        own = next((s for s, p in scored if p == pid), None)
+        others = [s for s, p in scored if p != pid]
+        if own is None or not others:
+            skipped_single += 1
+            continue
+        other = max(others)
         gaps.append(own - other)
 
         hit1 = ranked[0] == pid
@@ -170,10 +200,19 @@ def main() -> int:
             "top1": hit1, "top3": hit3, "top5": hit5,
             "sim_own": round(own, 4),
             "sim_best_other": round(other, 4),
-            "predicted": next(n for n, p in [(pp["name"], pp["id"]) for pp in products] if p == ranked[0]) if False else ranked[0],
+            "predicted_id": ranked[0],
         })
 
-    n = len(query_vecs)
+    n = len(gaps)
+    if n == 0:
+        # Chia cho 0 / min() tren list rong se no ra loi kho hieu.
+        print()
+        print("  KHONG cham duoc anh nao — dung lai, khong ghi bao cao.")
+        print(f"  Da bo qua {skipped_single} san pham vi chi co 1 anh duy nhat.")
+        print("  Muon do duoc thi moi san pham can TU 2 ANH tro len:")
+        print("  mot anh de trong kho, mot anh lam anh khach.")
+        return 1
+
     print("=" * 74)
     print(f"  KET QUA — anh khach CHUA TUNG co trong kho ({n} anh)")
     print("=" * 74)
@@ -184,6 +223,11 @@ def main() -> int:
     print(f"  Nho nhat: {min(gaps):+.3f}    Lon nhat: {max(gaps):+.3f}")
     false_accept = sum(1 for g in gaps if g <= 0)
     print(f"  So anh bi nham (gap <= 0): {false_accept}/{n}")
+    if skipped_single:
+        print()
+        print(f"  BO QUA {skipped_single} san pham: chi co 1 anh trong kho, nen sau khi")
+        print("  loai anh test ra thi khong con gi de so. Day la ly do con so nay")
+        print("  KHONG con la 'anh so voi chinh no' nhu ban do truoc.")
     print()
     print("  HAN CHE: anh test chup CUNG BUOI voi anh kho (cung nen, cung anh sang).")
     print("  Khach chup o nha se kho hon. Con so nay la CAN TREN, khong phai thuc te.")
@@ -195,6 +239,8 @@ def main() -> int:
         "mean_gap": round(sum(gaps)/len(gaps), 4),
         "min_gap": round(min(gaps), 4), "max_gap": round(max(gaps), 4),
         "false_accept": false_accept,
+        "skipped_single_image_products": skipped_single,
+        "method": "loai anh test theo image_url; san pham chi co 1 anh bi bo qua",
         "limitation": "anh test chup cung buoi voi anh kho; khach chup tai nha se kho hon",
     }, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"  Luu: {OUT_JSON}")

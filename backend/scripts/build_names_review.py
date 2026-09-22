@@ -158,6 +158,34 @@ def main() -> int:
             if f.is_file() and f.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp")
         )
         table = NAMES.get(folder.name, {})
+
+        # Tên gắn theo VỊ TRÍ, không theo tên file (tên file chỉ là số). Thêm hay
+        # bớt một ảnh trong thư mục sẽ làm MỌI tên phía sau lệch đi một bậc và
+        # gán sai bánh. Không thể nhận ra bằng mắt vì tên vẫn "hợp lý".
+        #
+        # Nên chặn trước: nếu số ảnh khác với số tên đã đặt, dừng và báo rõ,
+        # thay vì âm thầm ghi ra bảng tên sai.
+        expected = max(table) if table else 0
+        if table and len(files) != expected:
+            print("=" * 74)
+            print("LOI: SO ANH KHAC SO TEN — DUNG LAI")
+            print("=" * 74)
+            print(f"  Thu muc   : {folder.name}")
+            print(f"  Anh hien co: {len(files)}")
+            print(f"  Ten da dat : {expected} (danh so 1..{expected})")
+            print()
+            print("  Ten trong script nay gan theo VI TRI, nen lech so luong se lam")
+            print("  moi ten sau diem lech bi gan sai banh.")
+            print()
+            print("  Cach sua: mo tang/giảm so trong NAMES['{0}'] cho khop,".format(folder.name))
+            print("  hoac bo sung ten cho anh moi roi chay lai.")
+            print()
+            print("  Danh sach anh hien co:")
+            for idx, f in enumerate(files, start=1):
+                mark = "co ten" if idx <= expected else "THIEU TEN"
+                print(f"    {idx:3d}. [{mark}] {f.name[:60]}")
+            return 1
+
         for i, f in enumerate(files, start=1):
             name = table.get(i)
             if not name:

@@ -147,6 +147,12 @@ def main() -> int:
             top1 += int(ranked[0] == expected)
             top3 += int(expected in ranked[:3])
         n = len(test_vecs)
+        if n == 0:
+            # Chia cho 0 se no ra ZeroDivisionError giua luc dang in ket qua.
+            # Bao ro nguyen nhan thay vi de no no ra kho hieu.
+            print("  KHONG co anh test nao dung duoc — bo qua model nay.")
+            print("  Kiem tra manifest.json va thu muc test_images/ con du khong?")
+            continue
         acc1, acc3 = top1 / n * 100, top3 / n * 100
 
         # Similarity nhom ngoai kho

@@ -184,7 +184,15 @@ def main() -> int:
         bar = "#" * buckets[lo]
         print(f"    {lo//1000:4d}k - {(lo+50000)//1000:4d}k : {buckets[lo]:3d}  {bar}")
         total_val += lo * buckets[lo]
-    prices = [p for *_ , p, _ in [(n,f,p,a) for n,f,p,a in priced]]
+    prices = [p for _n, _f, p, _a in priced]
+    if not prices:
+        # min()/max() tren list rong se no ValueError. Bao ro thay vi crash.
+        print()
+        print("  KHONG co dong nao co ten banh — khong co gi de dinh gia.")
+        print(f"  Da doc {len(rows)} dong tu {NAMES_CSV.name} nhung cot 'ten_banh' rong.")
+        print("  Kiem tra: chay scripts/build_names_review.py de tao lai bang ten.")
+        return 1
+
     print()
     print(f"  Thap nhat : {min(prices):,}d")
     print(f"  Cao nhat  : {max(prices):,}d")
