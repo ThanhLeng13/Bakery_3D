@@ -1,0 +1,11 @@
+{
+  "n": 101,
+  "top1_pct": 100.0,
+  "top3_pct": 100.0,
+  "top5_pct": 100.0,
+  "mean_gap": 0.2237,
+  "min_gap": 0.1245,
+  "max_gap": 0.4003,
+  "false_accept": 0,
+  "limitation": "anh test chup cung buoi voi anh kho; khach chup tai nha se kho hon"
+}
