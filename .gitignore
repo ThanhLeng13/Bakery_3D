@@ -91,6 +91,13 @@ backend/cake_images/*.png
 backend/cake_images/*.webp
 !backend/cake_images/README.md
 
+# ---- 📋 Bảng đặt tên & trang đặt tên (sinh tự động, chỉ dùng cục bộ) ----
+backend/naming_sheet.csv
+backend/naming_page.html
+backend/_test_sheet.csv
+# Ảnh gốc người dùng cung cấp — nhập vào Supabase Storage, không vào Git
+image_bake/
+
 # ---- ⏱️ Runtime / Temp / Cache ----
 tmp_*/
 .browser_profile/
