@@ -100,25 +100,40 @@ def main() -> int:
     print(f"  Anh test (bi bo khoi kho): {len(queries)}")
     print()
 
-    # Nhung embedding anh test. Mang theo image_url de biet chinh xac anh nao
-    # can bi loai khoi kho — day la khoa on dinh, khong phu thuoc thu tu.
+    # Nhúng embedding ảnh test, giữ KHOÁ ẢNH của chính ảnh đó.
+    #
+    # Không dùng `url_by_product` (chỉ giữ URL ĐẦU TIÊN của mỗi sản phẩm): sản
+    # phẩm có nhiều ảnh sẽ bị lấy sai URL, dẫn tới loại nhầm ảnh — ảnh test vẫn
+    # nằm trong kho và ta lại so ảnh với chính nó, đúng cái lỗi cần tránh.
+    #
+    # Tên file trên Storage là UUID ngẫu nhiên nên không mang thông tin ảnh gốc,
+    # và thứ tự trong `cake_embeddings` cũng không đảm bảo khớp thứ tự trong
+    # sheet. Nên chỉ xử lý sản phẩm có ĐÚNG 1 ảnh — khi đó URL là duy nhất và
+    # không phải đoán gì cả.
     print("  Dang nhung anh test...")
     t0 = time.perf_counter()
-    url_by_product: dict[str, str] = {}
+    urls_by_product: dict[str, list[str]] = {}
     for row in rows:
-        url_by_product.setdefault(row["product_id"], row.get("image_url") or "")
+        urls_by_product.setdefault(row["product_id"], []).append(row.get("image_url") or "")
 
+    ambiguous = 0
     query_vecs = []
     for pid, item in queries:
         path = IMAGE_ROOT / item["thu_muc"] / item["file"]
         if not path.exists():
             continue
+        urls = urls_by_product.get(pid, [])
+        if len(urls) != 1:
+            # Nhiều ảnh: không biết ảnh nào là ảnh test -> bỏ qua thay vì đoán.
+            ambiguous += 1
+            continue
         try:
-            query_vecs.append((pid, item["ten_banh"], embed(path.read_bytes()),
-                               url_by_product.get(pid, "")))
+            query_vecs.append((pid, item["ten_banh"], embed(path.read_bytes()), urls[0]))
         except Exception as exc:
             print(f"    ! {item['file'][:34]}: {type(exc).__name__}")
     print(f"  {len(query_vecs)} anh, {time.perf_counter()-t0:.1f}s")
+    if ambiguous:
+        print(f"  Bo qua {ambiguous} san pham co nhieu hon 1 anh (khong doan thu tu).")
     print()
 
     # Nhung lai toan bo kho, giu khoa anh de lat nua loai dung anh test.

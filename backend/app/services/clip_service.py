@@ -289,7 +289,22 @@ class ClipSearchService:
             exhausted = len(batch) < page
             scanned = len(batch)
 
-            collected.extend(r for r in batch if r.get("product_type") == product_type)
+            # THAY THẾ, không cộng dồn.
+            #
+            # `match_cakes` chỉ nhận `match_count`, KHÔNG có offset: xin 40 dòng
+            # nghĩa là "lấy 40 dòng đầu", chứ không phải "lấy 40 dòng tiếp theo".
+            # Đo trên CSDL thật: cả 20 id của trang 1 đều nằm trong trang 2.
+            # Nếu extend() thì kết quả bị trùng — đo được 60 dòng nhưng chỉ có
+            # 40 id duy nhất.
+            #
+            # Tệ hơn, thứ tự giữa các dòng CÙNG ĐIỂM không ổn định giữa hai lần
+            # gọi (đã đo: `b[:20] == a` là False dù 5 dòng đầu giống nhau). Nên
+            # cộng dồn vừa trùng vừa có thể SÓT sản phẩm.
+            #
+            # Trang sau luôn là tập cha của trang trước, nên chỉ cần giữ lại kết
+            # quả mới nhất — vừa đúng, vừa không cần khử trùng lặp.
+            collected = [r for r in batch if r.get("product_type") == product_type]
+
             if len(collected) >= match_count or exhausted or scanned >= _MAX_SCAN:
                 break
             page = min(page * 2, _MAX_SCAN)

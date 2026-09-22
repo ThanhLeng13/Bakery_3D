@@ -128,6 +128,15 @@ def main() -> int:
         n_done = sum(len(v) for v in catalog_vecs.values())
         print(f"  Nhung {n_done} anh kho: {cat_s:.1f}s  ({cat_s / max(n_done,1)*1000:.0f} ms/anh)")
 
+        if not catalog_vecs:
+            # Kho rong => `names` rong => `ranked[0]` ben duoi se IndexError.
+            # Thuong do khong tai duoc anh kho (mang/Storage). Bo qua model nay
+            # thay vi do ra loi khong lien quan den model.
+            print("  KHONG nhung duoc anh kho nao — bo qua model nay.")
+            print("  Kiem tra ket noi Supabase Storage va manifest.json.")
+            print()
+            continue
+
         # Embedding test
         t0 = time.perf_counter()
         test_vecs = [(lab, embed_with(model, preprocess, raw)) for lab, raw in test_items]

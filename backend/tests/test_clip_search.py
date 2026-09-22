@@ -430,6 +430,11 @@ class TestProductTypeFilter:
         Đây là lỗi đã đo được trên kho thật: xin 10 dòng từ match_cakes chỉ nhận
         về 3 dòng `cake`, vì `sweet` chen lên đầu bảng điểm. Cách cũ (xin
         match_count * 10 rồi lọc) khiến khách xin 6 bánh sinh nhật chỉ nhận 3.
+
+        Mock ở đây mô phỏng ĐÚNG hành vi thật của match_cakes: RPC không có
+        offset, nên trang sau là TẬP CHA của trang trước (20 dòng đầu giống hệt,
+        chỉ thêm dòng mới ở cuối). Nếu mock trả về tập hoàn toàn khác thì test sẽ
+        không phát hiện được lỗi cộng dồn trùng lặp.
         """
         from unittest.mock import MagicMock, patch
 
@@ -442,20 +447,35 @@ class TestProductTypeFilter:
                 "base_price": 1, "category": "x", "image_url": None,
             }
 
+        # Trang 1 (20 dòng): 3 `cake` ở đầu rồi toàn `sweet`. Có sẵn `cake` ngay
+        # từ trang 1 để CẢ HAI trang đều đóng góp kết quả khớp — nếu không, phép
+        # cộng dồn trùng lặp sẽ không lộ ra.
+        page1 = ([row(f"c{i}", "cake", 0.9 - i * 0.01) for i in range(3)]
+                 + [row(f"s{i}", "sweet", 0.5 - i * 0.01) for i in range(17)])
+
         fake_client = MagicMock()
-        # Trang 1: toàn `sweet`. Trang 2: mới có `cake`.
+        # Trang 2 (40 dòng) = trang 1 + 20 dòng `cake` nữa ở cuối. Đây là
+        # superset, giống hệt cách match_cakes trả về khi xin nhiều hơn.
+        page2 = page1 + [row(f"d{i}", "cake", 0.4 - i * 0.01) for i in range(20)]
         fake_client.rpc.return_value.execute.side_effect = [
-            MagicMock(data=[row(f"s{i}", "sweet", 0.9 - i * 0.01) for i in range(20)]),
-            MagicMock(data=[row(f"c{i}", "cake", 0.5 - i * 0.01) for i in range(20)]),
+            MagicMock(data=page1),
+            MagicMock(data=page2),
+            MagicMock(data=page2),
+            MagicMock(data=page2),
         ]
         service = ClipSearchService(client=fake_client)
 
         with patch("app.services.clip_service.embed_image_bytes", return_value=[0.0] * 512):
-            result = service.search_by_image(b"x", match_count=3, product_type="cake")
+            result = service.search_by_image(b"x", match_count=10, product_type="cake")
 
-        assert result["count"] == 3, "phai lay du ket qua du nhom khac xep truoc"
+        assert result["count"] == 10, "phai lay du ket qua du nhom khac xep truoc"
         assert all(r["product_type"] == "cake" for r in result["results"])
         assert fake_client.rpc.call_count >= 2, "phai goi lai RPC chu khong bo cuoc"
+
+        # Không được trùng: trang 2 là superset của trang 1, nên cộng dồn sẽ cho
+        # ra cùng một sản phẩm nhiều lần ('c0'..'c2' xuất hiện ở cả hai trang).
+        ids = [r["product_id"] for r in result["results"]]
+        assert len(ids) == len(set(ids)), f"ket qua bi trung: {ids}"
 
     def test_filter_stops_when_rpc_exhausted(self):
         """RPC hết dữ liệu thì dừng, không gọi lặp vô hạn."""
