@@ -125,3 +125,6 @@ stop.ps1
 .kiro/
 .qodo/
 .gemini/
+
+_r*.txt
+
