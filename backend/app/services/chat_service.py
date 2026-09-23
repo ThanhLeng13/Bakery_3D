@@ -5,19 +5,28 @@ Handles:
 - Message sending with Groq API integration (Llama 3.3 70B)
 - SSE streaming responses
 - Conversation context management (max 20 messages)
-- Recommendation extraction and AI_Summary generation
+- Ordering agent: function calling against real catalogue data
 - Error handling with fallback messages
+
+Về trợ lý đặt bánh (ordering agent):
+    LLM KHÔNG tự nghĩ ra tên bánh hay giá. Nó gọi công cụ trong `order_tools`,
+    công cụ đọc CSDL rồi trả kết quả thật về cho LLM diễn đạt lại. Nhờ vậy giá
+    luôn đúng và không thể bịa sản phẩm.
+
+    Cách cũ (đã bỏ) nhồi cả danh mục vào prompt rồi bắt LLM viết JSON trong câu
+    trả lời, sau đó dùng regex bóc lại — vừa dễ bịa giá, vừa vỡ khi LLM đổi cách
+    trình bày.
 """
 
 import json
 import logging
-import re
 from datetime import datetime, timezone
 from typing import Any, AsyncGenerator, List, Optional
 
 from groq import AsyncGroq, APIError, APIConnectionError, RateLimitError
 
 from app.core.config import settings
+from app.services.order_tools import TOOL_SCHEMAS, OrderTools, dispatch
 from app.services.rag_service import RAGService
 
 logger = logging.getLogger(__name__)
@@ -29,6 +38,15 @@ FALLBACK_ERROR_MESSAGE = (
 )
 
 MAX_MESSAGES_PER_SESSION = 20
+
+# Trần số vòng gọi công cụ cho một lượt hỏi. Mỗi vòng là một lần gọi Groq, nên
+# cần chặn để một LLM lặp vô hạn không treo request và không đốt token.
+#
+# Đặt 8 chứ không phải 4: một lượt chốt đơn hợp lệ cần tới 5 vòng — find_cakes →
+# price_order → check_bake_time → create_draft_order → câu trả lời cuối. Với trần
+# 4, đúng luồng này bị cắt ngang và đơn KHÔNG được tạo; đo thật chỉ đạt 1/3 lần.
+# Vẫn đủ chặt để chặn vòng lặp bệnh hoạn.
+MAX_TOOL_ROUNDS = 8
 
 
 class ChatServiceError(Exception):
@@ -77,7 +95,65 @@ class ChatService:
         """Initialize with a Supabase client instance."""
         self._supabase = supabase_client
         self._rag_service = RAGService(supabase_client)
+        self._order_tools = OrderTools(supabase_client)
         self._groq_client: Optional[AsyncGroq] = None
+
+    def _execute_tool_call(self, name: str, raw_args: str, customer_id: Optional[str]) -> dict:
+        """Chạy một công cụ do LLM yêu cầu, trả kết quả (hoặc lỗi) cho LLM đọc."""
+        try:
+            arguments = json.loads(raw_args) if raw_args else {}
+        except json.JSONDecodeError:
+            return {"error": f"Tham số không phải JSON hợp lệ: {raw_args[:120]}"}
+        if not isinstance(arguments, dict):
+            return {"error": "Tham số công cụ phải là một object JSON."}
+
+        # Gắn customer_id cho công cụ tạo đơn. LLM không biết id này và cũng
+        # không được phép tự khai — đơn phải thuộc đúng người đang chat.
+        # (Cột orders.customer_id là NOT NULL, đã kiểm chứng bằng cách thử chèn.)
+        if name == "create_draft_order":
+            arguments["customer_id"] = customer_id
+        return dispatch(self._order_tools, name, arguments)
+
+    @staticmethod
+    def _recommendations_from(tool_log: List[dict]) -> Optional[List[dict]]:
+        """Lấy gợi ý bánh từ KẾT QUẢ CÔNG CỤ, không bóc từ chữ LLM viết.
+
+        Nhờ vậy tên và giá trong thẻ gợi ý luôn khớp CSDL. Cách cũ dùng regex
+        trên câu trả lời nên có thể ra tên bánh không tồn tại.
+        """
+        for entry in tool_log:
+            result = entry.get("result") or {}
+            cakes = result.get("cakes")
+            if entry.get("tool") == "find_cakes" and cakes:
+                return [
+                    {
+                        "product_name": c["name"],
+                        "price": c["price"],
+                        "reasoning": f"Phù hợp yêu cầu, cần đặt trước {c['needs_lead_hours']} giờ",
+                        "product_id": c.get("id"),
+                    }
+                    for c in cakes[:5]
+                ]
+        return None
+
+    @staticmethod
+    def _summary_from(tool_log: List[dict]) -> Optional[dict]:
+        """Lấy tóm tắt đơn từ kết quả `create_draft_order`."""
+        for entry in reversed(tool_log):
+            result = entry.get("result") or {}
+            if entry.get("tool") == "create_draft_order" and result.get("created"):
+                names = ", ".join(
+                    f"{i['name']} x{i['quantity']}" for i in result.get("items", [])
+                )
+                return {
+                    "size": "",
+                    "flavor": "",
+                    "decorations": names,
+                    "pickup_date": result.get("pickup_date", ""),
+                    "total_price": result.get("total_price", 0),
+                    "order_id": result.get("order_id"),
+                }
+        return None
 
     def _get_groq_client(self) -> AsyncGroq:
         """Get or create async Groq client instance."""
@@ -284,54 +360,153 @@ class ChatService:
             exclude_session_id=session_id,
         )
 
-        # Call Groq API
-        try:
-            client = self._get_groq_client()
-
-            messages = [
-                {"role": "system", "content": system_prompt},
-                *conversation,
-            ]
-
-            response = await client.chat.completions.create(
-                model=settings.GROQ_MODEL,
-                max_tokens=1024,
-                messages=messages,
-            )
-
-            assistant_content = None
-            if response.choices and response.choices[0].message:
-                assistant_content = response.choices[0].message.content
-
-            if not assistant_content:
-                logger.warning("Groq API returned empty or filtered response")
-                raise AIServiceUnavailableError()
-
-        except (APIError, APIConnectionError, RateLimitError) as e:
-            logger.error(f"Groq API error: {e}")
-            raise AIServiceUnavailableError()
-        except Exception as e:
-            logger.error(f"Unexpected error calling Groq API: {e}")
-            raise AIServiceUnavailableError()
+        # Call Groq API with the ordering-agent loop
+        assistant_content, tool_log = await self._run_agent(
+            system_prompt=system_prompt,
+            conversation=conversation,
+            customer_id=customer_id,
+        )
 
         # Store assistant message
         assistant_msg = await self._store_message(
             session_id, "assistant", assistant_content
         )
 
-        # Extract recommendations and AI_Summary from response
-        recommendations = extract_recommendations(assistant_content)
-        ai_summary = extract_ai_summary(assistant_content)
-
         return {
             "message_id": assistant_msg["id"],
             "session_id": session_id,
             "role": "assistant",
             "content": assistant_content,
-            "recommendations": recommendations,
-            "ai_summary": ai_summary,
+            "recommendations": self._recommendations_from(tool_log),
+            "ai_summary": self._summary_from(tool_log),
             "created_at": assistant_msg["created_at"],
         }
+
+    async def _run_agent(
+        self,
+        system_prompt: str,
+        conversation: List[dict],
+        customer_id: Optional[str],
+    ) -> tuple[str, List[dict]]:
+        """Vòng lặp gọi công cụ (function calling) rồi trả lời khách.
+
+        Trả về (nội dung trả lời, nhật ký công cụ đã gọi). Nhật ký dùng để lấy
+        gợi ý bánh và tóm tắt đơn — lấy từ dữ liệu THẬT của công cụ, không phải
+        bóc từ chữ LLM viết ra.
+
+        Giới hạn MAX_TOOL_ROUNDS vòng để LLM lặp vô hạn không treo request.
+        """
+        client = self._get_groq_client()
+        messages: list[dict] = [
+            {"role": "system", "content": system_prompt},
+            *conversation,
+        ]
+        tool_log: List[dict] = []
+
+        for round_index in range(MAX_TOOL_ROUNDS):
+            try:
+                response = await client.chat.completions.create(
+                    model=settings.GROQ_MODEL,
+                    max_tokens=1024,
+                    messages=messages,
+                    tools=TOOL_SCHEMAS,
+                    tool_choice="auto",
+                )
+            except (APIError, APIConnectionError, RateLimitError) as e:
+                logger.error(f"Groq API error: {e}")
+                raise AIServiceUnavailableError()
+            except Exception as e:
+                logger.error(f"Unexpected error calling Groq API: {e}")
+                raise AIServiceUnavailableError()
+
+            if not response.choices:
+                logger.warning("Groq API returned no choices")
+                raise AIServiceUnavailableError()
+
+            message = response.choices[0].message
+            calls = getattr(message, "tool_calls", None)
+
+            # Không yêu cầu công cụ nữa -> đây là câu trả lời cuối.
+            if not calls:
+                content = message.content
+                if not content:
+                    logger.warning("Groq API returned empty content")
+                    raise AIServiceUnavailableError()
+                if round_index == 0 and not tool_log:
+                    # Trả lời ngay mà không tra gì: có thể LLM tự bịa bánh/giá.
+                    # Không chặn (câu hỏi xã giao không cần tra), nhưng ghi log
+                    # để biết mà chỉnh prompt.
+                    logger.info("Agent answered without calling any tool")
+                return content, tool_log
+
+            # LLM muốn gọi công cụ. Ghi lại lời gọi rồi chạy từng công cụ.
+            messages.append({
+                "role": "assistant",
+                "content": message.content or "",
+                "tool_calls": [
+                    {
+                        "id": c.id,
+                        "type": "function",
+                        "function": {
+                            "name": c.function.name,
+                            "arguments": c.function.arguments,
+                        },
+                    }
+                    for c in calls
+                ],
+            })
+
+            for call in calls:
+                result = self._execute_tool_call(
+                    call.function.name, call.function.arguments, customer_id
+                )
+                tool_log.append({"tool": call.function.name, "result": result})
+                logger.info(
+                    "Tool %s -> %s",
+                    call.function.name,
+                    json.dumps(result, ensure_ascii=False)[:200],
+                )
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": call.id,
+                    "content": json.dumps(result, ensure_ascii=False),
+                })
+
+        # Hết số vòng mà LLM vẫn đòi gọi công cụ. Trả lời dựa trên những gì đã có
+        # thay vì treo request.
+        logger.warning("Agent hit MAX_TOOL_ROUNDS (%s)", MAX_TOOL_ROUNDS)
+        fallback = await self._force_final_answer(client, messages)
+        return fallback, tool_log
+
+    async def _force_final_answer(self, client: AsyncGroq, messages: list[dict]) -> str:
+        """Buộc LLM trả lời bằng chữ, không cho gọi công cụ nữa.
+
+        Phải gửi kèm `tools` + `tool_choice="none"`. Nếu bỏ hẳn `tools`, model
+        vẫn có thể gọi công cụ theo quán tính và Groq trả lỗi 400
+        "Tool choice is none, but model called a tool" — đã gặp thật.
+        """
+        try:
+            response = await client.chat.completions.create(
+                model=settings.GROQ_MODEL,
+                max_tokens=1024,
+                messages=[
+                    *messages,
+                    {
+                        "role": "system",
+                        "content": (
+                            "Đã tra đủ thông tin. Hãy trả lời khách NGAY bằng tiếng Việt, "
+                            "dựa trên kết quả công cụ ở trên. Không gọi thêm công cụ."
+                        ),
+                    },
+                ],
+                tools=TOOL_SCHEMAS,
+                tool_choice="none",
+            )
+            if response.choices and response.choices[0].message.content:
+                return response.choices[0].message.content
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"Force-final-answer failed: {e}")
+        raise AIServiceUnavailableError()
 
     async def send_message_stream(
         self, session_id: str, customer_id: str, content: str
@@ -370,32 +545,92 @@ class ChatService:
             exclude_session_id=session_id,
         )
 
-        # Stream from Groq API
+        # Chạy vòng lặp công cụ trước (không stream, vì phải chờ công cụ xong mới
+        # biết trả lời gì), rồi stream phần chữ cuối cùng ra cho khách.
         full_response = ""
+        tool_log: List[dict] = []
         try:
             client = self._get_groq_client()
-
-            messages = [
+            messages: list[dict] = [
                 {"role": "system", "content": system_prompt},
                 *conversation,
             ]
+            answered = False
 
-            async with await client.chat.completions.create(
-                model=settings.GROQ_MODEL,
-                max_tokens=1024,
-                messages=messages,
-                stream=True,
-            ) as stream:
-                async for chunk in stream:
-                    if (
-                        chunk.choices
-                        and chunk.choices[0].delta is not None
-                        and chunk.choices[0].delta.content
-                    ):
-                        text = chunk.choices[0].delta.content
-                        full_response += text
-                        # Yield SSE formatted chunk
-                        yield f"data: {json.dumps({'type': 'content', 'text': text}, ensure_ascii=False)}\n\n"
+            for _round in range(MAX_TOOL_ROUNDS):
+                response = await client.chat.completions.create(
+                    model=settings.GROQ_MODEL,
+                    max_tokens=1024,
+                    messages=messages,
+                    tools=TOOL_SCHEMAS,
+                    tool_choice="auto",
+                )
+                if not response.choices:
+                    break
+                message = response.choices[0].message
+                calls = getattr(message, "tool_calls", None)
+
+                if not calls:
+                    # Không cần công cụ nữa -> stream câu trả lời cuối cho khách.
+                    stream = await client.chat.completions.create(
+                        model=settings.GROQ_MODEL,
+                        max_tokens=1024,
+                        messages=messages,
+                        stream=True,
+                    )
+                    async with stream as s:
+                        async for chunk in s:
+                            if (
+                                chunk.choices
+                                and chunk.choices[0].delta is not None
+                                and chunk.choices[0].delta.content
+                            ):
+                                text = chunk.choices[0].delta.content
+                                full_response += text
+                                yield f"data: {json.dumps({'type': 'content', 'text': text}, ensure_ascii=False)}\n\n"
+                    answered = True
+                    break
+
+                # LLM muốn tra cứu. Báo cho giao diện biết đang tra, để khách
+                # thấy phản hồi thay vì màn hình im lặng.
+                yield f"data: {json.dumps({'type': 'tool', 'name': calls[0].function.name}, ensure_ascii=False)}\n\n"
+
+                messages.append({
+                    "role": "assistant",
+                    "content": message.content or "",
+                    "tool_calls": [
+                        {
+                            "id": c.id,
+                            "type": "function",
+                            "function": {
+                                "name": c.function.name,
+                                "arguments": c.function.arguments,
+                            },
+                        }
+                        for c in calls
+                    ],
+                })
+                for call in calls:
+                    result = self._execute_tool_call(
+                        call.function.name, call.function.arguments, customer_id
+                    )
+                    tool_log.append({"tool": call.function.name, "result": result})
+                    logger.info(
+                        "Tool %s -> %s",
+                        call.function.name,
+                        json.dumps(result, ensure_ascii=False)[:200],
+                    )
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": call.id,
+                        "content": json.dumps(result, ensure_ascii=False),
+                    })
+
+            if not answered:
+                # Hết vòng mà chưa trả lời được -> buộc trả lời bằng chữ.
+                full_response = await self._force_final_answer(client, messages)
+                for piece in _chunks(full_response):
+                    yield f"data: {json.dumps({'type': 'content', 'text': piece}, ensure_ascii=False)}\n\n"
 
         except (APIError, APIConnectionError, RateLimitError) as e:
             logger.error(f"Groq API streaming error: {e}")
@@ -432,206 +667,18 @@ class ChatService:
             session_id, "assistant", full_response
         )
 
-        # Extract recommendations and AI_Summary
-        recommendations = extract_recommendations(full_response)
-        ai_summary = extract_ai_summary(full_response)
-
-        # Send final metadata event
+        # Gợi ý và tóm tắt lấy từ KẾT QUẢ CÔNG CỤ, không bóc từ chữ LLM viết.
         metadata = {
             "type": "done",
             "message_id": assistant_msg["id"],
-            "recommendations": recommendations,
-            "ai_summary": ai_summary,
+            "recommendations": self._recommendations_from(tool_log),
+            "ai_summary": self._summary_from(tool_log),
         }
         yield f"data: {json.dumps(metadata, ensure_ascii=False)}\n\n"
         yield "data: [DONE]\n\n"
 
 
-def _parse_price(value: Any) -> int:
-    """
-    Robustly parse a price value that may be an int, float, or formatted
-    string (e.g. "250.000đ", "250,000", "250000", "250k", "250.5k", "250K").
+def _chunks(text: str, size: int = 24) -> List[str]:
+    """Cắt văn bản thành mẩu nhỏ để gửi dần, giống cảm giác streaming."""
+    return [text[i:i + size] for i in range(0, len(text), size)] or [text]
 
-    In Vietnamese contexts, 'k' or 'K' is commonly used as a shorthand for
-    thousands (e.g. "250k" = 250,000 VND, "250.5k" = 250,500 VND). The number
-    before 'k' is parsed as a float to handle decimal values correctly, then
-    multiplied by 1000. A plain 'k' not preceded by digits (e.g. "khuyến mãi")
-    does NOT match.
-
-    Args:
-        value: Raw price value from parsed JSON
-
-    Returns:
-        Integer price in VND
-
-    Raises:
-        ValueError: If the value cannot be converted to an integer
-    """
-    if isinstance(value, (int, float)):
-        return int(value)
-
-    text = str(value).strip()
-
-    # Detect Vietnamese "k" thousand shorthand: a number (int or float with
-    # '.' or ',' as decimal separator) followed by k/K, then non-digit chars.
-    # Parse the number part as float to correctly handle e.g. "250.5k" -> 250500
-    # rather than stripping all non-digits which would give 2505 * 1000 = 2505000.
-    k_match = re.search(r'(\d+[.,]?\d*)\s*[kK](?!\w)', text)
-    if k_match:
-        num_str = k_match.group(1).replace(',', '.')  # normalize decimal separator
-        try:
-            return int(float(num_str) * 1000)
-        except ValueError:
-            pass  # fall through to digit-strip fallback
-
-    # Fallback: find the first contiguous sequence of digits with optional
-    # separators (e.g. "250.000đ" -> "250.000" -> 250000).
-    # Using re.search instead of stripping all non-digits avoids concatenating
-    # unrelated numbers in strings like "250.000 - 300.000đ" (which would
-    # otherwise produce 250000300000) or "250.000đ cho bánh 2 tấc" -> 2500002.
-    num_match = re.search(r'\d[\d.,]*', text)
-    if not num_match:
-        raise ValueError(f"Cannot parse price from: {value!r}")
-    # Strip separators from the matched token only
-    digits = re.sub(r'[^\d]', '', num_match.group(0))
-    if not digits:
-        raise ValueError(f"Cannot parse price from: {value!r}")
-    return int(digits)
-
-
-def extract_recommendations(content: str) -> Optional[List[dict]]:
-    """
-    Extract cake recommendations from AI response content.
-
-    Looks for structured recommendations with product name, price, and reasoning.
-    Expected format in AI response: product name, price (VND), reasoning.
-
-    Args:
-        content: AI response text
-
-    Returns:
-        List of recommendation dicts or None if no recommendations found
-    """
-    recommendations = []
-
-    # Try to find JSON array of recommendations
-    json_pattern = r'\[[\s\S]*?\{[\s\S]*?"product_name"[\s\S]*?\}[\s\S]*?\]'
-    json_match = re.search(json_pattern, content)
-    if json_match:
-        try:
-            parsed = json.loads(json_match.group())
-            if isinstance(parsed, list):
-                for item in parsed:
-                    if all(k in item for k in ("product_name", "price", "reasoning")):
-                        try:
-                            recommendations.append({
-                                "product_name": str(item["product_name"]),
-                                "price": _parse_price(item["price"]),
-                                "reasoning": str(item["reasoning"]),
-                            })
-                        except (ValueError, TypeError):
-                            continue
-                if 2 <= len(recommendations) <= 5:
-                    return recommendations
-        except (json.JSONDecodeError, ValueError, TypeError):
-            pass
-
-    # Try to extract from numbered list format
-    lines = content.split("\n")
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-
-        # Match: digits (with separators) optionally followed by k/K shorthand,
-        # then a currency marker (VND, đ, vnđ, dong). Group 1 is passed to
-        # _parse_price which handles plain numbers, separators, and k/K suffix.
-        price_match = re.search(
-            r'(\d[\d.,]*(?:\s*[kK](?!\w))?)\s*(?:VND|đ|vnđ|dong)',
-            line,
-            re.IGNORECASE,
-        )
-
-        if price_match:
-            try:
-                price = _parse_price(price_match.group(1))
-            except (ValueError, TypeError):
-                continue
-
-            name_part = line[:price_match.start()].strip()
-            name_part = re.sub(r'^[\d]+[.)]\s*', '', name_part)
-            name_part = re.sub(r'^[-*•]\s*', '', name_part)
-            name_part = name_part.rstrip(" -–:,")
-
-            if not name_part:
-                continue
-
-            reasoning_part = line[price_match.end():].strip()
-            reasoning_part = reasoning_part.lstrip(" -–:,")
-
-            if not reasoning_part:
-                reasoning_part = "Phù hợp với yêu cầu của bạn"
-
-            recommendations.append({
-                "product_name": name_part,
-                "price": price,
-                "reasoning": reasoning_part,
-            })
-
-    if 2 <= len(recommendations) <= 5:
-        return recommendations
-
-    return None
-
-
-def extract_ai_summary(content: str) -> Optional[dict]:
-    """
-    Extract AI_Summary JSON from AI response content.
-
-    Looks for a JSON block with required fields: size, flavor, decorations,
-    pickup_date, total_price.
-
-    Args:
-        content: AI response text
-
-    Returns:
-        AI_Summary dict or None if not found/incomplete
-    """
-    json_block_pattern = r'```(?:json)?\s*(\{[\s\S]*?\})\s*```'
-    matches = re.findall(json_block_pattern, content)
-
-    for match in matches:
-        try:
-            parsed = json.loads(match)
-            required_fields = ["size", "flavor", "decorations", "pickup_date", "total_price"]
-            if all(field in parsed for field in required_fields):
-                if all(parsed.get(field) not in (None, "", 0) for field in required_fields):
-                    return {
-                        "size": str(parsed["size"]),
-                        "flavor": str(parsed["flavor"]),
-                        "decorations": str(parsed["decorations"]),
-                        "pickup_date": str(parsed["pickup_date"]),
-                        "total_price": _parse_price(parsed["total_price"]),
-                    }
-        except (json.JSONDecodeError, ValueError, TypeError):
-            continue
-
-    inline_pattern = r'\{[^{}]*"size"[^{}]*"flavor"[^{}]*"total_price"[^{}]*\}'
-    inline_match = re.search(inline_pattern, content)
-    if inline_match:
-        try:
-            parsed = json.loads(inline_match.group())
-            required_fields = ["size", "flavor", "decorations", "pickup_date", "total_price"]
-            if all(field in parsed for field in required_fields):
-                if all(parsed.get(field) not in (None, "", 0) for field in required_fields):
-                    return {
-                        "size": str(parsed["size"]),
-                        "flavor": str(parsed["flavor"]),
-                        "decorations": str(parsed["decorations"]),
-                        "pickup_date": str(parsed["pickup_date"]),
-                        "total_price": _parse_price(parsed["total_price"]),
-                    }
-        except (json.JSONDecodeError, ValueError, TypeError):
-            pass
-
-    return None

@@ -41,7 +41,23 @@ export interface UseChatReturn {
   isAuthenticated: boolean;
   sendMessage: (content: string) => Promise<void>;
   clearError: () => void;
+  /** Trạng thái đang tra cứu, ví dụ "Đang tìm bánh phù hợp...". */
+  toolStatus: string | null;
 }
+
+/**
+ * Câu hiển thị theo từng công cụ trợ lý đang gọi.
+ *
+ * Trợ lý tra cứu CSDL trước khi trả lời nên có độ trễ vài giây. Hiện trạng thái
+ * giúp khách biết hệ thống đang chạy chứ không phải bị treo.
+ */
+const TOOL_STATUS: Record<string, string> = {
+  find_cakes: "Đang tìm bánh phù hợp...",
+  get_cake_detail: "Đang xem chi tiết bánh...",
+  price_order: "Đang tính tiền...",
+  check_bake_time: "Đang kiểm tra ngày nhận bánh...",
+  create_draft_order: "Đang tạo đơn nháp...",
+};
 
 const GREETING_MESSAGE_CONTENT = {
   id: "greeting",
@@ -63,6 +79,7 @@ export function useChat(): UseChatReturn {
   const [messages, setMessages] = useState<ChatMessage[]>(() => [makeGreetingMessage()]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [toolStatus, setToolStatus] = useState<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -193,6 +210,11 @@ export function useChat(): UseChatReturn {
                       : msg
                   )
                 );
+              } else if (event.type === "tool") {
+                // Trợ lý đang tra cứu (tìm bánh, tính tiền, kiểm tra ngày...).
+                // Hiện trạng thái để khách biết máy đang làm việc, thay vì thấy
+                // màn hình đứng im vài giây rồi mới có chữ.
+                setToolStatus(TOOL_STATUS[event.name as string] ?? "Đang tra cứu...");
               } else if (event.type === "error") {
                 setError(event.message || ERROR_MESSAGE);
                 // Remove the empty assistant message
@@ -202,6 +224,8 @@ export function useChat(): UseChatReturn {
                 setIsLoading(false);
                 return;
               } else if (event.type === "done") {
+                // Đã trả lời xong -> bỏ trạng thái "đang tra cứu".
+                setToolStatus(null);
                 if (event.recommendations && event.recommendations.length > 0) {
                   recommendations = event.recommendations;
                   setMessages((prev) =>
@@ -234,6 +258,9 @@ export function useChat(): UseChatReturn {
         }
       } finally {
         setIsLoading(false);
+        // Luôn xoá trạng thái tra cứu, kể cả khi lỗi hoặc bị huỷ — nếu không nó
+        // sẽ kẹt lại trên giao diện mãi.
+        setToolStatus(null);
       }
     },
     [isLoading, createSession]
@@ -250,5 +277,6 @@ export function useChat(): UseChatReturn {
     isAuthenticated,
     sendMessage,
     clearError,
+    toolStatus,
   };
 }
