@@ -4,7 +4,7 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     admin_options, admin_orders, admin_products, admin_users, auth, baker_orders, staff_orders,
-    branches, catalog, chat, inventory, loyalty, orders, public_options, purchases, reviews, search,
+    branches, cake_3d_models, catalog, chat, inventory, loyalty, orders, public_options, purchases, reviews, search,
 )
 
 router = APIRouter()
@@ -17,6 +17,9 @@ router.include_router(branches.router, prefix="/branches", tags=["Branches"])
 
 # Catalog service
 router.include_router(catalog.router, prefix="/products", tags=["Catalog"])
+
+# Reusable .glb base models for the 3D cake warehouse
+router.include_router(cake_3d_models.router, prefix="/cake-3d-models", tags=["Cake 3D Models"])
 
 # Admin product management
 router.include_router(admin_products.router, prefix="/admin/products", tags=["Admin Products"])

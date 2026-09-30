@@ -11,7 +11,7 @@ import { useChat, ChatMessage, RecommendationItem } from "@/hooks/useChat";
 
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
-  const { messages, isLoading, error, isAuthenticated, sendMessage, clearError } =
+  const { messages, isLoading, error, isAuthenticated, sendMessage, clearError, toolStatus } =
     useChat();
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -104,7 +104,11 @@ export default function ChatWidget() {
                 {isLoading && (
                   <div className="flex justify-start">
                     <div className="rounded-2xl rounded-bl-sm bg-white border border-line px-4 py-3">
-                      <TypingIndicator />
+                      {toolStatus ? (
+                        <p className="text-sm text-muted">{toolStatus}</p>
+                      ) : (
+                        <TypingIndicator />
+                      )}
                     </div>
                   </div>
                 )}

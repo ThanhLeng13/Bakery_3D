@@ -11,6 +11,7 @@
 import { useState, useCallback, useMemo } from "react";
 import type {
   CakeSize,
+  Cake3DModelSlug,
   CakeDesign,
   PriceBreakdown,
   ZoneCustomization,
@@ -20,6 +21,7 @@ import { calculatePrice } from "@/lib/price-calculator";
 export type ZoneName = "top" | "body" | "border";
 
 export interface CakeBuilderActions {
+  setModelSlug: (modelSlug: Cake3DModelSlug) => void;
   setSize: (size: CakeSize) => void;
   setFlavor: (flavor: string) => void;
   setCreamType: (creamType: string) => void;
@@ -43,6 +45,7 @@ export interface UseCakeBuilderReturn {
 }
 
 const DEFAULT_DESIGN: CakeDesign = {
+  model_slug: "round-1-tier",
   size: "16cm",
   flavor: "",
   cream_type: "",
@@ -94,6 +97,16 @@ export function useCakeBuilder(
   const totalPrice = priceBreakdown.totalPrice;
 
   const isComplete = useMemo(() => checkIsComplete(design), [design]);
+
+  const setModelSlug = useCallback((modelSlug: Cake3DModelSlug) => {
+    setDesign((prev) => ({
+      ...prev,
+      model_slug: modelSlug,
+      // The published pricing/lead-time catalogue currently supports two tiers
+      // only through its dedicated size. Never silently map a 3-tier preview.
+      size: modelSlug === "round-2-tier" ? "2-tier" : prev.size === "2-tier" ? "20cm" : prev.size,
+    }));
+  }, []);
 
   const setSize = useCallback((size: CakeSize) => {
     setDesign((prev) => ({ ...prev, size }));
@@ -197,6 +210,7 @@ export function useCakeBuilder(
 
   const actions: CakeBuilderActions = useMemo(
     () => ({
+      setModelSlug,
       setSize,
       setFlavor,
       setCreamType,
@@ -208,6 +222,7 @@ export function useCakeBuilder(
       resetDesign,
     }),
     [
+      setModelSlug,
       setSize,
       setFlavor,
       setCreamType,

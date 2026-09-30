@@ -39,6 +39,15 @@ export interface StockByBranchResponse {
 
 export type CakeSize = "16cm" | "20cm" | "24cm" | "2-tier";
 
+/** Stable identifier of a reusable base model in the local 3D cake warehouse. */
+export type Cake3DModelSlug =
+  | "round-1-tier"
+  | "round-2-tier"
+  | "round-3-tier"
+  | "square-1-tier"
+  | "heart-1-tier"
+  | "tall-1-tier";
+
 export type ProductCategory = "bánh âu" | "bánh ngọt";
 
 export interface ZoneCustomization {
@@ -52,6 +61,8 @@ export interface ZoneCustomization {
 }
 
 export interface CakeDesign {
+  /** Selected reusable .glb base. Undefined preserves legacy saved designs. */
+  model_slug?: Cake3DModelSlug;
   size: CakeSize;
   flavor: string;
   cream_type: string;
@@ -103,6 +114,25 @@ export interface ProductFlavor {
   additional_cost: number;
 }
 
+export interface Cake3DModel {
+  id: string;
+  slug: Cake3DModelSlug;
+  name: string;
+  glb_url: string;
+  thumbnail_url: string | null;
+  tags: string[];
+  category: string;
+  created_at: string;
+  /** Present when the model is linked through one catalog product. */
+  sort_order?: number;
+  is_primary?: boolean;
+}
+
+export interface Cake3DModelListResponse {
+  models: Cake3DModel[];
+  total: number;
+}
+
 export interface ProductDetailResponse {
   id: string;
   name: string;
@@ -114,6 +144,7 @@ export interface ProductDetailResponse {
   flavors: ProductFlavor[];
   is_active: boolean;
   images: ProductImage[];
+  three_d_models: Cake3DModel[];
   average_rating: number | null;
   review_count: number;
   created_at: string;

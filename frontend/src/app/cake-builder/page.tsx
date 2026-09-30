@@ -1,18 +1,21 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import Header from "@/components/Header";
 import ConfiguratorRail, {
   type BuilderStep,
 } from "@/components/cake-builder/ConfiguratorRail";
+import CakeModelPicker from "@/components/cake-builder/CakeModelPicker";
 import OrderSummary from "@/components/cake-builder/OrderSummary";
 import { PreviewModal } from "@/components/cake-builder/PreviewModal";
 import { type CakeZone } from "@/components/cake-builder/CakeSVG";
 import { useCakeBuilder } from "@/hooks/useCakeBuilder";
-import type { ZoneCustomization } from "@/types";
+import type { Cake3DModel, Cake3DModelSlug, ZoneCustomization } from "@/types";
+import { apiClient } from "@/lib/api";
+import { CAKE_BODY_MODELS, LOCAL_CAKE_3D_MODELS } from "@/lib/cake-body-models";
 
 const Cake3D = dynamic(() => import("@/components/cake-builder/Cake3D"), {
   ssr: false,
@@ -79,18 +82,23 @@ function isCakeZone(step: BuilderStep): step is CakeZone {
   return step === "top" || step === "body" || step === "border";
 }
 
-export default function CakeBuilderPage() {
+function CakeBuilderContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedModel = searchParams.get("model");
   const { design, priceBreakdown, actions } = useCakeBuilder({
     size: "20cm",
-    cream_color: "#E8837A",
+    cream_color: "#F2F1EE",
     zones: {
       top: {},
-      body: { color: "#E8837A" },
-      border: { color: "#D4A574" },
+      body: { color: "#F2F1EE" },
+      border: { color: "#F2F1EE" },
     },
   });
 
+  const [modelLibrary, setModelLibrary] = useState<Cake3DModel[]>([]);
+  const [modelsLoading, setModelsLoading] = useState(true);
+  const [modelsError, setModelsError] = useState(false);
   const [activeStep, setActiveStep] = useState<BuilderStep>("size");
   const [showStepDetail, setShowStepDetail] = useState(false);
   const [activeZone, setActiveZone] = useState<CakeZone | null>(null);
@@ -101,6 +109,37 @@ export default function CakeBuilderPage() {
     null,
   );
   const configuratorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (requestedModel && requestedModel in CAKE_BODY_MODELS) {
+      actions.setModelSlug(requestedModel as Cake3DModelSlug);
+    }
+  }, [actions, requestedModel]);
+
+  useEffect(() => {
+    let active = true;
+    apiClient
+      .get<{ models: Cake3DModel[] }>("/api/v1/cake-3d-models?category=birthday")
+      .then((response) => {
+        if (!active) return;
+        setModelLibrary(response.models);
+        setModelsError(false);
+      })
+      .catch(() => {
+        // Static GLBs ship with the frontend, so Cake Studio remains functional
+        // while the one-time DB migration/API deployment is pending.
+        if (active) {
+          setModelLibrary(LOCAL_CAKE_3D_MODELS);
+          setModelsError(false);
+        }
+      })
+      .finally(() => {
+        if (active) setModelsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleStepChange = useCallback((step: BuilderStep) => {
     setActiveStep(step);
@@ -195,8 +234,19 @@ export default function CakeBuilderPage() {
             tabIndex={-1}
             className="order-2 scroll-mt-24 focus:outline-none md:order-1 md:sticky md:top-[106px] md:max-h-[calc(100vh-116px)] md:overflow-y-auto md:pr-1 xl:top-[126px] xl:max-h-[calc(100vh-142px)]"
           >
-            <ConfiguratorRail
-              design={design}
+            <CakeModelPicker
+              models={modelLibrary}
+              selectedSlug={design.model_slug ?? "round-1-tier"}
+              loading={modelsLoading}
+              error={modelsError}
+              onSelect={(modelSlug) => {
+                actions.setModelSlug(modelSlug as Cake3DModelSlug);
+                setValidationMessage(null);
+              }}
+            />
+            <div className="mt-5">
+              <ConfiguratorRail
+                design={design}
               activeStep={activeStep}
               activeZone={activeZone}
               detailOpen={showStepDetail}
@@ -221,7 +271,8 @@ export default function CakeBuilderPage() {
               onSpecialNotesChange={actions.setSpecialNotes}
               onZoneOptionSelect={handleOptionSelect}
               onCloseZone={() => setActiveZone(null)}
-            />
+              />
+            </div>
           </div>
 
           <section
@@ -257,14 +308,14 @@ export default function CakeBuilderPage() {
                       onBlur={() => handleZoneHover(null)}
                       aria-label={`Tùy chỉnh ${hotspot.label}`}
                       aria-pressed={selected}
-                      className="group absolute z-20 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-0 bg-transparent shadow-none"
+                      className="group absolute z-20 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-0 bg-transparent shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                       style={{ left: hotspot.left, top: hotspot.top }}
                     >
                       <span
-                        className={`h-4 w-4 rounded-full border bg-white shadow-sm transition-colors xl:h-5 xl:w-5 ${
+                        className={`h-2.5 w-2.5 rounded-full border shadow-sm transition-colors xl:h-3 xl:w-3 ${
                           selected
-                            ? "border-brand bg-action"
-                            : "border-line group-hover:border-brand"
+                            ? "border-white bg-action"
+                            : "border-brand/50 bg-white/80 group-hover:border-ink group-hover:bg-white"
                         }`}
                         aria-hidden="true"
                       />
@@ -387,5 +438,22 @@ export default function CakeBuilderPage() {
         onOrder={handleOrder}
       />
     </main>
+  );
+}
+
+export default function CakeBuilderPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-surface text-ink">
+          <Header />
+          <div className="mx-auto flex min-h-[60vh] max-w-5xl items-center justify-center px-4">
+            <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Đang mở Cake Studio...</span>
+          </div>
+        </main>
+      }
+    >
+      <CakeBuilderContent />
+    </Suspense>
   );
 }

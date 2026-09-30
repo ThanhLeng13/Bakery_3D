@@ -56,7 +56,13 @@ class Settings(BaseSettings):
 
     # Groq API (Free)
     GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    # Phải là model HỖ TRỢ FUNCTION CALLING — trợ lý đặt bánh dựa vào tool calling
+    # để lấy giá thật, không để LLM tự nghĩ ra.
+    #
+    # Đổi từ "llama-3.3-70b-versatile" (2026-09): model đó không còn tồn tại trên
+    # tài khoản này, gọi vào trả 404 model_not_found. Đã kiểm tra ba model thay thế
+    # đều gọi được công cụ đúng: gpt-oss-120b, gpt-oss-20b, qwen3.8-27b.
+    GROQ_MODEL: str = "openai/gpt-oss-120b"
 
     # JWT
     JWT_SECRET_KEY: str = "change-this-to-a-secure-random-string"

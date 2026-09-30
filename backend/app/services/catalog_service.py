@@ -178,13 +178,16 @@ class CatalogService:
         Raises:
             ProductNotFoundError: If product not found or inactive
         """
-        # Single query: product + images + review_stats in one round-trip
+        # Single query: product + images + review_stats + linked 3D bases.
+        # glb_url is already a browser-ready root-relative or absolute asset URL;
+        # unlike product_images, it must not pass through format_image_url().
         product_result = (
             self._supabase.table("products")
             .select(
                 "*,"
                 " product_images(id, url, sort_order),"
-                " product_review_stats(review_count, average_rating)"
+                " product_review_stats(review_count, average_rating),"
+                " product_3d_models(sort_order, is_primary, cake_3d_models(id, slug, name, glb_url, thumbnail_url, tags, category, created_at))"
             )
             .eq("id", product_id)
             .eq("is_active", True)
@@ -206,6 +209,35 @@ class CatalogService:
             {"id": img["id"], "url": format_image_url(img["url"]), "sort_order": img.get("sort_order") or 0}
             for img in raw_images
         ]
+
+        # Extract linked 3D bases. A product can reuse a warehouse asset; the
+        # link carries display order and the primary/default choice.
+        raw_model_links = sorted(
+            product.get("product_3d_models") or [],
+            key=lambda link: (link.get("sort_order") or 0, not bool(link.get("is_primary"))),
+        )
+        three_d_models = []
+        for link in raw_model_links:
+            model = link.get("cake_3d_models") or {}
+            # PostgREST returns the embedded row as a dict for this many-to-one
+            # relation; tolerate a list defensively if the relation is inferred
+            # differently in a local Supabase environment.
+            if isinstance(model, list):
+                model = model[0] if model else {}
+            if not isinstance(model, dict) or not model.get("id"):
+                continue
+            three_d_models.append({
+                "id": model["id"],
+                "slug": model["slug"],
+                "name": model["name"],
+                "glb_url": model["glb_url"],
+                "thumbnail_url": model.get("thumbnail_url"),
+                "tags": model.get("tags") or [],
+                "category": model["category"],
+                "created_at": model["created_at"],
+                "sort_order": link.get("sort_order") or 0,
+                "is_primary": bool(link.get("is_primary")),
+            })
 
         # Extract review stats from embedded view
         stats_list = product.get("product_review_stats") or []
@@ -276,6 +308,7 @@ class CatalogService:
             "flavors": normalized_flavors,
             "is_active": product["is_active"],
             "images": images,
+            "three_d_models": three_d_models,
             "average_rating": average_rating,
             "review_count": review_count,
             "created_at": product["created_at"],

@@ -97,6 +97,7 @@ class TestListProducts:
         # Embed relations as PostgREST would return them
         product["product_images"] = [{"url": "https://example.com/img.jpg", "sort_order": 0}]
         product["product_review_stats"] = [{"review_count": 2, "average_rating": 4.5}]
+        product["product_3d_models"] = []
 
         # CatalogService returns rows and exact count in one PostgREST query.
         data_builder = MockQueryBuilder(data=[product], count=1)
@@ -225,6 +226,36 @@ class TestGetProductDetail:
             {"id": str(uuid4()), "url": "https://example.com/2.jpg", "sort_order": 1},
         ]
         product["product_review_stats"] = [{"review_count": 3, "average_rating": 4.0}]
+        product["product_3d_models"] = [
+            {
+                "sort_order": 1,
+                "is_primary": False,
+                "cake_3d_models": {
+                    "id": str(uuid4()),
+                    "slug": "round-1-tier",
+                    "name": "Bánh tròn 1 tầng",
+                    "glb_url": "/models/cake-tron-1-tang.glb",
+                    "thumbnail_url": None,
+                    "tags": ["round"],
+                    "category": "birthday",
+                    "created_at": "2024-01-15T10:00:00+00:00",
+                },
+            },
+            {
+                "sort_order": 0,
+                "is_primary": True,
+                "cake_3d_models": {
+                    "id": str(uuid4()),
+                    "slug": "heart-1-tier",
+                    "name": "Bánh trái tim 1 tầng",
+                    "glb_url": "/models/cake-trai-tim.glb",
+                    "thumbnail_url": None,
+                    "tags": ["heart"],
+                    "category": "birthday",
+                    "created_at": "2024-01-15T10:00:00+00:00",
+                },
+            },
+        ]
         product_builder = MockQueryBuilder(data=product)
 
         def mock_table(table_name):
@@ -245,6 +276,9 @@ class TestGetProductDetail:
         assert len(result["sizes"]) == 1
         assert len(result["flavors"]) == 1
         assert len(result["images"]) == 2
+        assert [model["slug"] for model in result["three_d_models"]] == ["heart-1-tier", "round-1-tier"]
+        assert result["three_d_models"][0]["is_primary"] is True
+        assert result["three_d_models"][0]["glb_url"] == "/models/cake-trai-tim.glb"
         assert result["average_rating"] == 4.0
         assert result["review_count"] == 3
     def test_get_product_detail_not_found(self, mock_supabase):
