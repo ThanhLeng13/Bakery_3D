@@ -39,6 +39,12 @@ COMPLEX_KEYWORDS = ("2 tầng", "3 tầng", "figure", "tạo hình", "cưới")
 
 MAX_RESULTS = 10
 
+# Cửa sổ chống tạo trùng đơn nháp. LLM có thể gọi lại `create_draft_order` khi
+# request trước bị timeout hoặc khi vòng lặp công cụ lặp lại; trong khoảng thời
+# gian ngắn này, một đơn nháp y hệt (cùng khách, cùng ngày nhận, cùng nội dung)
+# được coi là CÙNG một đơn và trả lại thay vì tạo thêm.
+DRAFT_RETRY_WINDOW_MINUTES = 10
+
 
 class ToolError(Exception):
     """Công cụ báo lỗi theo cách LLM hiểu được, không làm sập request."""
@@ -432,18 +438,80 @@ class OrderTools:
             "ai_summary": ai_summary,
         }
 
+        # ── Chống tạo trùng (idempotent) ──────────────────────────────────────
+        # LLM có thể gọi lại công cụ này khi request trước timeout, hoặc vòng lặp
+        # công cụ lặp lại. Nếu đã có đơn nháp VỪA tạo cho đúng khách, đúng ngày
+        # nhận và đúng nội dung thì trả lại đơn đó, KHÔNG tạo thêm đơn rác.
+        retry_since = datetime.now(timezone.utc) - timedelta(
+            minutes=DRAFT_RETRY_WINDOW_MINUTES
+        )
+        try:
+            existing = (
+                self._supabase.table("orders")
+                .select("id, status")
+                .eq("customer_id", customer_id)
+                .eq("status", "pending")
+                .eq("pickup_date", parsed.isoformat())
+                .eq("ai_summary", ai_summary)
+                .gte("created_at", retry_since.isoformat())
+                .limit(1)
+                .execute()
+            )
+        except Exception:
+            # Tra không được thì vẫn cho tạo đơn: thà có rủi ro trùng còn hơn
+            # chặn khách đặt bánh chỉ vì một truy vấn phụ bị lỗi.
+            logger.exception("Không tra được đơn nháp trùng (khách %s)", customer_id)
+            existing = None
+
+        if existing is not None and existing.data:
+            same = existing.data[0]
+            return {
+                "created": True,
+                "duplicate": True,
+                "order_id": same["id"],
+                "status": same.get("status") or "pending",
+                "total_price": priced["total_price"],
+                "pickup_date": timed["pickup_date"],
+                "items": priced["items"],
+                "message": (
+                    f"Đơn nháp {same['id'][:8]} cho {order_insert['customer_name']} "
+                    "đã có sẵn nên KHÔNG tạo thêm đơn trùng, "
+                    f"nhận ngày {timed['pickup_date']}, tổng {priced['total_price']:,}đ. "
+                    "Tiệm sẽ gọi xác nhận."
+                ),
+            }
+
         result = self._supabase.table("orders").insert(order_insert).execute()
         if not result.data:
             raise ToolError("Không tạo được đơn. Vui lòng thử lại.")
 
         order = result.data[0]
-        for line in priced["items"]:
-            self._supabase.table("order_items").insert({
-                "order_id": order["id"],
-                "product_id": line["cake_id"],
-                "quantity": line["quantity"],
-                "unit_price": line["unit_price"],
-            }).execute()
+
+        # Một câu INSERT duy nhất cho TẤT CẢ món: PostgREST thực thi nó như một
+        # câu lệnh, nên hoặc lưu đủ món, hoặc không món nào — không có đơn thiếu món.
+        try:
+            self._supabase.table("order_items").insert([
+                {
+                    "order_id": order["id"],
+                    "product_id": line["cake_id"],
+                    "quantity": line["quantity"],
+                    "unit_price": line["unit_price"],
+                }
+                for line in priced["items"]
+            ]).execute()
+        except Exception as exc:
+            # Lưu món thất bại thì phải xoá đơn vừa tạo, không để lại đơn rác
+            # thiếu món mà nhân viên tưởng là đơn thật. Xoá món trước rồi mới xoá
+            # đơn để không phụ thuộc vào việc khoá ngoại có ON DELETE CASCADE hay không.
+            logger.exception("Lưu món thất bại, xoá đơn nháp %s", order["id"])
+            for table, column in (("order_items", "order_id"), ("orders", "id")):
+                try:
+                    self._supabase.table(table).delete().eq(column, order["id"]).execute()
+                except Exception:
+                    logger.exception("Không xoá được %s của đơn %s", table, order["id"])
+            raise ToolError(
+                "Không tạo được đơn vì lỗi khi lưu món. Vui lòng thử lại."
+            ) from exc
 
         return {
             "created": True,

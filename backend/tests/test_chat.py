@@ -687,3 +687,330 @@ class TestChatSchemas:
         )
         assert summary.size == "20cm"
         assert summary.total_price == 450000
+
+
+# ============================================================
+# Streaming agent — câu trả lời cuối
+#
+# Lỗi đã sửa: nhánh `if not calls` gọi THÊM một lượt completion nữa chỉ để lấy
+# lại câu trả lời, dù response hiện tại đã có sẵn nội dung. Việc đó tốn gấp đôi
+# token và độ trễ, và câu trả lời lần hai có thể khác lần đầu.
+# ============================================================
+
+
+def _stream_service(final_content: str):
+    """ChatService với mọi phụ thuộc được mock, chỉ chừa vòng lặp công cụ thật."""
+    service = ChatService(MagicMock())
+    service.get_session = AsyncMock(return_value={"id": "s1", "message_count": 0})
+    service._store_message = AsyncMock(return_value={"id": "m1"})
+    service._get_conversation_context = AsyncMock(return_value=[])
+    service._rag_service.build_context = AsyncMock(return_value="system prompt")
+
+    message = MagicMock()
+    message.content = final_content
+    message.tool_calls = None
+    response = MagicMock()
+    response.choices = [MagicMock(message=message)]
+
+    client = MagicMock()
+    client.chat.completions.create = AsyncMock(return_value=response)
+    service._get_groq_client = MagicMock(return_value=client)
+    return service, client
+
+
+def _sse_payloads(chunks: list[str]) -> list[dict]:
+    return [
+        json.loads(chunk[len("data: "):])
+        for chunk in chunks
+        if chunk.startswith("data: {")
+    ]
+
+
+class TestStreamReusesFinalAnswer:
+    """Câu trả lời cuối dùng luôn nội dung model đã trả về."""
+
+    @pytest.mark.asyncio
+    async def test_does_not_request_a_second_completion(self):
+        service, client = _stream_service("Bánh hoa hồng 430.000đ nhé anh/chị!")
+
+        chunks = [
+            c async for c in service.send_message_stream("s1", "c1", "chào em")
+        ]
+
+        # Đúng MỘT lượt gọi model cho cả câu trả lời.
+        assert client.chat.completions.create.await_count == 1
+
+    @pytest.mark.asyncio
+    async def test_streams_back_the_same_content_in_chunks(self):
+        expected = "Bánh hoa hồng 430.000đ nhé anh/chị!"
+        service, _ = _stream_service(expected)
+
+        chunks = [
+            c async for c in service.send_message_stream("s1", "c1", "chào em")
+        ]
+        payloads = _sse_payloads(chunks)
+
+        content_chunks = [p["text"] for p in payloads if p.get("type") == "content"]
+        assert "".join(content_chunks) == expected
+        # Nhiều mẩu -> vẫn giữ cảm giác chạy chữ như trước.
+        assert len(content_chunks) > 1
+        assert any(p.get("type") == "done" for p in payloads)
+
+    @pytest.mark.asyncio
+    async def test_stores_exactly_the_returned_content(self):
+        expected = "Dạ em gợi ý mẫu 2 tầng ạ."
+        service, _ = _stream_service(expected)
+
+        [c async for c in service.send_message_stream("s1", "c1", "tư vấn")]
+
+        # Lượt đầu là tin nhắn của khách, lượt cuối là câu trả lời của trợ lý.
+        assistant_calls = [
+            call for call in service._store_message.await_args_list
+            if call.args[1] == "assistant"
+        ]
+        assert len(assistant_calls) == 1
+        assert assistant_calls[0].args == ("s1", "assistant", expected)
+
+    @pytest.mark.asyncio
+    async def test_empty_content_falls_back_to_forced_answer(self):
+        """Model không trả chữ và không gọi công cụ -> vẫn phải có câu trả lời."""
+        service, _ = _stream_service("")
+        service._force_final_answer = AsyncMock(return_value="Dạ em xin lỗi, anh/chị nói lại giúp em ạ.")
+
+        chunks = [
+            c async for c in service.send_message_stream("s1", "c1", "chào em")
+        ]
+        payloads = _sse_payloads(chunks)
+
+        content_chunks = [p["text"] for p in payloads if p.get("type") == "content"]
+        assert "".join(content_chunks) == "Dạ em xin lỗi, anh/chị nói lại giúp em ạ."
+        service._force_final_answer.assert_awaited_once()
+
+
+# ============================================================
+# create_draft_order — toàn vẹn dữ liệu
+#
+# Lỗi đã sửa: đơn được ghi trước rồi mới ghi từng món; nếu ghi món lỗi thì còn
+# lại đơn rác thiếu món, và LLM gọi lại công cụ thì tạo thêm đơn trùng.
+# ============================================================
+
+
+class _StubTable:
+    """Giả lập builder của Supabase: ghi lại lời gọi và trả dữ liệu theo ý test."""
+
+    def __init__(self, select_data=None, insert_data=None, insert_error=None):
+        self.select_data = select_data if select_data is not None else []
+        self.insert_data = insert_data
+        self.insert_error = insert_error
+        self.ops: list[tuple] = []
+        self._op = None
+
+    def select(self, *args, **kwargs):
+        self._op = "select"
+        self.ops.append(("select",))
+        return self
+
+    def insert(self, payload):
+        self._op = "insert"
+        self.ops.append(("insert", payload))
+        return self
+
+    def delete(self):
+        self._op = "delete"
+        self.ops.append(("delete",))
+        return self
+
+    def eq(self, *args):
+        self.ops.append(("eq",) + args)
+        return self
+
+    def gte(self, *args):
+        self.ops.append(("gte",) + args)
+        return self
+
+    def order(self, *args, **kwargs):
+        return self
+
+    def limit(self, *args):
+        return self
+
+    def execute(self):
+        if self._op == "insert" and self.insert_error is not None:
+            raise self.insert_error
+        if self._op == "insert":
+            return MagicMock(data=self.insert_data)
+        return MagicMock(data=self.select_data)
+
+    def inserts(self):
+        return [op[1] for op in self.ops if op[0] == "insert"]
+
+
+class _StubSupabase:
+    def __init__(self, tables):
+        self._tables = tables
+
+    def table(self, name):
+        return self._tables[name]
+
+
+def _draft_tools(orders: _StubTable, order_items: _StubTable):
+    from app.services.order_tools import OrderTools
+
+    return OrderTools(
+        _StubSupabase({
+            "products": _StubTable(select_data=_fake_products()),
+            "orders": orders,
+            "order_items": order_items,
+        })
+    )
+
+
+def _draft_args():
+    return {
+        "customer_name": "Khách Test",
+        "customer_phone": "0901234567",
+        "pickup_date": _pickup_in(5),
+        "customer_id": str(uuid4()),
+        "items": [
+            {"name": "Bánh kem hoa hồng đỏ", "quantity": 1},
+            {"name": "Bánh kem chữ Happy Birthday", "quantity": 2},
+        ],
+    }
+
+
+class TestCreateDraftOrderIntegrity:
+    """Đơn nháp không được thiếu món và không được tạo trùng."""
+
+    def test_all_items_are_written_in_one_statement(self):
+        orders = _StubTable(insert_data=[{"id": "order-1", "status": "pending"}])
+        items = _StubTable(insert_data=[{"id": "item-1"}])
+
+        result = _draft_tools(orders, items).create_draft_order(**_draft_args())
+
+        assert result["created"] is True
+        payloads = items.inserts()
+        assert len(payloads) == 1, "phải ghi tất cả món trong MỘT câu lệnh"
+        assert isinstance(payloads[0], list)
+        assert len(payloads[0]) == 2
+        assert all(row["order_id"] == "order-1" for row in payloads[0])
+
+    def test_failed_item_write_removes_the_partial_order(self):
+        from app.services.order_tools import ToolError
+
+        orders = _StubTable(insert_data=[{"id": "order-9", "status": "pending"}])
+        items = _StubTable(insert_error=RuntimeError("DB down"))
+
+        with pytest.raises(ToolError):
+            _draft_tools(orders, items).create_draft_order(**_draft_args())
+
+        # Đã xoá món rồi xoá đơn -> không còn đơn rác thiếu món.
+        assert ("delete",) in items.ops
+        assert ("delete",) in orders.ops
+        assert ("eq", "order_id", "order-9") in items.ops
+        assert ("eq", "id", "order-9") in orders.ops
+
+    def test_item_failure_is_reported_as_soft_error_to_llm(self):
+        from app.services.order_tools import dispatch
+
+        orders = _StubTable(insert_data=[{"id": "order-9", "status": "pending"}])
+        items = _StubTable(insert_error=RuntimeError("DB down"))
+
+        result = dispatch(_draft_tools(orders, items), "create_draft_order", _draft_args())
+
+        # Lỗi mềm: LLM đọc được để xin lỗi khách, request không sập.
+        assert "error" in result
+
+    def test_repeat_call_reuses_recent_identical_draft(self):
+        orders = _StubTable(select_data=[{"id": "don-cu-0001", "status": "pending"}])
+        items = _StubTable()
+
+        args = _draft_args()
+        result = _draft_tools(orders, items).create_draft_order(**args)
+
+        assert result["created"] is True
+        assert result["duplicate"] is True
+        assert result["order_id"] == "don-cu-0001"
+        # KHÔNG tạo thêm đơn, KHÔNG ghi thêm món.
+        assert orders.inserts() == []
+        assert items.inserts() == []
+        # Truy vấn chống trùng phải khoá đúng khách / trạng thái / ngày nhận.
+        assert ("eq", "customer_id", args["customer_id"]) in orders.ops
+        assert ("eq", "status", "pending") in orders.ops
+        assert ("eq", "pickup_date", _pickup_date_iso(args["pickup_date"])) in orders.ops
+        assert any(op[0] == "gte" and op[1] == "created_at" for op in orders.ops)
+
+    def test_first_call_with_no_existing_draft_still_creates(self):
+        orders = _StubTable(
+            select_data=[], insert_data=[{"id": "order-new", "status": "pending"}]
+        )
+        items = _StubTable(insert_data=[{"id": "item-1"}])
+
+        result = _draft_tools(orders, items).create_draft_order(**_draft_args())
+
+        assert result["created"] is True
+        assert result.get("duplicate") is not True
+        assert result["order_id"] == "order-new"
+
+
+def _pickup_date_iso(pickup_date: str) -> str:
+    """Chuỗi `pickup_date` mà create_draft_order ghi xuống CSDL (VN_TZ)."""
+    from app.services.order_tools import VN_TZ
+
+    return datetime.strptime(pickup_date, "%Y-%m-%d").replace(tzinfo=VN_TZ).isoformat()
+
+
+# ============================================================
+# RAG — trợ lý phải biết hôm nay là ngày nào
+#
+# Lỗi đã sửa: prompt không có ngày hiện tại nên LLM phải đoán, dễ hỏi lại khách
+# hoặc tự bịa ngày nhận — trong khi `check_bake_time` chỉ hiểu YYYY-MM-DD.
+# ============================================================
+
+
+class TestRAGServiceCurrentDate:
+    """Prompt chứa ngày/thứ hôm nay theo giờ Việt Nam."""
+
+    def setup_method(self):
+        self.rag_service = RAGService(MagicMock())
+
+    def test_prompt_includes_today_in_vietnam_timezone(self):
+        from app.services.rag_service import VN_TZ, VN_WEEKDAYS
+
+        now = datetime.now(VN_TZ)
+        result = self.rag_service.build_system_prompt()
+
+        assert now.strftime("%d/%m/%Y") in result
+        assert VN_WEEKDAYS[now.weekday()] in result
+        assert "UTC+7" in result
+
+    def test_prompt_tells_model_to_convert_relative_dates(self):
+        result = self.rag_service.build_system_prompt()
+
+        assert "YYYY-MM-DD" in result
+        assert "check_bake_time" in result
+        # Nhắc rõ không được hỏi lại khách hôm nay là ngày mấy.
+        assert "KHÔNG hỏi lại khách" in result
+
+    def test_placeholder_is_filled(self):
+        result = self.rag_service.build_system_prompt()
+
+        assert "{current_datetime_context}" not in result
+
+    def test_existing_contexts_are_still_rendered(self):
+        result = self.rag_service.build_system_prompt(
+            events_context="SAP_TOI: Trung thu",
+            customer_habits_context="THOI_QUEN: thích socola",
+        )
+
+        assert "SAP_TOI: Trung thu" in result
+        assert "THOI_QUEN: thích socola" in result
+
+    def test_datetime_context_uses_vietnam_weekday_names(self):
+        from app.services.rag_service import VN_TZ, VN_WEEKDAYS, get_current_datetime_context
+
+        now = datetime.now(VN_TZ)
+        context = get_current_datetime_context()
+
+        assert context.startswith("Hôm nay là ")
+        assert VN_WEEKDAYS[now.weekday()] in context
+        assert now.strftime("%d/%m/%Y") in context

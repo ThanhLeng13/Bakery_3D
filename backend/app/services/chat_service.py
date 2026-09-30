@@ -571,24 +571,17 @@ class ChatService:
                 calls = getattr(message, "tool_calls", None)
 
                 if not calls:
-                    # Không cần công cụ nữa -> stream câu trả lời cuối cho khách.
-                    stream = await client.chat.completions.create(
-                        model=settings.GROQ_MODEL,
-                        max_tokens=1024,
-                        messages=messages,
-                        stream=True,
-                    )
-                    async with stream as s:
-                        async for chunk in s:
-                            if (
-                                chunk.choices
-                                and chunk.choices[0].delta is not None
-                                and chunk.choices[0].delta.content
-                            ):
-                                text = chunk.choices[0].delta.content
-                                full_response += text
-                                yield f"data: {json.dumps({'type': 'content', 'text': text}, ensure_ascii=False)}\n\n"
-                    answered = True
+                    # Không cần công cụ nữa -> câu trả lời cuối ĐÃ nằm trong
+                    # chính response này. Gọi thêm một lượt completion nữa sẽ
+                    # sinh lại câu trả lời từ đầu: tốn thêm token, tăng độ trễ
+                    # gấp đôi và có thể lệch với kết quả công cụ vừa tra. Vì vậy
+                    # dùng thẳng nội dung đã có rồi cắt nhỏ để gửi dần.
+                    final_text = (message.content or "").strip()
+                    if final_text:
+                        full_response = final_text
+                        for piece in _chunks(full_response):
+                            yield f"data: {json.dumps({'type': 'content', 'text': piece}, ensure_ascii=False)}\n\n"
+                        answered = True
                     break
 
                 # LLM muốn tra cứu. Báo cho giao diện biết đang tra, để khách

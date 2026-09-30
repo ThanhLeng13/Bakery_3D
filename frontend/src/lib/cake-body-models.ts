@@ -78,7 +78,10 @@ export const CAKE_BODY_MODELS: Record<Cake3DModelSlug, CakeBodyModelDefinition> 
 };
 
 export function getCakeBodyModel(slug?: Cake3DModelSlug): CakeBodyModelDefinition {
-  return CAKE_BODY_MODELS[slug ?? "round-1-tier"];
+  // Slug đến từ API/CSDL nên về mặt kiểu có thể là giá trị chưa có trong registry
+  // (ví dụ admin thêm mẫu mới trong DB). Thiếu fallback thì `definition.glbUrl`
+  // và `definition.orderable` sẽ nổ ngay trên giao diện.
+  return CAKE_BODY_MODELS[slug as Cake3DModelSlug] ?? CAKE_BODY_MODELS["round-1-tier"];
 }
 
 /** Allows Cake Studio to work before the one-time Supabase SQL migration runs. */

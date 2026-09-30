@@ -70,6 +70,12 @@ Thiếu bất kỳ thứ nào thì HỎI, tuyệt đối không tự tạo đơn
 Sau khi tạo, đọc mã đơn và tổng tiền cho khách, và nói tiệm sẽ gọi xác nhận.
 Nếu công cụ báo `not_logged_in`, đề nghị khách đăng nhập — KHÔNG nói đơn đã tạo.
 
+## Hôm nay là ngày nào:
+{current_datetime_context}
+- Khách nói "mai", "ngày kia", "thứ Bảy này"... thì em TỰ quy đổi thành
+  YYYY-MM-DD rồi mới truyền vào `check_bake_time`.
+- KHÔNG hỏi lại khách hôm nay là ngày mấy — em đã biết ở trên.
+
 {events_context}
 
 ## Thông tin cửa hàng:
@@ -85,6 +91,34 @@ Nếu công cụ báo `not_logged_in`, đề nghị khách đăng nhập — KH�
 - Đặt trước bao lâu? → Tối thiểu 24 giờ, đơn đặc biệt 48 giờ
 - Có viết chữ lên bánh không? → Có, miễn phí viết chữ chúc mừng
 {customer_habits_context}"""
+
+
+# Múi giờ Việt Nam (UTC+7). Trợ lý phải biết HÔM NAY là ngày nào, nếu không thì
+# không quy đổi được "mai", "thứ Bảy này" thành ngày cụ thể để tra thời gian làm bánh.
+VN_TZ = timezone(timedelta(hours=7))
+
+VN_WEEKDAYS = (
+    "Thứ Hai",
+    "Thứ Ba",
+    "Thứ Tư",
+    "Thứ Năm",
+    "Thứ Sáu",
+    "Thứ Bảy",
+    "Chủ Nhật",
+)
+
+
+def get_current_datetime_context() -> str:
+    """Ngày + thứ hiện tại theo giờ Việt Nam, để nhét vào system prompt.
+
+    Không có mốc này, LLM phải đoán hôm nay là ngày nào nên hay hỏi lại khách
+    hoặc tự bịa ngày nhận — trong khi `check_bake_time` chỉ hiểu YYYY-MM-DD.
+    """
+    now = datetime.now(VN_TZ)
+    return (
+        f"Hôm nay là {VN_WEEKDAYS[now.weekday()]}, ngày {now.strftime('%d/%m/%Y')} "
+        "(giờ Việt Nam, UTC+7)."
+    )
 
 
 def _nth_weekday_of_month(year: int, month: int, weekday: int, n: int) -> datetime:
@@ -394,6 +428,7 @@ class RAGService:
             Complete system prompt string
         """
         return SYSTEM_PROMPT_TEMPLATE.format(
+            current_datetime_context=get_current_datetime_context(),
             events_context=events_context,
             customer_habits_context=customer_habits_context,
         )
