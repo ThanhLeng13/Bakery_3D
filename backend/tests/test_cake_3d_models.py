@@ -11,10 +11,13 @@ from app.services.cake_3d_model_service import (
 
 
 class MockQuery:
-    def __init__(self, data=None, count=None, error=None):
+    def __init__(self, data=None, count=None, error=None, returns_none=False):
         self.data = data
         self.count = count
         self.error = error
+        # `maybe_single()` của supabase-py trả về None khi không có dòng nào khớp,
+        # chứ không phải object có .data = None.
+        self.returns_none = returns_none
         self.filters = []
 
     def select(self, *args, **kwargs):
@@ -37,6 +40,8 @@ class MockQuery:
     def execute(self):
         if self.error:
             raise self.error
+        if self.returns_none:
+            return None
         result = MagicMock()
         result.data = self.data
         result.count = self.count
@@ -81,3 +86,32 @@ def test_get_model_returns_not_found_for_missing_active_model():
 
     with pytest.raises(Cake3DModelNotFoundError):
         Cake3DModelService(client).get_model("missing-model")
+
+
+def test_get_model_treats_none_from_maybe_single_as_not_found():
+    """Không có dòng nào -> 404, KHÔNG phải 500.
+
+    Lỗi thật đã gặp trên server: `maybe_single().execute()` trả về None, đọc
+    `.data` trên None gây AttributeError, bị `except Exception` bắt và đổi thành
+    lỗi 500 "Failed to fetch 3D cake model".
+    """
+    client = MagicMock()
+    client.table.side_effect = [
+        MockQuery(returns_none=True),
+        MockQuery(returns_none=True),
+    ]
+
+    with pytest.raises(Cake3DModelNotFoundError):
+        Cake3DModelService(client).get_model("khong-ton-tai")
+
+
+def test_get_model_ignores_empty_by_id_lookup_and_uses_slug():
+    """UUID tra không ra dòng nào (None) thì vẫn phải thử tiếp bằng slug."""
+    client = MagicMock()
+    slug_query = MockQuery(data={"slug": "round-2-tier"})
+    client.table.side_effect = [MockQuery(returns_none=True), slug_query]
+
+    result = Cake3DModelService(client).get_model("round-2-tier")
+
+    assert result["slug"] == "round-2-tier"
+    assert ("eq", "slug", "round-2-tier") in slug_query.filters
