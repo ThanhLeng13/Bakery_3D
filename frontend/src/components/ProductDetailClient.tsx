@@ -5,11 +5,17 @@ import { flushSync } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import StarRating from "./StarRating";
 import { ProductDetailResponse, StockInfo, StockByBranchResponse, BranchStock } from "@/types";
 import { apiClient } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
 import { useAuthContext } from "@/contexts/AuthContext";
+
+const CakeViewer3D = dynamic(() => import("@/components/cake-builder/CakeViewer3D"), {
+  ssr: false,
+  loading: () => <div className="aspect-square animate-pulse bg-subtle" aria-label="Đang tải mẫu bánh 3D" />,
+});
 
 function formatPrice(price: number): string {
   return new Intl.NumberFormat("vi-VN", {
@@ -600,6 +606,9 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
     product.images.length > 0 && !imgErrors.has(selectedImageIndex)
       ? product.images[selectedImageIndex]
       : null;
+  const primary3DModel = product.three_d_models?.find((model) => model.is_primary)
+    ?? product.three_d_models?.[0]
+    ?? null;
 
   return (
     <main className="min-h-screen bg-cream">
@@ -651,6 +660,12 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
                 </div>
               )}
             </div>
+
+            {primary3DModel && (
+              <div className="mt-4">
+                <CakeViewer3D model={primary3DModel} />
+              </div>
+            )}
 
             {/* Thumbnails */}
             {product.images.length > 1 && (
@@ -994,7 +1009,7 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
                     </span>
                   </Link>
                   <Link
-                    href="/cake-builder"
+                    href={primary3DModel ? `/cake-builder?model=${encodeURIComponent(primary3DModel.slug)}` : "/cake-builder"}
                     id={`design-cake-${product.id}`}
                     className="w-full block text-center py-2.5 px-6 text-sm font-medium text-mocha border border-mocha/20 rounded-full hover:bg-mocha/5 transition-colors"
                   >

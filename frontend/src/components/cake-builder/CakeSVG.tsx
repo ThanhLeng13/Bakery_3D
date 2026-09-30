@@ -150,9 +150,9 @@ export default function CakeSVG({
       const isActive = activeZone === zone;
       const isHovered = hoveredZone === zone;
 
-      if (isActive) return { stroke: "#E8837A", strokeWidth: 2.5 };
-      if (isHovered) return { stroke: "#E8837A", strokeWidth: 1.5, strokeDasharray: "4 2" };
-      return { stroke: "#D4A574", strokeWidth: 0.5 };
+      if (isActive) return { stroke: "#2B2B2A", strokeWidth: 2.5 };
+      if (isHovered) return { stroke: "#8F8F8E", strokeWidth: 1.5, strokeDasharray: "4 2" };
+      return { stroke: "#E5E5E3", strokeWidth: 0.5 };
     },
     [activeZone, hoveredZone]
   );
@@ -177,7 +177,7 @@ export default function CakeSVG({
 
   // Get cream color for body
   const bodyColor = design.zones?.body?.color || design.cream_color || CREAM_COLORS.pink;
-  const borderColor = design.zones?.border?.color || "#D4A574";
+  const borderColor = design.zones?.border?.color || "#8F8F8E";
 
   // Render toppings on top zone
   const renderToppings = () => {
@@ -410,8 +410,8 @@ export default function CakeSVG({
             cy="258"
             rx="100"
             ry="8"
-            fill="#F5F5DC"
-            stroke="#D4A574"
+            fill="#FAFAF9"
+            stroke="#8F8F8E"
             strokeWidth="0.5"
           />
           {/* Touch target overlay */}
@@ -426,7 +426,7 @@ export default function CakeSVG({
 
         {/* Zone labels (shown on hover) */}
         {hoveredZone === "top" && (
-          <text x="150" y="50" textAnchor="middle" fontSize="10" fill="#5C3D2E" fontWeight="500">
+          <text x="150" y="50" textAnchor="middle" fontSize="10" fill="#2B2B2A" fontWeight="500">
             Toppings & Decorations
           </text>
         )}
@@ -436,7 +436,7 @@ export default function CakeSVG({
           </text>
         )}
         {hoveredZone === "border" && (
-          <text x="150" y="275" textAnchor="middle" fontSize="10" fill="#5C3D2E" fontWeight="500">
+          <text x="150" y="275" textAnchor="middle" fontSize="10" fill="#2B2B2A" fontWeight="500">
             Border Decorations
           </text>
         )}

@@ -1,22 +1,19 @@
 "use client";
 
 /**
- * Cake3D - Fixed version.
- * Key fixes:
- * 1. Use onPointerDown+onPointerUp with distance check (OrbitControls intercepts onClick)
- * 2. Use ref for rotating flag (avoid re-render losing click events)
- * 3. Put click handlers on visible meshes directly (more reliable than invisible hit areas)
- * 4. No Environment HDR (requires internet)
- * 5. No shadows (deprecation warnings)
- * 6. Large, emissive decorations for clear visibility
+ * Interactive procedural cake with soft buttercream surfaces and local GLB toppings.
+ * Pointer distance checks distinguish selection from OrbitControls dragging.
+ * Studio illumination is generated locally; no remote HDR or decoder is required.
  */
 
-import { useRef, useMemo, Suspense } from "react";
+import { Component, useEffect, useRef, useMemo, Suspense } from "react";
 import { Canvas, useFrame, ThreeEvent } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { ContactShadows, Environment, Lightformer, OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import type { CakeDesign } from "@/types";
 import { type CakeZone } from "./CakeSVG";
+import { Ganache, PipedBorder, RoundedCylinder, useIcingTexture } from "./CakeFinish";
+import GlbCakeBody from "./GlbCakeBody";
 
 interface Cake3DProps {
   design: CakeDesign;
@@ -58,13 +55,13 @@ function useMeshClick(onConfirm: () => void) {
 
 // ─── Clickable mesh với highlight khi hover / active ─────────────────────────
 function ZoneMesh({
-  zone, geometry, color, roughness, metalness,
+  zone, geometry, color, roughness, clearcoat,
   onZoneClick, onZoneHover, activeZone, hoveredZone,
   children,
 }: {
   zone: CakeZone;
   geometry: React.ReactNode;
-  color: string; roughness: number; metalness: number;
+  color: string; roughness: number; clearcoat: number;
   onZoneClick: (z: CakeZone) => void;
   onZoneHover: (z: CakeZone | null) => void;
   activeZone: CakeZone | null;
@@ -74,22 +71,30 @@ function ZoneMesh({
   const isActive  = activeZone  === zone;
   const isHovered = hoveredZone === zone;
   const { onPointerDown, onPointerUp } = useMeshClick(() => onZoneClick(zone));
+  const icingTexture = useIcingTexture();
 
-  const emissiveColor = isActive ? "#E8837A" : isHovered ? "#D4837A" : "#000000";
-  const emissiveIntensity = isActive ? 0.22 : isHovered ? 0.12 : 0;
+  const emissiveColor = isActive ? "#6B6B6A" : isHovered ? "#8F8F8E" : "#000000";
+  const emissiveIntensity = isActive ? 0.14 : isHovered ? 0.08 : 0;
 
   return (
     <mesh
+      castShadow
+      receiveShadow
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
       onPointerEnter={(e) => { e.stopPropagation(); onZoneHover(zone); }}
       onPointerLeave={(e) => { e.stopPropagation(); onZoneHover(null); }}
     >
       {geometry}
-      <meshStandardMaterial
+      <meshPhysicalMaterial
         color={color}
         roughness={roughness}
-        metalness={metalness}
+        metalness={0}
+        clearcoat={clearcoat}
+        clearcoatRoughness={0.28}
+        bumpMap={icingTexture}
+        bumpScale={0.003}
+        envMapIntensity={0.65}
         emissive={emissiveColor}
         emissiveIntensity={emissiveIntensity}
       />
@@ -160,7 +165,7 @@ function Sprinkle({ p }: { p: [number, number, number] }) {
         return (
           <mesh key={i} position={[Math.cos(a)*r, 0.03, Math.sin(a)*r]} rotation={[Math.PI/2, 0, a+0.5]}>
             <cylinderGeometry args={[0.026, 0.026, 0.11, 6]} />
-            <meshStandardMaterial color={colors[i%6]} emissive={colors[i%6]} emissiveIntensity={0.4} roughness={0.3} />
+            <meshStandardMaterial color={colors[i%6]} roughness={0.5} />
           </mesh>
         );
       })}
@@ -232,19 +237,79 @@ function HBDBlocks({ p }: { p: [number, number, number] }) {
   );
 }
 
-// ─── ToppingGroup cho từng loại topping cụ thể ──────────────────────────────
-function ToppingGroup({ type, surfaceY, R }: { type: string; surfaceY: number; R: number }) {
-  const positions = useMemo<[number, number, number][]>(() => {
-    // Lift toppings above the surface so selected decorations stay visible in 3D.
-    const y = surfaceY + 0.035;
+type DecorationFile = "flower" | "strawberry" | "macaron";
 
-    // Phân bổ góc lệch cho từng loại để nếu chọn nhiều topping chúng không chồng khít lên nhau
-    let offsetAngle = 0;
-    if (type === "flowers") offsetAngle = 0;
-    else if (type === "fruits") offsetAngle = 0.5;
-    else if (type === "sprinkles") offsetAngle = 1.0;
-    else if (type === "macarons") offsetAngle = 1.5;
-    else if (type === "chocolate drip") offsetAngle = 2.0;
+function DecorationAsset({
+  file,
+  p,
+  rotation,
+  sizeScale,
+}: {
+  file: DecorationFile;
+  p: [number, number, number];
+  rotation: number;
+  sizeScale: number;
+}) {
+  // These original GLBs use no Draco or Meshopt compression. Avoid initializing
+  // the Meshopt WebAssembly decoder, which production CSP intentionally blocks.
+  const { scene } = useGLTF(`/models/decorations/${file}.glb?v=20260930`, false, false);
+  const instance = useMemo(() => {
+    const clone = scene.clone(true);
+    clone.traverse((object) => {
+      if (object instanceof THREE.Mesh) {
+        object.castShadow = true;
+        object.receiveShadow = true;
+      }
+    });
+    return clone;
+  }, [scene]);
+  const scale = file === "strawberry" ? 1.6 : file === "macaron" ? 1.3 : 1.15;
+  return <primitive object={instance} position={p} rotation={[0, rotation, 0]} scale={scale * sizeScale} dispose={null} />;
+}
+
+class DecorationAssetBoundary extends Component<
+  { children: React.ReactNode; fallback: React.ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
+function ModelOrFallback({
+  file,
+  p,
+  rotation,
+  fallback,
+  sizeScale,
+}: {
+  file: DecorationFile;
+  p: [number, number, number];
+  rotation: number;
+  fallback: React.ReactNode;
+  sizeScale: number;
+}) {
+  return (
+    <DecorationAssetBoundary fallback={fallback}>
+      <Suspense fallback={fallback}>
+        <DecorationAsset file={file} p={p} rotation={rotation} sizeScale={sizeScale} />
+      </Suspense>
+    </DecorationAssetBoundary>
+  );
+}
+
+// ─── ToppingGroup cho từng loại topping cụ thể ──────────────────────────────
+function ToppingGroup({ type, surfaceY, R, slot = 0, slots = 1 }: { type: string; surfaceY: number; R: number; slot?: number; slots?: number }) {
+  const sizeScale = Math.min(1, R / 0.78);
+  const positions = useMemo<[number, number, number][]>(() => {
+    // Model origins sit at the bottom of each decoration, just above the icing.
+    const y = surfaceY + 0.005;
 
     const pts: [number, number, number][] = [];
 
@@ -252,28 +317,24 @@ function ToppingGroup({ type, surfaceY, R }: { type: string; surfaceY: number; R
       // Chữ viết chỉ đặt duy nhất ở tâm bánh
       pts.push([0, y, 0]);
     } else {
-      // Vòng tròn 1
-      for (let i = 0; i < 5; i++) {
-        const a = (i / 5) * Math.PI * 2 + offsetAngle;
-        pts.push([Math.cos(a) * R * 0.45, y, Math.sin(a) * R * 0.45]);
-      }
-      // Vòng tròn 2
-      for (let i = 0; i < 8; i++) {
-        const a = (i / 8) * Math.PI * 2 + 0.2 + offsetAngle;
-        pts.push([Math.cos(a) * R * 0.75, y, Math.sin(a) * R * 0.75]);
+      const count = type === "sprinkles" ? 8 : slots > 1 ? 2 : 5;
+      const radius = R * 0.64;
+      for (let i = 0; i < count; i++) {
+        const a = ((i * slots + slot) / (count * slots)) * Math.PI * 2 + 0.35;
+        pts.push([Math.cos(a) * radius, y, Math.sin(a) * radius]);
       }
     }
     return pts;
-  }, [type, surfaceY, R]);
+  }, [type, surfaceY, R, slot, slots]);
 
   return (
     <group>
       {positions.map((pos, i) => {
         switch (type) {
-          case "flowers":        return <Flower     key={i} p={pos} />;
-          case "fruits":         return <Fruit      key={i} p={pos} />;
+          case "flowers":        return <ModelOrFallback key={i} file="flower" p={pos} rotation={i * 0.45} sizeScale={sizeScale} fallback={<Flower p={pos} />} />;
+          case "fruits":         return <ModelOrFallback key={i} file="strawberry" p={pos} rotation={i * 0.6} sizeScale={sizeScale} fallback={<Fruit p={pos} />} />;
           case "sprinkles":      return <Sprinkle   key={i} p={pos} />;
-          case "macarons":       return <Macaron    key={i} p={pos} />;
+          case "macarons":       return <ModelOrFallback key={i} file="macaron" p={pos} rotation={i * 0.45} sizeScale={sizeScale} fallback={<Macaron p={pos} />} />;
           case "chocolate drip": return <ChocoDrip  key={i} p={pos} />;
           case "text":           return <HBDBlocks  key={i} p={[pos[0], pos[1] + 0.005, pos[2]]} />;
           default:               return null;
@@ -286,10 +347,14 @@ function ToppingGroup({ type, surfaceY, R }: { type: string; surfaceY: number; R
 // ─── Toppings mặt trên (chấp nhận mảng toppings) ─────────────────────────────
 function TopToppings({ toppings, surfaceY, R }: { toppings?: string[]; surfaceY: number; R: number }) {
   if (!toppings || toppings.length === 0) return null;
+  const ringToppings = toppings.filter((type) => ["flowers", "fruits", "macarons"].includes(type));
   return (
     <group>
-      {toppings.map((toppingType) => (
-        <ToppingGroup key={toppingType} type={toppingType} surfaceY={surfaceY} R={R} />
+      {toppings.map((type) => type === "chocolate drip" ? (
+        <Ganache key={type} radius={R} surfaceY={surfaceY} />
+      ) : (
+        <ToppingGroup key={type} type={type} surfaceY={surfaceY} R={R}
+          slot={Math.max(0, ringToppings.indexOf(type))} slots={Math.max(1, ringToppings.length)} />
       ))}
     </group>
   );
@@ -316,40 +381,21 @@ function BorderDecor({ type, color, R, y }: { type: string; color: string; R: nu
       return { x: Math.cos(a) * (R + 0.06), z: Math.sin(a) * (R + 0.06), a };
     }), [R]);
 
-  // Shared geometry + material instances — one each, reused across all N meshes
-  const pipingGeo  = useMemo(() => new THREE.SphereGeometry(0.06, 10, 10),    []);
-  const pipingMat  = useMemo(() => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.25, roughness: 0.25 }), [color]);
-
-  const rOuter     = useMemo(() => new THREE.SphereGeometry(0.07, 10, 10),    []);
-  const rOuterMat  = useMemo(() => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.15, transparent: true, opacity: 0.85, roughness: 0.25 }), [color]);
-  const rInner     = useMemo(() => new THREE.SphereGeometry(0.038, 8, 8),     []);
-  const rInnerMat  = useMemo(() => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.35, roughness: 0.15 }), [color]);
-
   const pearlGeo   = useMemo(() => new THREE.SphereGeometry(0.052, 12, 12),   []);
-  const pearlMat   = useMemo(() => new THREE.MeshStandardMaterial({ color: "#FFFDD0", emissive: "#FFFACD", emissiveIntensity: 0.45, roughness: 0.03, metalness: 0.6 }), []);
+  const pearlMat   = useMemo(() => new THREE.MeshPhysicalMaterial({ color: "#FAFAF9", roughness: 0.28, metalness: 0.1, clearcoat: 0.4 }), []);
 
   const spkGeo     = useMemo(() => new THREE.CylinderGeometry(0.015, 0.015, 0.052, 6), []);
+  useEffect(() => () => {
+    pearlGeo.dispose();
+    pearlMat.dispose();
+    spkGeo.dispose();
+  }, [pearlGeo, pearlMat, spkGeo]);
 
   switch (type) {
     case "piping":
-      return (
-        <group>
-          {pts.map((p, i) => (
-            <mesh key={i} position={[p.x, y, p.z]} geometry={pipingGeo} material={pipingMat} />
-          ))}
-        </group>
-      );
+      return <PipedBorder radius={R} y={y} color={color} />;
     case "rosettes":
-      return (
-        <group>
-          {pts.map((p, i) => (
-            <group key={i} position={[p.x, y, p.z]}>
-              <mesh geometry={rOuter} material={rOuterMat} />
-              <mesh geometry={rInner} material={rInnerMat} />
-            </group>
-          ))}
-        </group>
-      );
+      return <PipedBorder radius={R} y={y} color={color} rosettes />;
     case "pearls":
       return (
         <group>
@@ -365,7 +411,7 @@ function BorderDecor({ type, color, R, y }: { type: string; color: string; R: nu
         <group>
           {pts.map((p, i) => (
             <mesh key={i} position={[p.x, y+(i%3-1)*0.022, p.z]} rotation={[Math.PI/2, 0, p.a]} geometry={spkGeo}>
-              <meshStandardMaterial color={sc[i%4]} emissive={sc[i%4]} emissiveIntensity={0.4} roughness={0.3} />
+              <meshStandardMaterial color={sc[i%4]} roughness={0.55} />
             </mesh>
           ))}
         </group>
@@ -373,9 +419,9 @@ function BorderDecor({ type, color, R, y }: { type: string; color: string; R: nu
     }
     case "ribbon":
       return (
-        <mesh position={[0, y, 0]}>
+        <mesh position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[R + 0.04, 0.04, 10, 80]} />
-          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.3} transparent opacity={0.92} roughness={0.15} />
+          <meshPhysicalMaterial color={color} roughness={0.5} clearcoat={0.1} />
         </mesh>
       );
     default:
@@ -419,7 +465,7 @@ function BodyPattern({ type, R, H, y }: { type: string; R: number; H: number; y:
       return (
         <group>
           {[0.28, 0.0, -0.28].map((off, i) => (
-            <mesh key={i} position={[0, y+off, 0]}>
+            <mesh key={i} position={[0, y+off, 0]} rotation={[Math.PI / 2, 0, 0]}>
               <torusGeometry args={[R*0.994, 0.018, 8, 80]} />
               <meshStandardMaterial color="#FFFFFF" transparent opacity={0.38} emissive="#FFFFFF" emissiveIntensity={0.12} />
             </mesh>
@@ -433,8 +479,8 @@ function BodyPattern({ type, R, H, y }: { type: string; R: number; H: number; y:
 
 // ─── Toàn bộ mô hình bánh ─────────────────────────────────────────────────────
 function CakeMesh({ design, activeZone, hoveredZone, onZoneClick, onZoneHover }: Cake3DProps) {
-  const bodyColor   = design.zones?.body?.color   || design.cream_color || "#E8837A";
-  const borderColor = design.zones?.border?.color || "#D4A574";
+  const bodyColor   = design.zones?.body?.color   || design.cream_color || "#F2F1EE";
+  const borderColor = design.zones?.border?.color || "#F2F1EE";
   const topColor    = design.zones?.top?.color    || bodyColor;
 
   const size = design.size;
@@ -446,7 +492,7 @@ function CakeMesh({ design, activeZone, hoveredZone, onZoneClick, onZoneHover }:
     // Bottom Tier Dimensions
     const R1 = 0.9;
     const bodyH1 = 0.55;
-    const borderH1 = 0.20;
+    const borderH1 = 0.075;
     const topH1 = 0.06;
 
     const bodyY1 = 0;
@@ -457,7 +503,7 @@ function CakeMesh({ design, activeZone, hoveredZone, onZoneClick, onZoneHover }:
     // Top Tier Dimensions
     const R2 = 0.60;
     const bodyH2 = 0.45;
-    const borderH2 = 0.16;
+    const borderH2 = 0.055;
     const topH2 = 0.06;
 
     const bodyY2 = topSurface1 + bodyH2 / 2;
@@ -470,67 +516,57 @@ function CakeMesh({ design, activeZone, hoveredZone, onZoneClick, onZoneHover }:
         {/* ─── TẦNG DƯỚI (Bottom Tier) ─── */}
         {/* Thân bánh tầng dưới */}
         <group position={[0, bodyY1, 0]}>
-          <ZoneMesh zone="body" color={bodyColor} roughness={0.35} metalness={0.05}
-            geometry={<cylinderGeometry args={[R1, R1, bodyH1, 64]} />} {...zoneProps} />
+          <ZoneMesh zone="body" color={bodyColor} roughness={0.48} clearcoat={0.24}
+            geometry={<RoundedCylinder radius={R1} height={bodyH1} roundTop={false} capTop={false} />} {...zoneProps} />
           <BodyPattern type={design.zones?.body?.decoration || ""} R={R1} H={bodyH1} y={0} />
         </group>
 
         {/* Viền dưới tầng dưới */}
         <group position={[0, borderY1, 0]}>
-          <ZoneMesh zone="border" color={borderColor} roughness={0.28} metalness={0.1}
-            geometry={<cylinderGeometry args={[R1 + 0.028, R1 + 0.028, borderH1, 64]} />} {...zoneProps} />
-          {design.zones?.border?.decoration && (
-            <BorderDecor type={design.zones.border.decoration} color={borderColor} R={R1 + 0.028} y={0.05} />
-          )}
+          <ZoneMesh zone="border" color={borderColor} roughness={0.45} clearcoat={0.3}
+            geometry={<RoundedCylinder radius={R1 + 0.01} height={borderH1} bevel={0.025} />} {...zoneProps} />
+          <BorderDecor type={design.zones?.border?.decoration || "piping"} color={borderColor} R={R1 + 0.014} y={0} />
         </group>
 
         {/* Mặt trên tầng dưới */}
         <group position={[0, topY1, 0]}>
-          <ZoneMesh zone="top" color={topColor} roughness={0.22} metalness={0.05}
-            geometry={<cylinderGeometry args={[R1, R1, topH1, 64]} />} {...zoneProps} />
+          <ZoneMesh zone="top" color={topColor} roughness={0.4} clearcoat={0.38}
+            geometry={<RoundedCylinder radius={R1} height={topH1} bevel={0.028} roundBottom={false} capBottom={false} />} {...zoneProps} />
         </group>
 
 
         {/* ─── TẦNG TRÊN (Top Tier) ─── */}
         {/* Thân bánh tầng trên */}
         <group position={[0, bodyY2, 0]}>
-          <ZoneMesh zone="body" color={bodyColor} roughness={0.35} metalness={0.05}
-            geometry={<cylinderGeometry args={[R2, R2, bodyH2, 64]} />} {...zoneProps} />
+          <ZoneMesh zone="body" color={bodyColor} roughness={0.48} clearcoat={0.24}
+            geometry={<RoundedCylinder radius={R2} height={bodyH2} roundTop={false} capTop={false} />} {...zoneProps} />
           <BodyPattern type={design.zones?.body?.decoration || ""} R={R2} H={bodyH2} y={0} />
         </group>
 
         {/* Viền dưới tầng trên */}
         <group position={[0, borderY2, 0]}>
-          <ZoneMesh zone="border" color={borderColor} roughness={0.28} metalness={0.1}
-            geometry={<cylinderGeometry args={[R2 + 0.028, R2 + 0.028, borderH2, 64]} />} {...zoneProps} />
-          {design.zones?.border?.decoration && (
-            <BorderDecor type={design.zones.border.decoration} color={borderColor} R={R2 + 0.028} y={0.04} />
-          )}
+          <ZoneMesh zone="border" color={borderColor} roughness={0.45} clearcoat={0.3}
+            geometry={<RoundedCylinder radius={R2 + 0.01} height={borderH2} bevel={0.02} />} {...zoneProps} />
+          <BorderDecor type={design.zones?.border?.decoration || "piping"} color={borderColor} R={R2 + 0.014} y={0.055} />
         </group>
 
         {/* Mặt trên tầng trên */}
         <group position={[0, topY2, 0]}>
-          <ZoneMesh zone="top" color={topColor} roughness={0.22} metalness={0.05}
-            geometry={<cylinderGeometry args={[R2, R2, topH2, 64]} />} {...zoneProps} />
+          <ZoneMesh zone="top" color={topColor} roughness={0.4} clearcoat={0.38}
+            geometry={<RoundedCylinder radius={R2} height={topH2} bevel={0.028} roundBottom={false} capBottom={false} />} {...zoneProps} />
         </group>
 
-        {/* Highlight mặt trên cùng */}
-        <mesh position={[0, topSurface2 + 0.003, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <circleGeometry args={[R2 * 0.55, 40]} />
-          <meshStandardMaterial color="#FFFFFF" transparent opacity={0.18} roughness={0.1} depthWrite={false} />
-        </mesh>
-
         {/* ── Toppings mặt trên cùng ── */}
-        <TopToppings toppings={activeToppings} surfaceY={topSurface2} R={R2 * 0.82} />
+        <TopToppings toppings={activeToppings} surfaceY={topSurface2} R={R2} />
 
         {/* ── Đĩa bánh ── */}
         <mesh position={[0, borderY1 - borderH1 / 2 - 0.02, 0]}>
-          <cylinderGeometry args={[R1 + 0.30, R1 + 0.30, 0.035, 64]} />
-          <meshStandardMaterial color="#F8F4E8" roughness={0.55} />
+          <RoundedCylinder radius={R1 + 0.23} height={0.035} bevel={0.012} />
+          <meshStandardMaterial color="#FAFAF9" roughness={0.55} />
         </mesh>
         <mesh position={[0, borderY1 - borderH1 / 2 - 0.038, 0]}>
-          <cylinderGeometry args={[R1 + 0.32, R1 + 0.32, 0.007, 64]} />
-          <meshStandardMaterial color="#D4A574" roughness={0.36} />
+          <RoundedCylinder radius={R1 + 0.23} height={0.007} bevel={0.003} />
+          <meshStandardMaterial color="#D5D5D2" roughness={0.45} metalness={0.05} />
         </mesh>
       </group>
     );
@@ -539,18 +575,18 @@ function CakeMesh({ design, activeZone, hoveredZone, onZoneClick, onZoneHover }:
   // Single Tier Dimensions (16cm, 20cm, 24cm)
   let R = 0.82;
   let bodyH = 0.86;
-  let borderH = 0.22;
+  let borderH = 0.075;
   let topH = 0.08;
 
   if (size === "16cm") {
     R = 0.65;
     bodyH = 0.72;
-    borderH = 0.18;
+    borderH = 0.065;
     topH = 0.06;
   } else if (size === "24cm") {
     R = 1.0;
     bodyH = 0.96;
-    borderH = 0.25;
+    borderH = 0.085;
     topH = 0.10;
   }
 
@@ -563,45 +599,70 @@ function CakeMesh({ design, activeZone, hoveredZone, onZoneClick, onZoneHover }:
     <group>
       {/* ── Thân bánh (clickable) ── */}
       <group position={[0, bodyY, 0]}>
-        <ZoneMesh zone="body" color={bodyColor} roughness={0.35} metalness={0.05}
-          geometry={<cylinderGeometry args={[R, R, bodyH, 64]} />} {...zoneProps} />
+          <ZoneMesh zone="body" color={bodyColor} roughness={0.48} clearcoat={0.24}
+          geometry={<RoundedCylinder radius={R} height={bodyH} roundTop={false} capTop={false} />} {...zoneProps} />
         <BodyPattern type={design.zones?.body?.decoration || ""} R={R} H={bodyH} y={0} />
       </group>
 
       {/* ── Viền dưới (clickable) ── */}
       <group position={[0, borderY, 0]}>
-        <ZoneMesh zone="border" color={borderColor} roughness={0.28} metalness={0.1}
-          geometry={<cylinderGeometry args={[R+0.028, R+0.028, borderH, 64]} />} {...zoneProps} />
-        {design.zones?.border?.decoration && (
-          <BorderDecor type={design.zones.border.decoration} color={borderColor} R={R+0.028} y={0.05} />
-        )}
+          <ZoneMesh zone="border" color={borderColor} roughness={0.45} clearcoat={0.3}
+          geometry={<RoundedCylinder radius={R + 0.01} height={borderH} bevel={0.025} />} {...zoneProps} />
+        <BorderDecor type={design.zones?.border?.decoration || "piping"} color={borderColor} R={R + 0.014} y={0} />
       </group>
 
       {/* ── Mặt trên (clickable) ── */}
       <group position={[0, topY, 0]}>
-        <ZoneMesh zone="top" color={topColor} roughness={0.22} metalness={0.05}
-          geometry={<cylinderGeometry args={[R, R, topH, 64]} />} {...zoneProps} />
+          <ZoneMesh zone="top" color={topColor} roughness={0.4} clearcoat={0.38}
+          geometry={<RoundedCylinder radius={R} height={topH} bevel={0.035} roundBottom={false} capBottom={false} />} {...zoneProps} />
       </group>
 
-      {/* Highlight mặt trên */}
-      <mesh position={[0, topSurface+0.003, 0]} rotation={[-Math.PI/2, 0, 0]}>
-        <circleGeometry args={[R*0.55, 40]} />
-        <meshStandardMaterial color="#FFFFFF" transparent opacity={0.18} roughness={0.1} depthWrite={false} />
-      </mesh>
-
       {/* ── Toppings mặt trên ── */}
-      <TopToppings toppings={activeToppings} surfaceY={topSurface} R={R*0.82} />
+      <TopToppings toppings={activeToppings} surfaceY={topSurface} R={R} />
 
       {/* ── Đĩa bánh ── */}
       <mesh position={[0, borderY - borderH/2 - 0.02, 0]}>
-        <cylinderGeometry args={[R+0.30, R+0.30, 0.035, 64]} />
-        <meshStandardMaterial color="#F8F4E8" roughness={0.55} />
+        <RoundedCylinder radius={R + 0.23} height={0.035} bevel={0.012} />
+          <meshStandardMaterial color="#FAFAF9" roughness={0.55} />
       </mesh>
       <mesh position={[0, borderY - borderH/2 - 0.038, 0]}>
-        <cylinderGeometry args={[R+0.32, R+0.32, 0.007, 64]} />
-        <meshStandardMaterial color="#D4A574" roughness={0.36} />
+        <RoundedCylinder radius={R + 0.23} height={0.007} bevel={0.003} />
+          <meshStandardMaterial color="#D5D5D2" roughness={0.45} metalness={0.05} />
       </mesh>
     </group>
+  );
+}
+
+class CakeBodyFallbackBoundary extends Component<{
+  children: React.ReactNode;
+  fallback: React.ReactNode;
+}, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidUpdate(previousProps: Readonly<{ children: React.ReactNode }>) {
+    // A new selected GLB gets a fresh attempt instead of permanently retaining
+    // the previous failed model's fallback.
+    if (previousProps.children !== this.props.children && this.state.hasError) {
+      this.setState({ hasError: false });
+    }
+  }
+
+  render() {
+    return this.state.hasError ? this.props.fallback : this.props.children;
+  }
+}
+
+function SelectedCakeBody(props: Cake3DProps) {
+  return (
+    <CakeBodyFallbackBoundary fallback={<CakeMesh {...props} />}>
+      <Suspense fallback={<CakeMesh {...props} />}>
+        <GlbCakeBody {...props} />
+      </Suspense>
+    </CakeBodyFallbackBoundary>
   );
 }
 
@@ -627,27 +688,54 @@ function RotatingCake(props: Cake3DProps) {
         minDistance={2.2}
         maxDistance={5.5}
         minPolarAngle={Math.PI * 0.10}
-        maxPolarAngle={Math.PI * 0.80}
+        maxPolarAngle={Math.PI * 0.48}
         dampingFactor={0.1}
         enableDamping
         onStart={() => { rotating.current = false; }}
         onEnd={()   => { rotating.current = true;  }}
       />
-      <CakeMesh {...props} />
+      <group scale={props.design.size === "2-tier" || props.design.size === "24cm" ? 0.9 : 1}
+        position={[0, props.design.size === "2-tier" ? -0.16 : props.design.size === "24cm" ? 0.09 : 0, 0]}>
+        <SelectedCakeBody {...props} />
+      </group>
     </group>
   );
 }
 
 // ─── Scene lighting ───────────────────────────────────────────────────────────
 function Scene(props: Cake3DProps) {
+  const shadowY = {
+    "16cm": -0.47,
+    "20cm": -0.55,
+    "24cm": -0.46,
+    "2-tier": -0.52,
+  }[props.design.size];
+
   return (
     <>
-      <ambientLight intensity={1.0} />
-      <directionalLight position={[4, 6, 4]}  intensity={1.5} color="#FFFAF0" />
-      <directionalLight position={[-3, 3, -3]} intensity={0.6} color="#FFD0C0" />
-      <directionalLight position={[0, -2, 3]}  intensity={0.3} color="#FFF0E8" />
-      <pointLight position={[0, 4, 0]} intensity={0.8} color="#FFFBF0" />
+      <hemisphereLight args={["#FFFFFF", "#E5E5E3", 0.9]} />
+      <directionalLight position={[-3, 5, 4]} intensity={2.7} color="#FFFFFF" castShadow
+        shadow-mapSize={[1024, 1024]} shadow-bias={-0.0003} shadow-normalBias={0.02}
+        shadow-camera-left={-2} shadow-camera-right={2} shadow-camera-top={2} shadow-camera-bottom={-2}
+        shadow-camera-near={0.5} shadow-camera-far={12} shadow-radius={4} shadow-blurSamples={8} />
+      <directionalLight position={[4, 2, 1]} intensity={0.65} color="#FFFFFF" />
+      <directionalLight position={[0, 3, -4]} intensity={0.9} color="#FFFFFF" />
+      <Environment resolution={128}>
+        <Lightformer form="rect" intensity={2.2} position={[-3, 4, 3]} scale={[4, 7, 1]} color="#FFFFFF" />
+        <Lightformer form="rect" intensity={1.1} position={[4, 2, 1]} scale={[3, 6, 1]} color="#F5F5F4" />
+      </Environment>
       <RotatingCake {...props} />
+      <ContactShadows
+        key={props.design.size}
+        position={[0, shadowY, 0]}
+        opacity={0.24}
+        scale={4.2}
+        blur={2.8}
+        far={1.4}
+        resolution={256}
+        frames={1}
+        color="#2B2B2A"
+      />
     </>
   );
 }
@@ -664,14 +752,18 @@ export default function Cake3D(props: Cake3DProps) {
         margin: "0 auto",
         borderRadius: 0,
         overflow: "hidden",
-        background: "transparent",
+        background: "radial-gradient(ellipse at 50% 38%, #FFFFFF 30%, #F5F5F4 100%)",
         cursor: props.enableControls === false ? "default" : "grab",
       }}
     >
       {/* Canvas */}
       <Canvas
-        camera={{ position: [0, 1.1, 4.2], fov: 30 }}
+        camera={{ position: [2.2, 2, 3.2], fov: 30 }}
+        shadows="variance"
+        dpr={[1, 1.5]}
         gl={{ antialias: true, alpha: true }}
+        role="img"
+        aria-label="Xem trước bánh kem 3D; dùng các nút tùy chỉnh để chọn vùng bánh"
         style={{ width:"100%", height:"100%" }}
       >
         <Suspense fallback={null}>

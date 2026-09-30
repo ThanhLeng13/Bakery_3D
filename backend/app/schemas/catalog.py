@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.schemas.cake_3d_models import Product3DModelResponse
+
 
 class ProductImage(BaseModel):
     """Product image schema."""
@@ -43,6 +45,7 @@ class ProductDetailResponse(BaseModel):
     flavors: List[dict] = Field(default_factory=list)
     is_active: bool = True
     images: List[ProductImage] = Field(default_factory=list)
+    three_d_models: List[Product3DModelResponse] = Field(default_factory=list)
     average_rating: Optional[float] = None
     review_count: int = 0
     created_at: datetime
