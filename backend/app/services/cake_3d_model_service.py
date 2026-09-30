@@ -68,7 +68,10 @@ class Cake3DModelService:
                 .maybe_single()
                 .execute()
             )
-            if by_id.data:
+            # `maybe_single()` trả về None (chứ không phải object có .data = None)
+            # khi không có dòng nào khớp — supabase-py 2.30. Không kiểm tra None
+            # thì AttributeError bị bắt ở dưới và biến 404 thành 500.
+            if by_id is not None and by_id.data:
                 return by_id.data
         except Exception:
             # A non-UUID id causes PostgREST to reject the UUID comparison. It is
@@ -84,7 +87,7 @@ class Cake3DModelService:
                 .maybe_single()
                 .execute()
             )
-            if by_slug.data:
+            if by_slug is not None and by_slug.data:
                 return by_slug.data
         except Exception as exc:
             logger.exception("Failed to fetch 3D cake model", extra={"model_id": model_id})
