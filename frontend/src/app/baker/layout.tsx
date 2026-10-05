@@ -59,6 +59,10 @@ function BakerShell({ children }: { children: React.ReactNode }) {
                     key={item.href}
                     href={item.href}
                     aria-current={isActive ? "page" : undefined}
+                    // The label span is display:none below the sm breakpoint and
+                    // the icon is aria-hidden, so without this the link has no
+                    // accessible name on small screens.
+                    aria-label={item.label}
                     className={`flex items-center gap-2 rounded-full px-3 py-2 text-sm transition-colors ${
                       isActive
                         ? "bg-subtle font-medium text-ink"
