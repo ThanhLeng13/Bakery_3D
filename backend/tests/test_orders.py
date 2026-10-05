@@ -32,6 +32,7 @@ from app.services.order_service import (
     get_allowed_roles_for_transition,
     get_valid_next_statuses,
 )
+from app.services.pricing import NIL_UUID
 
 
 # ============================================================
@@ -150,6 +151,18 @@ class TestPickupDateValidation:
         # Should not raise (treated as UTC, 25h ahead)
         self.service._validate_pickup_date(pickup, items)
 
+    def test_null_size_does_not_crash(self):
+        """size may be null or absent: item.get("size", "") returned None when
+        the key existed with a null value, and None.lower() raised
+        AttributeError -> HTTP 500."""
+        pickup = datetime.now(timezone.utc) + timedelta(hours=72)
+
+        # None of these may raise
+        self.service._validate_pickup_date(pickup, [{"size": None}])
+        self.service._validate_pickup_date(pickup, [{}])
+        # Whitespace/case variants still count as two-tier (needs 72h here).
+        self.service._validate_pickup_date(pickup, [{"size": " 2-Tier "}])
+
 
 # ============================================================
 # Order Service - Create Order Tests
@@ -183,21 +196,21 @@ class TestCreateOrder:
 
         return mock_execute
 
-    def test_create_order_calculates_total_price(self):
-        """Total price should be sum of (unit_price * quantity) for all items."""
+    def test_create_order_calculates_total_price_from_server_prices(self):
+        """Total price comes from the server size table, never the client value."""
         order_id = str(uuid4())
-        item_id = str(uuid4())
 
-        # Mock all table operations
         mock_table = MagicMock()
         self.mock_supabase.table.return_value = mock_table
 
-        # Mock insert().execute() for orders
         mock_insert = MagicMock()
         mock_table.insert.return_value = mock_insert
-        mock_insert.execute.return_value = MagicMock(
-            data=[{"id": order_id, "status": "pending", "total_price": 350000}]
-        )
+        mock_insert.execute.side_effect = [
+            MagicMock(data=[{"id": order_id, "status": "pending"}]),
+            MagicMock(data=[{"id": str(uuid4())}]),
+            MagicMock(data=[{"id": str(uuid4())}]),
+            MagicMock(data=[{"id": str(uuid4())}]),
+        ]
 
         order_data = {
             "full_name": "Test",
@@ -205,20 +218,98 @@ class TestCreateOrder:
             "email": None,
             "pickup_date": datetime.now(timezone.utc) + timedelta(hours=25),
             "items": [
-                {"product_id": uuid4(), "size": "20cm", "flavor": "chocolate",
-                 "quantity": 2, "unit_price": 150000, "customization_json": None},
-                {"product_id": uuid4(), "size": "16cm", "flavor": "vanilla",
-                 "quantity": 1, "unit_price": 50000, "customization_json": None},
+                # Custom cakes carry the nil product id. The client claims 1 VND
+                # and 999 VND; both must be ignored.
+                {"product_id": NIL_UUID, "size": "20cm", "flavor": "chocolate",
+                 "quantity": 2, "unit_price": 1, "customization_json": None},
+                {"product_id": NIL_UUID, "size": "16cm", "flavor": "vanilla",
+                 "quantity": 1, "unit_price": 999, "customization_json": None},
             ],
             "ai_summary": None,
         }
 
-        result = self.service.create_order(order_data, self.customer)
+        self.service.create_order(order_data, self.customer)
 
-        # Verify the insert was called with correct total_price
         insert_call = mock_table.insert.call_args_list[0]
         inserted_data = insert_call[0][0]
-        assert inserted_data["total_price"] == 350000  # 150000*2 + 50000*1
+        assert inserted_data["total_price"] == 950000  # 350000*2 + 250000*1
+
+    def test_order_item_rows_store_the_server_price(self):
+        """order_items.unit_price must hold the resolved price, not the client's."""
+        order_id = str(uuid4())
+
+        mock_table = MagicMock()
+        self.mock_supabase.table.return_value = mock_table
+
+        mock_insert = MagicMock()
+        mock_table.insert.return_value = mock_insert
+        mock_insert.execute.side_effect = [
+            MagicMock(data=[{"id": order_id, "status": "pending"}]),
+            MagicMock(data=[{"id": str(uuid4())}]),
+            MagicMock(data=[{"id": str(uuid4())}]),
+        ]
+
+        order_data = {
+            "full_name": "Test",
+            "phone": "0901234567",
+            "email": None,
+            # Two-tier cakes need 48h notice, so book far enough ahead.
+            "pickup_date": datetime.now(timezone.utc) + timedelta(hours=72),
+            "items": [
+                {"product_id": NIL_UUID, "size": "2-tier", "flavor": "chocolate",
+                 "quantity": 1, "unit_price": 1000, "customization_json": None},
+            ],
+            "ai_summary": None,
+        }
+
+        self.service.create_order(order_data, self.customer)
+
+        item_inserts = [
+            call[0][0] for call in mock_table.insert.call_args_list
+            if "product_id" in call[0][0]
+        ]
+        assert len(item_inserts) == 1
+        assert item_inserts[0]["unit_price"] == 650000
+
+    def test_custom_cake_price_read_from_customization_size(self):
+        """The saved design's size wins over the loose item size field."""
+        prices = self.service._resolve_unit_prices([
+            {
+                "product_id": NIL_UUID,
+                "size": None,
+                "quantity": 1,
+                "unit_price": 1000,
+                "customization_json": {"size": "24cm"},
+            }
+        ])
+        assert prices == [450000]
+
+    def test_catalogue_product_uses_base_price(self):
+        """A real product is priced from products.base_price."""
+        mock_table = MagicMock()
+        self.mock_supabase.table.return_value = mock_table
+        mock_table.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value = MagicMock(
+            data={"base_price": 275000}
+        )
+
+        prices = self.service._resolve_unit_prices([
+            {"product_id": str(uuid4()), "quantity": 1, "unit_price": 1000}
+        ])
+        assert prices == [275000]
+
+    def test_unknown_product_is_rejected(self):
+        """A product id absent from the catalogue must not silently price at 0."""
+        mock_table = MagicMock()
+        self.mock_supabase.table.return_value = mock_table
+        mock_table.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value = MagicMock(
+            data=None
+        )
+
+        with pytest.raises(OrderServiceError) as exc_info:
+            self.service._resolve_unit_prices([
+                {"product_id": str(uuid4()), "quantity": 1, "unit_price": 1000}
+            ])
+        assert exc_info.value.status_code == 400
 
     def test_create_order_stores_ai_summary(self):
         """AI summary should be stored in the order record."""
@@ -239,7 +330,7 @@ class TestCreateOrder:
             "email": None,
             "pickup_date": datetime.now(timezone.utc) + timedelta(hours=25),
             "items": [
-                {"product_id": uuid4(), "size": "20cm", "flavor": "chocolate",
+                {"product_id": NIL_UUID, "size": "20cm", "flavor": "chocolate",
                  "quantity": 1, "unit_price": 200000, "customization_json": None},
             ],
             "ai_summary": "Bánh kem chocolate 20cm, nhận ngày mai",
@@ -285,7 +376,7 @@ class TestCreateOrder:
             "email": None,
             "pickup_date": datetime.now(timezone.utc) + timedelta(hours=25),
             "items": [
-                {"product_id": uuid4(), "size": "20cm", "flavor": "chocolate",
+                {"product_id": NIL_UUID, "size": "20cm", "flavor": "chocolate",
                  "quantity": 1, "unit_price": 200000,
                  "customization_json": customization},
             ],
