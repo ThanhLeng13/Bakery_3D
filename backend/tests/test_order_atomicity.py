@@ -125,18 +125,40 @@ class TestOrderIsAtomic:
         assert client.calls[0][1] == "rpc_create_order"
 
     def test_gui_lai_cung_mot_don_thi_khong_tao_hai_don(self):
-        """Khoá idempotency: cùng khách + cùng giỏ trong thời gian ngắn → 1 đơn."""
+        """Khoá idempotency phải do khách gửi lại giữ nguyên qua các lần bấm.
+
+        Stub trả về cùng một `order_id` cho mọi lần gọi, nên so `first["id"]`
+        với `second["id"]` không chứng minh được điều gì. Điều cần khoá lại là
+        hai lần gọi phải mang cùng một khoá — đó là điều `rpc_create_order` dựa
+        vào để gộp đơn.
+        """
         client = _ClientStub()
         service = OrderService(client)
-        data = _order_data()
+        customer = {"id": str(uuid4())}
+        data = _order_data(idempotency_key="khu-a")
 
-        first = service.create_order(data, {"id": str(uuid4())})
-        second = service.create_order(data, {"id": str(uuid4())})
+        service.create_order(data, customer)
+        service.create_order(data, customer)
 
-        args = client.calls[0][2]
-        assert args.get("p_idempotency_key"), "phải truyền khoá idempotency"
-        # Cùng dữ liệu thì cùng khoá, nên lần gửi lại trỏ về cùng đơn.
-        assert first["id"] == second["id"]
+        rpc_args = [call[2] for call in client.calls if call[0] == "rpc"]
+        assert len(rpc_args) == 2
+        assert rpc_args[0]["p_idempotency_key"] == "khu-a"
+        assert rpc_args[1]["p_idempotency_key"] == "khu-a"
+
+    def test_khoa_khac_thi_tao_don_khac(self):
+        """Hai lần đặt khác nhau phải mang khoá khác, không gộp làm một."""
+        client = _ClientStub()
+        service = OrderService(client)
+        customer = {"id": str(uuid4())}
+
+        service.create_order(_order_data(idempotency_key="khu-a"), customer)
+        service.create_order(_order_data(idempotency_key="khu-b"), customer)
+
+        keys = [
+            call[2]["p_idempotency_key"]
+            for call in client.calls if call[0] == "rpc"
+        ]
+        assert keys[0] != keys[1]
 
     def test_rpc_that_bai_thi_khong_tao_don_nao(self):
         """Lỗi ở tầng CSDL phải nổi lên, không âm thầm trả đơn rỗng."""

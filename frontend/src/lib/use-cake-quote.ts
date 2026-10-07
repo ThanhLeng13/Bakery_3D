@@ -16,7 +16,7 @@
  * Endpoint: POST /api/v1/orders/quote
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiClient } from "@/lib/api";
 import type { CakeDesign } from "@/types";
 
@@ -47,8 +47,15 @@ export function useCakeQuote(design: CakeDesign | null): QuoteState {
   // để không gọi lại API mỗi lần component render.
   const signature = design ? JSON.stringify(design) : null;
 
+  // Giữ cấu hình hiện tại trong ref để effect không phải phụ thuộc `design`:
+  // tham chiếu object đổi mỗi lần render, đưa nó vào deps sẽ huỷ timer debounce
+  // liên tục và `loading` kẹt ở true. `signature` đã gói hết giá trị nên khi
+  // `design` thật sự đổi thì `signature` đổi theo và effect chạy lại.
+  const designRef = useRef(design);
+  designRef.current = design;
+
   useEffect(() => {
-    if (!design || !signature) {
+    if (!signature) {
       setQuote(null);
       return;
     }
@@ -59,7 +66,7 @@ export function useCakeQuote(design: CakeDesign | null): QuoteState {
 
     const timer = setTimeout(() => {
       apiClient
-        .post<QuoteBreakdown>("/api/v1/orders/quote", { design })
+        .post<QuoteBreakdown>("/api/v1/orders/quote", { design: designRef.current })
         .then((res) => {
           if (!cancelled) setQuote(res);
         })
@@ -81,7 +88,10 @@ export function useCakeQuote(design: CakeDesign | null): QuoteState {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [signature, design]);
+    // Chỉ `signature`: nó đã chứa toàn bộ giá trị của `design`. Để `design` vào
+    // deps sẽ huỷ timer mỗi lần component nhận object mới, dù cấu hình không
+    // đổi — `loading` kẹt ở true và báo giá không bao giờ tới.
+  }, [signature]);
 
   return { quote, loading, error };
 }

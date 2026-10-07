@@ -386,26 +386,30 @@ class OrderService:
         created = rows[0]
         order_id = created["order_id"]
 
-        # Đánh dấu voucher đã dùng sau khi đơn ghi xong. Làm ở cuối để nếu
-        # phần trước hỏng thì mã vẫn còn hiệu lực cho khách thử lại.
-        if voucher_row is not None:
-            VoucherService(self._supabase).mark_used(str(voucher_row["id"]))
+        is_duplicate = bool(created.get("duplicate"))
 
+        # Voucher không còn được đánh dấu ở đây: `rpc_create_order` tiêu thụ nó
+        # trong chính transaction tạo đơn. Gọi `mark_used` ở đây sẽ mở lại
+        # đúng cái cửa sổ tranh chấp mà lệnh đó đóng, và với một lần gửi lại thì
+        # còn đánh dấu nhầm voucher của đơn đã có.
+
+        # Khi là lần gửi lại, đơn đã tồn tại: phải trả về đúng số tiền và trạng
+        # thái đã lưu, không phải giá trị tính lại từ request này.
         order = {
             "id": order_id,
-            "status": "pending",
-            "total_price": total_price,
+            "status": created.get("status") or "pending",
+            "total_price": created.get("total", total_price),
             "pickup_date": order_data["pickup_date"].isoformat(),
             "customer_name": order_data["full_name"],
             "customer_phone": order_data["phone"],
             "customer_email": order_data.get("email"),
             "ai_summary": order_data.get("ai_summary"),
-            "voucher_code": money["voucher_code"],
-            "voucher_discount": money["discount"],
-            "duplicate": bool(created.get("duplicate")),
+            "voucher_code": created.get("voucher_code") or money["voucher_code"],
+            "voucher_discount": created.get("discount", money["discount"]),
+            "duplicate": is_duplicate,
         }
-        order["subtotal"] = money["subtotal"]
-        order["discount"] = money["discount"]
+        order["subtotal"] = created.get("subtotal", money["subtotal"])
+        order["discount"] = created.get("discount", money["discount"])
         return order
 
     def list_customer_orders(

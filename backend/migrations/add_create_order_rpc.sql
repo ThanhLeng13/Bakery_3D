@@ -17,10 +17,15 @@
 -- two genuinely different orders can share a pickup date and a total, and
 -- those must not collapse into one. The client sends a key it reuses when
 -- retrying, so only a real retry collides.
+--
+-- `order_id` is nullable on purpose: the row is INSERTed to claim the key before
+-- the order exists, then UPDATEd with the id. Claiming first is what makes two
+-- simultaneous retries safe - with a read-then-write the second request would
+-- find nothing yet and create a second order.
 CREATE TABLE IF NOT EXISTS public.order_idempotency (
     customer_id UUID NOT NULL,
     idempotency_key TEXT NOT NULL,
-    order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+    order_id UUID REFERENCES public.orders(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (customer_id, idempotency_key)
 );
@@ -47,7 +52,9 @@ RETURNS TABLE (
     subtotal INTEGER,
     discount INTEGER,
     total INTEGER,
-    duplicate BOOLEAN
+    duplicate BOOLEAN,
+    status TEXT,
+    voucher_code TEXT
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -61,28 +68,80 @@ DECLARE
     v_subtotal INTEGER;
     v_discount INTEGER;
     v_total INTEGER;
+    v_claimed BOOLEAN;
+    v_status TEXT;
+    v_voucher_code TEXT;
+    v_voucher_id UUID;
 BEGIN
-    -- Idempotency: an identical retry returns the original order instead of
-    -- creating a second one. Scoped to the customer and the key, so two
-    -- different customers cannot collide on the same key.
+    -- Idempotency: claim the key with an INSERT before creating anything. A
+    -- read-then-write leaves a window where two simultaneous retries both see
+    -- no row and both create an order. ON CONFLICT DO NOTHING means the loser
+    -- of the race updates zero rows and returns the winner's order instead.
+    --
+    -- Scoped per customer, so two customers sending the same key text cannot
+    -- collide with each other.
     IF p_idempotency_key IS NOT NULL THEN
-        SELECT oi.order_id
-        INTO v_order_id
-        FROM public.order_idempotency oi
-        WHERE oi.customer_id = p_customer_id
-          AND oi.idempotency_key = p_idempotency_key;
+        INSERT INTO public.order_idempotency (customer_id, idempotency_key)
+        VALUES (p_customer_id, p_idempotency_key)
+        ON CONFLICT (customer_id, idempotency_key) DO NOTHING
+        RETURNING TRUE INTO v_claimed;
 
-        IF v_order_id IS NOT NULL THEN
-            SELECT o.total_price, o.voucher_discount
-            INTO v_total, v_discount
-            FROM public.orders o
-            WHERE o.id = v_order_id;
+        IF NOT COALESCE(v_claimed, FALSE) THEN
+            -- Someone else holds this key. Wait for their order to appear: the
+            -- row is written before the order, so in a concurrent retry it may
+            -- not be there yet on this snapshot.
+            SELECT oi.order_id
+            INTO v_order_id
+            FROM public.order_idempotency oi
+            WHERE oi.customer_id = p_customer_id
+              AND oi.idempotency_key = p_idempotency_key;
 
-            v_discount := COALESCE(v_discount, 0);
-            v_subtotal := v_total + v_discount;
-            RETURN QUERY SELECT
-                v_order_id, v_subtotal, v_discount, v_total, TRUE;
-            RETURN;
+            IF v_order_id IS NOT NULL THEN
+                SELECT o.total_price, o.voucher_discount, o.status
+                INTO v_total, v_discount, v_status
+                FROM public.orders o
+                WHERE o.id = v_order_id;
+
+                v_discount := COALESCE(v_discount, 0);
+                v_subtotal := v_total + v_discount;
+                -- Report the original order's voucher and status, not this
+                -- request's: a retry must not look like a fresh order.
+                v_voucher_code := (
+                    SELECT o.voucher_code FROM public.orders o WHERE o.id = v_order_id
+                );
+                RETURN QUERY SELECT
+                    v_order_id, v_subtotal, v_discount, v_total, TRUE,
+                    v_status, v_voucher_code;
+                RETURN;
+            END IF;
+
+            -- The claim exists but its order is not readable yet. Refusing is
+            -- safer than creating a second order: the client retries and then
+            -- takes the branch above.
+            RAISE EXCEPTION
+                'Đơn hàng trùng đang được tạo, vui lòng thử lại.'
+                USING ERRCODE = 'serialization_failure';
+        END IF;
+    END IF;
+
+    -- Voucher: consume it here, inside this transaction, rather than after the
+    -- order is written. find_usable() then mark_used() left a window where two
+    -- concurrent orders could both pass the check and both get the discount.
+    -- The conditional UPDATE is the check: only a row still 'active' is
+    -- affected, so zero rows means somebody else took it and this order must
+    -- not go through.
+    IF p_voucher_code IS NOT NULL THEN
+        UPDATE public.vouchers
+        SET status = 'used', used_at = now()
+        WHERE code = upper(btrim(p_voucher_code))
+          AND status = 'active'
+          AND (expires_at IS NULL OR expires_at > now())
+          AND user_id = p_customer_id
+        RETURNING id INTO v_voucher_id;
+
+        IF v_voucher_id IS NULL THEN
+            RAISE EXCEPTION 'Voucher không còn hiệu lực hoặc đã được dùng.'
+                USING ERRCODE = 'check_violation';
         END IF;
     END IF;
 
@@ -149,7 +208,9 @@ BEGIN
     v_discount := COALESCE(p_voucher_discount, 0);
     v_total := p_total_price;
 
-    RETURN QUERY SELECT v_order_id, v_subtotal, v_discount, v_total, v_duplicate;
+    RETURN QUERY SELECT
+        v_order_id, v_subtotal, v_discount, v_total, v_duplicate,
+        'pending'::TEXT, p_voucher_code;
 END;
 $$;
 

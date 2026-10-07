@@ -731,16 +731,19 @@ function useFixedCamera(): [number, number, number] | null {
 function RotatingCake(props: Cake3DProps) {
   const groupRef  = useRef<THREE.Group>(null!);
   const rotating  = useRef(true);
+  const fixedView = useFixedCamera();
 
   useFrame((_, dt) => {
+    // Đọc trong callback để mỗi khung hình thấy trạng thái hiện tại. Tính
+    // ở thời điểm render sẽ giữ giá trị cũ của `rotating.current`, nên bánh
+    // không dừng xoay sau khi người dùng thả chuột.
+    // Góc cố định thì không xoay: ảnh chụp phải giống nhau giữa các lần chạy.
+    const spinning =
+      props.autoRotate !== false && rotating.current && groupRef.current && !fixedView;
     if (spinning) {
       groupRef.current.rotation.y += dt * 0.28;
     }
   });
-
-  const fixedView = useFixedCamera();
-  // Góc cố định thì không xoay: ảnh chụp phải giống nhau giữa các lần chạy.
-  const spinning = props.autoRotate !== false && rotating.current && groupRef.current && !fixedView;
 
   return (
     <group ref={groupRef} rotation={fixedView ? [0, 0, 0] : undefined}>

@@ -209,15 +209,22 @@ class TestCreateOrder:
                 return call[0][1]
         raise AssertionError(f"không có lệnh RPC '{name}' trong số lệnh đã gọi")
 
-    def _mock_rpc_result(self, total=0, duplicate=False):
-        """Cho `supabase.rpc(...)` trả về một đơn đã tạo."""
+    def _mock_rpc_result(self, total=0, duplicate=False, subtotal=None,
+                          discount=0, voucher_code=None, status="pending"):
+        """Cho `supabase.rpc(...)` trả về một đơn đã tạo.
+
+        Số tiền phải khớp với `rpc_create_order`: nó chính là nơi tính, nên
+        response lấy từ kết quả đó chứ không dùng lại giá trị ở tầng Python.
+        """
         self.mock_supabase.rpc.return_value.execute.return_value = MagicMock(
             data=[{
                 "order_id": str(uuid4()),
-                "subtotal": total,
-                "discount": 0,
+                "subtotal": total if subtotal is None else subtotal,
+                "discount": discount,
                 "total": total,
                 "duplicate": duplicate,
+                "status": status,
+                "voucher_code": voucher_code,
             }]
         )
     def test_create_order_calculates_total_price_from_server_prices(self):
@@ -307,6 +314,12 @@ class TestCreateOrder:
             "voucher_code": "BNB-ABCD1234",
         }
 
+        self._mock_rpc_result(
+            total=350000 - 5000,
+            subtotal=350000,
+            discount=5000,
+            voucher_code="BNB-ABCD1234",
+        )
         result = self.service.create_order(order_data, self.customer)
 
         args = self._rpc_args()
@@ -315,6 +328,15 @@ class TestCreateOrder:
         assert args["p_voucher_discount"] == 5000
         assert result["discount"] == 5000
         assert result["subtotal"] == 350000
+        # Voucher phải được tiêu thụ trong RPC, không phải bằng `mark_used` ở
+        # tầng Python: lệnh đó chạy ngoài transaction và mở lại đúng cửa sổ
+        # tranh chấp mà RPC đã đóng.
+        updates = [
+            call for call in self.mock_supabase.table.return_value.update.call_args_list
+            if call[0][0].get("status") == "used"
+        ]
+        assert not updates, "voucher phải do rpc_create_order tiêu thụ"
+        assert result["voucher_code"] == "BNB-ABCD1234"
 
     def test_don_khong_voucher_thi_ghi_ma_null(self):
         order_id = str(uuid4())
