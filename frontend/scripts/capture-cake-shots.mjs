@@ -37,7 +37,9 @@ const CHROME_PATHS = [
 ];
 
 const MODELS = ['round-1-tier', 'round-2-tier', 'round-3-tier', 'square-1-tier', 'heart-1-tier', 'tall-1-tier'];
-const VIEWS = ['front', 'top', 'side'];
+// 'spin-N' là các ảnh cách nhau 45° quanh trục đứng, ghép lại thành vòng
+// 360° như yêu cầu duyệt. Góc tĩnh front/top/side phủi các mặt chính.
+const VIEWS = ['front', 'top', 'side', 'spin-0', 'spin-1', 'spin-2', 'spin-3', 'spin-4', 'spin-5', 'spin-6', 'spin-7'];
 
 function findChrome() {
   const found = CHROME_PATHS.find(p => fs.existsSync(p));
@@ -170,7 +172,15 @@ function main() {
         failed++; total++;
         continue;
       }
-      const result = analyse(file);
+      let result = analyse(file);
+      // Canvas WebGL trên máy không có GPU nên tải chậm và đôi lúc chụp ra
+      // ảnh trắng dù bánh vẫn hiện. Thử lại một lần trước khi kết luận lỗi,
+      // để báo cáo nói về bánh chứ không nói về tốc độ máy.
+      if (result.blank) {
+        console.log(`  ... ${model} ${view} trang, thu lai`);
+        shoot(chrome, `${PORT}/cake-builder?bare=1&model=${model}`, file, view);
+        result = analyse(file);
+      }
       total++;
       if (result.blank) {
         console.log(`FAIL ${model} ${view}: vung giua khong noi gi - man hinh trang`);

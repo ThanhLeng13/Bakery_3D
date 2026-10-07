@@ -711,11 +711,21 @@ const FIXED_VIEWS: Record<string, [number, number, number]> = {
   back: [0, 1.1, -3.4],
 };
 
+/** `spin-N`: quanh trục đứng, mỗi 45°, để ghép thành vòng 360°. */
+function spinView(view: string): [number, number, number] | null {
+  const match = /^spin-([0-7])$/.exec(view);
+  if (!match) return null;
+  const angle = (Number(match[1]) * Math.PI) / 4;
+  const distance = 3.4;
+  return [Math.sin(angle) * distance, 1.1, Math.cos(angle) * distance];
+}
+
 function useFixedCamera(): [number, number, number] | null {
   if (typeof window === "undefined") return null;
   const view = new URLSearchParams(window.location.search).get("view");
   if (!view) return null;
-  return FIXED_VIEWS[view] ?? null;
+  if (FIXED_VIEWS[view]) return FIXED_VIEWS[view];
+  return spinView(view);
 }
 
 function RotatingCake(props: Cake3DProps) {
