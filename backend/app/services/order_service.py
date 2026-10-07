@@ -9,8 +9,6 @@ import math
 from datetime import datetime, timezone
 from typing import Any
 
-from app.services.pricing import cake_price, is_custom_cake, is_two_tier
-
 _logger = logging.getLogger(__name__)
 
 
@@ -144,7 +142,7 @@ class OrderService:
 
         # Check if any item is 2-tier
         has_two_tier = any(
-            is_two_tier(item.get("size"))
+            item.get("size", "").lower() in ("2-tier", "2 tier", "2tier")
             for item in items
         )
 
@@ -160,49 +158,6 @@ class OrderService:
                     "Standard cakes require at least 24 hours advance notice. "
                     "Please select a later pickup date."
                 )
-
-    def _catalog_price(self, product_id: str) -> int:
-        """Read the authoritative unit price of a catalogue product."""
-        result = (
-            self._supabase.table("products")
-            .select("base_price")
-            .eq("id", product_id)
-            .maybe_single()
-            .execute()
-        )
-        # supabase-py >= 2.30 returns None from maybe_single() when no row matched.
-        if result is None or not result.data:
-            raise OrderServiceError("Sản phẩm không tồn tại.", status_code=400)
-        return int(result.data.get("base_price") or 0)
-
-    def _resolve_unit_prices(self, items: list[dict]) -> list[int]:
-        """Resolve every order item's unit price on the server.
-
-        Custom cakes (nil product id) are priced from the size table; catalogue
-        products from `products.base_price`. The client-supplied `unit_price` is
-        only compared, never used, and a mismatch is logged so an inconsistent
-        frontend becomes visible instead of silently changing what we charge.
-        """
-        prices: list[int] = []
-        for item in items:
-            raw_pid = item.get("product_id")
-            if is_custom_cake(raw_pid):
-                design = item.get("customization_json")
-                size = design.get("size") if isinstance(design, dict) else None
-                unit_price = cake_price(size or item.get("size"))
-            else:
-                unit_price = self._catalog_price(str(raw_pid))
-
-            claimed = item.get("unit_price")
-            if claimed is not None and claimed != unit_price:
-                _logger.warning(
-                    "Client sent unit_price %s but server resolved %s; charging the "
-                    "server price",
-                    claimed,
-                    unit_price,
-                )
-            prices.append(unit_price)
-        return prices
 
     def create_order(self, order_data: dict, customer: dict) -> dict:
         """
@@ -224,16 +179,8 @@ class OrderService:
         # Validate pickup date
         self._validate_pickup_date(order_data["pickup_date"], items)
 
-        # Calculate total price.
-        # The unit_price sent by the browser is NOT trusted: a client could
-        # otherwise order any cake for 1,000 VND. Prices are resolved on the
-        # server - from the size table for custom cakes, from the catalogue for
-        # real products.
-        unit_prices = self._resolve_unit_prices(items)
-        total_price = sum(
-            unit_price * item["quantity"]
-            for unit_price, item in zip(unit_prices, items)
-        )
+        # Calculate total price
+        total_price = sum(item["unit_price"] * item["quantity"] for item in items)
 
         # Create order record
         order_insert = {
@@ -260,15 +207,16 @@ class OrderService:
         order_id = order["id"]
 
         # Create order items
-        for index, item in enumerate(items):
+        for item in items:
             # Cake Builder custom cakes use a null/placeholder UUID
             # (00000000-0000-0000-0000-000000000000) because they are not a
             # catalog product. Store as NULL to avoid FK constraint violations.
+            NULL_UUID = "00000000-0000-0000-0000-000000000000"
             raw_pid = item.get("product_id")
             # Treat Python None AND the placeholder UUID both as NULL in DB.
             # Calling str(None) would produce the literal string "None" which
             # causes a UUID column constraint error.
-            product_id_value = None if is_custom_cake(raw_pid) else str(raw_pid)
+            product_id_value = None if (raw_pid is None or str(raw_pid) == NULL_UUID) else str(raw_pid)
 
             item_insert = {
                 "order_id": order_id,
@@ -276,8 +224,7 @@ class OrderService:
                 "size": item.get("size"),
                 "flavor": item.get("flavor"),
                 "quantity": item["quantity"],
-                # Server-resolved price, never the client-supplied one.
-                "unit_price": unit_prices[index],
+                "unit_price": item["unit_price"],
             }
 
             item_result = (
