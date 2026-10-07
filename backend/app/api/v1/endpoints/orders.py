@@ -15,8 +15,11 @@ from app.schemas.orders import (
     CreateOrderRequest,
     OrderDetailResponse,
     OrderListResponse,
+    QuoteRequest,
+    QuoteResponse,
     UpdateStatusRequest,
 )
+from app.services.pricing import lead_hours, price_breakdown
 from app.services.order_service import (
     InsufficientPermissionError,
     InvalidStatusTransitionError,
@@ -33,6 +36,28 @@ def _get_order_service(token: str | None = None) -> OrderService:
     """Create OrderService with standard authenticated Supabase client."""
     client = get_supabase_client(token, use_service_role=False)
     return OrderService(client)
+
+
+@router.post("/quote", response_model=QuoteResponse)
+def quote_cake(body: QuoteRequest, user: dict = Depends(get_current_user)):
+    """Báo giá bánh tùy chỉnh mà chưa tạo đơn.
+
+    Mở cho mọi vai trò đã đăng nhập: Studio và trang thanh toán dùng chung
+    endpoint này để không phải nhân bản bảng giá sang frontend. Chính việc nhân
+    bản đã tạo ra lỗi chênh 130.000đ — Studio hiện 480.000đ còn đơn bị tính
+    350.000đ.
+    """
+    design = body.design
+    try:
+        breakdown = price_breakdown(design)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    size = design.get("size")
+    return {
+        **breakdown,
+        "lead_hours": lead_hours(size),
+    }
 
 
 @router.post("", status_code=201)

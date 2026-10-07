@@ -9,7 +9,7 @@ import math
 from datetime import datetime, timezone
 from typing import Any
 
-from app.services.pricing import cake_price, is_custom_cake, is_two_tier
+from app.services.pricing import is_custom_cake, is_two_tier, order_total
 
 _logger = logging.getLogger(__name__)
 
@@ -178,18 +178,26 @@ class OrderService:
     def _resolve_unit_prices(self, items: list[dict]) -> list[int]:
         """Resolve every order item's unit price on the server.
 
-        Custom cakes (nil product id) are priced from the size table; catalogue
-        products from `products.base_price`. The client-supplied `unit_price` is
-        only compared, never used, and a mismatch is logged so an inconsistent
-        frontend becomes visible instead of silently changing what we charge.
+        Custom cakes (nil product id) are priced from the saved design - size
+        plus toppings plus decorations, so the charge matches what the Studio
+        showed. Catalogue products are priced from `products.base_price`. The
+        client-supplied `unit_price` is only compared, never used, and a mismatch
+        is logged so an inconsistent frontend becomes visible instead of
+        silently changing what we charge.
         """
         prices: list[int] = []
         for item in items:
             raw_pid = item.get("product_id")
             if is_custom_cake(raw_pid):
                 design = item.get("customization_json")
-                size = design.get("size") if isinstance(design, dict) else None
-                unit_price = cake_price(size or item.get("size"))
+                if not isinstance(design, dict) or not design:
+                    # No saved design: fall back to the loose size field so the
+                    # order can still be priced instead of failing outright.
+                    design = {"size": item.get("size")}
+                try:
+                    unit_price = order_total(design)
+                except ValueError as exc:
+                    raise OrderServiceError(str(exc), status_code=400) from exc
             else:
                 unit_price = self._catalog_price(str(raw_pid))
 

@@ -55,6 +55,25 @@ class UpdateStatusRequest(BaseModel):
         return v
 
 
+class QuoteRequest(BaseModel):
+    """Báo giá một chiếc bánh tùy chỉnh mà chưa lưu đơn."""
+
+    design: Dict[str, Any] = Field(
+        ...,
+        description="Cấu hình CakeDesign: size, topping_type, zones (top/body/border).",
+    )
+
+
+class QuoteResponse(BaseModel):
+    """Giá do server quyết định, gồm từng khoản để hiển thị."""
+
+    base_price: int = Field(..., description="Giá theo kích cỡ (VND).")
+    topping_cost: int = Field(..., description="Tổng phí topping (VND).")
+    decoration_cost: int = Field(..., description="Tổng phí trang trí (VND).")
+    total: int = Field(..., description="Tổng tiền sẽ ghi vào đơn (VND).")
+    lead_hours: int = Field(..., description="Giờ chuẩn bị tối thiểu theo kích cỡ.")
+
+
 # --- Response Schemas ---
 
 

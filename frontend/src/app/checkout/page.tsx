@@ -19,6 +19,7 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useLoyaltyContext } from "@/contexts/LoyaltyContext";
 import { apiClient } from "@/lib/api";
+import { useCakeQuote } from "@/lib/use-cake-quote";
 import type { CakeDesign, CakeSize } from "@/types";
 
 interface OrderConfirmation {
@@ -41,14 +42,6 @@ interface FormErrors {
   branch?: string;   // lỗi chi nhánh khi isCartMode
   general?: string;
 }
-
-// Price map by size (for Cake Builder mode only)
-const SIZE_PRICES: Record<CakeSize, number> = {
-  "16cm": 250000,
-  "20cm": 350000,
-  "24cm": 450000,
-  "2-tier": 650000,
-};
 
 const SIZE_LABELS: Record<CakeSize, string> = {
   "16cm": "16cm (4-6 người)",
@@ -135,11 +128,14 @@ function CheckoutContent() {
     }
   }, [user]);
 
-  // Calculate totals
-  const builderTotal = useMemo(() => {
-    if (!cakeDesign) return 0;
-    return SIZE_PRICES[cakeDesign.size] || 350000;
-  }, [cakeDesign]);
+  // Giá do server quyết định (POST /api/v1/orders/quote). Không tự nhân bản
+  // bảng giá ở đây — đó là nguồn của lỗi chênh 130.000đ trước đây.
+  const {
+    quote: builderQuote,
+    loading: quoteLoading,
+    error: quoteError,
+  } = useCakeQuote(isCakeMode ? cakeDesign : null);
+  const builderTotal = builderQuote?.total ?? 0;
 
   const cartTotal = useMemo(
     () => cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
@@ -200,6 +196,17 @@ function CheckoutContent() {
 
     if (!validateForm()) return;
     if (isCakeMode && !cakeDesign) return;
+
+    // Giá do server quyết định. Chưa có giá thì chưa được đặt — gửi
+    // unit_price 0 sẽ bị server từ chối, và khách thấy màn hình lỗi không
+    // hiểu vì sao.
+    if (isCakeMode && !builderQuote) {
+      setErrors({
+        general:
+          quoteError ?? "Chưa lấy được giá. Tải lại trang rồi thử lại.",
+      });
+      return;
+    }
 
     setSubmitting(true);
     setErrors({});
@@ -584,9 +591,28 @@ function CheckoutContent() {
                 )}
                 <div className="pt-3 border-t border-mocha/10 flex justify-between items-center">
                   <span className="font-medium text-mocha">Tổng tiền</span>
-                  <span className="font-bold text-pink-pastel text-xl">
-                    {formatPrice(totalPrice)}
-                  </span>
+                  {quoteLoading || !builderQuote ? (
+                    <span className="text-sm text-mocha/60" aria-live="polite">
+                      Đang tính giá...
+                    </span>
+                  ) : (
+                    <span className="text-right">
+                      {/* Chi tiết từng khoản do server quyết định, khớp với
+                          những gì Studio hiển thị trước khi lưu đơn. */}
+                      {builderQuote.topping_cost > 0 && (
+                        <span className="block text-xs text-mocha/60">
+                          Gồm topping và trang trí:{" "}
+                          {formatPrice(
+                            builderQuote.topping_cost +
+                              builderQuote.decoration_cost
+                          )}
+                        </span>
+                      )}
+                      <span className="font-bold text-pink-pastel text-xl">
+                        {formatPrice(totalPrice)}
+                      </span>
+                    </span>
+                  )}
                 </div>
               </div>
             </section>
