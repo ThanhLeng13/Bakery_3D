@@ -697,18 +697,43 @@ function SelectedCakeBody(props: Cake3DProps) {
 }
 
 // ─── Slow auto-rotate bằng ref (không gây re-render) ─────────────────────────
+/**
+ * Góc nhìn cố định theo yêu cầu `?view=`.
+ *
+ * Dùng để chụp ảnh kiểm tra nhiều góc của cùng một mẫu: `scripts/capture-cake-shots.mjs`
+ * chạy Chrome headless, mà headless không kéo-xoay được. Không có `?view=` thì
+ * hành vi cũ giữ nguyên (nhìn 3/4 như trước).
+ */
+const FIXED_VIEWS: Record<string, [number, number, number]> = {
+  front: [0, 1.1, 3.4],
+  top: [0.01, 3.2, 1.1],
+  side: [3.4, 1.1, 0.01],
+  back: [0, 1.1, -3.4],
+};
+
+function useFixedCamera(): [number, number, number] | null {
+  if (typeof window === "undefined") return null;
+  const view = new URLSearchParams(window.location.search).get("view");
+  if (!view) return null;
+  return FIXED_VIEWS[view] ?? null;
+}
+
 function RotatingCake(props: Cake3DProps) {
   const groupRef  = useRef<THREE.Group>(null!);
   const rotating  = useRef(true);
 
   useFrame((_, dt) => {
-    if (props.autoRotate !== false && rotating.current && groupRef.current) {
+    if (spinning) {
       groupRef.current.rotation.y += dt * 0.28;
     }
   });
 
+  const fixedView = useFixedCamera();
+  // Góc cố định thì không xoay: ảnh chụp phải giống nhau giữa các lần chạy.
+  const spinning = props.autoRotate !== false && rotating.current && groupRef.current && !fixedView;
+
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} rotation={fixedView ? [0, 0, 0] : undefined}>
       {/* Expose rotating ref to OrbitControls via a separate child */}
       <OrbitControls
         makeDefault
@@ -772,6 +797,8 @@ function Scene(props: Cake3DProps) {
 
 // ─── Component chính ──────────────────────────────────────────────────────────
 export default function Cake3D(props: Cake3DProps) {
+  const fixedCamera = useFixedCamera();
+
   return (
     <div
       data-cake3d="true"
@@ -786,9 +813,12 @@ export default function Cake3D(props: Cake3DProps) {
         cursor: props.enableControls === false ? "default" : "grab",
       }}
     >
-      {/* Canvas */}
+      {/* Canvas. `?view=` đặt camera ở góc cố định để chụp ảnh kiểm tra;
+          không có tham số thì dùng góc 3/4 như trước. */}
       <Canvas
-        camera={{ position: [2.2, 2, 3.2], fov: 30 }}
+        camera={fixedCamera
+          ? { position: fixedCamera, fov: 30 }
+          : { position: [2.2, 2, 3.2] as [number, number, number], fov: 30 }}
         shadows="variance"
         dpr={[1, 1.5]}
         gl={{ antialias: true, alpha: true }}
