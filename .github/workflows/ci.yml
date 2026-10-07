@@ -89,3 +89,42 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
         run: npx next build
+
+  geometry:
+    name: Cake geometry (GLB)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Decoration surfaces must follow the real frosting of all six bodies,
+      # otherwise toppings float, sink into the cake, or hang outside a
+      # non-round outline. Runs on the committed .glb files, so a regression
+      # shows up on the PR instead of at the defence.
+      - name: Decoration surfaces fit the cake bodies
+        run: node scripts/test-cake-decorations.cjs
+
+      # Asset budget and pivot placement for the decoration models. A model
+      # whose pivot sits above ground sinks into the cake when placed.
+      - name: Decoration models are valid
+        run: node scripts/validate-decoration-models.js
+
+      # A failed or slow asset fetch must not leave a blank canvas: the studio
+      # falls back to a procedurally drawn cake, the product page to a message.
+      - name: GLB failure leaves no blank canvas
+        run: node scripts/test-glb-fallback.cjs

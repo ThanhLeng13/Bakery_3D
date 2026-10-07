@@ -45,11 +45,30 @@ function ProductCakeModel({ model }: { model: Cake3DModel }) {
   return <primitive object={instance.clone} />;
 }
 
+/**
+ * Keeps a failed asset from leaving a blank canvas.
+ *
+ * Returning null here meant a product whose .glb 404'd, or a model that failed
+ * on a slow connection, showed an empty white rectangle with no explanation.
+ * The boundary renders text inside the same box instead, so the page still
+ * reads as a product listing rather than a broken image.
+ */
 class PreviewFallbackBoundary extends Component<{ children: React.ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
   render() {
-    return this.state.failed ? null : this.props.children;
+    if (this.state.failed) {
+      return (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center">
+          <svg className="w-9 h-9 text-mocha/40" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m0 3.75h.008v.008H12v-.008zM10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+          <p className="text-sm font-medium text-mocha">Không tải được mô hình 3D</p>
+          <p className="text-xs text-mocha/60">Ảnh và thông tin bánh vẫn hiển thị bình thường.</p>
+        </div>
+      );
+    }
+    return this.props.children;
   }
 }
 
