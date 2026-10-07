@@ -9,6 +9,7 @@ import math
 from typing import Any, Optional
 
 from app.core.config import settings
+from app.services.orderable_3d import is_orderable_model
 from app.utils.image_url import format_image_url
 
 logger = logging.getLogger(__name__)
@@ -89,7 +90,8 @@ class CatalogService:
             .select(
                 "id, name, description, category, product_type, base_price, created_at,"
                 " product_images(url, sort_order),"
-                " product_review_stats(review_count, average_rating)",
+                " product_review_stats(review_count, average_rating),"
+                " product_3d_models(sort_order, is_primary, cake_3d_models(id, slug, glb_url, thumbnail_url))",
                 count="exact",
             )
             .eq("is_active", True)
@@ -136,6 +138,31 @@ class CatalogService:
             if len(description) > 100:
                 description = description[:100]
 
+            # Mô hình 3D gắn với sản phẩm, cùng cờ bán được / chỉ xem.
+            # Trước đây list không embed quan hệ này nên thẻ sản phẩm trong danh
+            # mục không có mô hình dù trang chi tiết có.
+            models = []
+            for link in sorted(
+                product.get("product_3d_models") or [],
+                key=lambda lnk: (
+                    lnk.get("sort_order") or 0,
+                    not bool(lnk.get("is_primary")),
+                ),
+            ):
+                model = link.get("cake_3d_models") or {}
+                if isinstance(model, list):
+                    model = model[0] if model else {}
+                if not isinstance(model, dict) or not model.get("id"):
+                    continue
+                models.append({
+                    "id": model["id"],
+                    "slug": model["slug"],
+                    "glb_url": model.get("glb_url"),
+                    "thumbnail_url": model.get("thumbnail_url"),
+                    "is_primary": bool(link.get("is_primary")),
+                    "is_orderable": is_orderable_model(model["slug"]),
+                })
+
             products.append({
                 "id": product_id,
                 "name": product["name"],
@@ -147,6 +174,7 @@ class CatalogService:
                 "average_rating": average_rating,
                 "review_count": review_count,
                 "created_at": product["created_at"],
+                "three_d_models": models,
             })
 
         pagination = {
@@ -237,6 +265,10 @@ class CatalogService:
                 "created_at": model["created_at"],
                 "sort_order": link.get("sort_order") or 0,
                 "is_primary": bool(link.get("is_primary")),
+                # Mẫu xem được không đồng nghĩa mẫu bán được. Cờ này để giao
+                # diện nói rõ lý do trước khi khách bấm mua; server vẫn chặn
+                # ở bước tính giá dù giao diện có hiển thị sai.
+                "is_orderable": is_orderable_model(model["slug"]),
             })
 
         # Extract review stats from embedded view

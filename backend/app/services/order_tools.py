@@ -354,6 +354,10 @@ class OrderTools:
         return {
             # Vẫn trả về đúng ngày khách nói, không kèm giờ giả.
             "pickup_date": parsed.strftime("%Y-%m-%d"),
+            # Mốc thời gian đã dùng để kết luận. `create_draft_order` phải lưu
+            # đúng mốc này: trước đây nó parse lại chuỗi ngày thành 00:00, mất 24
+            # giờ, nên agent nói "kịp" nhưng đơn lại lưu thành không kịp.
+            "deadline": deadline.isoformat(),
             "hours_notice": round(hours_notice, 1),
             "required_lead_hours": lead,
             "is_possible": hours_notice >= lead,
@@ -381,7 +385,7 @@ class OrderTools:
         customer_id: Optional[str] = None,
         notes: Optional[str] = None,
     ) -> dict:
-        """Tạo đơn NHÁP (status='pending'), chưa phải đơn chính thức.
+        """Tạo đơn NHÁP (status='draft'), chưa phải đơn chính thức.
 
         Chỉ gọi sau khi khách đã xác nhận rõ ràng: mẫu bánh, số lượng, ngày nhận.
 
@@ -419,7 +423,10 @@ class OrderTools:
             }
 
         priced = self.price_order(items)
-        parsed = datetime.strptime(timed["pickup_date"], "%Y-%m-%d").replace(tzinfo=VN_TZ)
+        # Dùng đúng mốc `check_bake_time` đã kiểm tra, không parse lại chuỗi
+        # ngày. Parse lại sẽ ra 00:00 và đơn lưu mất đúng 24 giờ so với mức
+        # vừa kết luận là kịp.
+        parsed = datetime.fromisoformat(timed["deadline"])
 
         # Tóm tắt cho thợ làm bánh đọc.
         summary = "; ".join(f"{l['name']} x{l['quantity']}" for l in priced["items"])
@@ -429,7 +436,7 @@ class OrderTools:
 
         order_insert: dict[str, Any] = {
             "customer_id": customer_id,
-            "status": "pending",
+            "status": "draft",
             "total_price": priced["total_price"],
             "pickup_date": parsed.isoformat(),
             "customer_name": str(customer_name).strip(),
@@ -450,7 +457,7 @@ class OrderTools:
                 self._supabase.table("orders")
                 .select("id, status")
                 .eq("customer_id", customer_id)
-                .eq("status", "pending")
+                .eq("status", "draft")
                 .eq("pickup_date", parsed.isoformat())
                 .eq("ai_summary", ai_summary)
                 .gte("created_at", retry_since.isoformat())
@@ -469,7 +476,7 @@ class OrderTools:
                 "created": True,
                 "duplicate": True,
                 "order_id": same["id"],
-                "status": same.get("status") or "pending",
+                "status": same.get("status") or "draft",
                 "total_price": priced["total_price"],
                 "pickup_date": timed["pickup_date"],
                 "items": priced["items"],

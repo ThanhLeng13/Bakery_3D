@@ -32,6 +32,7 @@ from app.services.order_service import (
     get_allowed_roles_for_transition,
     get_valid_next_statuses,
 )
+from app.services.pricing import NIL_UUID
 
 
 # ============================================================
@@ -150,6 +151,18 @@ class TestPickupDateValidation:
         # Should not raise (treated as UTC, 25h ahead)
         self.service._validate_pickup_date(pickup, items)
 
+    def test_null_size_does_not_crash(self):
+        """size may be null or absent: item.get("size", "") returned None when
+        the key existed with a null value, and None.lower() raised
+        AttributeError -> HTTP 500."""
+        pickup = datetime.now(timezone.utc) + timedelta(hours=72)
+
+        # None of these may raise
+        self.service._validate_pickup_date(pickup, [{"size": None}])
+        self.service._validate_pickup_date(pickup, [{}])
+        # Whitespace/case variants still count as two-tier (needs 72h here).
+        self.service._validate_pickup_date(pickup, [{"size": " 2-Tier "}])
+
 
 # ============================================================
 # Order Service - Create Order Tests
@@ -183,21 +196,52 @@ class TestCreateOrder:
 
         return mock_execute
 
-    def test_create_order_calculates_total_price(self):
-        """Total price should be sum of (unit_price * quantity) for all items."""
-        order_id = str(uuid4())
-        item_id = str(uuid4())
+    def _rpc_args(self, name="rpc_create_order"):
+        """Tham số truyền cho RPC, theo tên.
 
-        # Mock all table operations
+        Đơn được ghi trong MỘT lệnh `rpc_create_order` để Postgres hoặc ghi hết,
+        hoặc không ghi gì — tránh đơn lưu dở. Test cũ đọc `table().insert()`
+        không còn đúng, nên dùng helper này.
+        """
+        calls = self.mock_supabase.rpc.call_args_list
+        for call in calls:
+            if call[0][0] == name:
+                return call[0][1]
+        raise AssertionError(f"không có lệnh RPC '{name}' trong số lệnh đã gọi")
+
+    def _mock_rpc_result(self, total=0, duplicate=False, subtotal=None,
+                          discount=0, voucher_code=None, status="pending"):
+        """Cho `supabase.rpc(...)` trả về một đơn đã tạo.
+
+        Số tiền phải khớp với `rpc_create_order`: nó chính là nơi tính, nên
+        response lấy từ kết quả đó chứ không dùng lại giá trị ở tầng Python.
+        """
+        self.mock_supabase.rpc.return_value.execute.return_value = MagicMock(
+            data=[{
+                "order_id": str(uuid4()),
+                "subtotal": total if subtotal is None else subtotal,
+                "discount": discount,
+                "total": total,
+                "duplicate": duplicate,
+                "status": status,
+                "voucher_code": voucher_code,
+            }]
+        )
+    def test_create_order_calculates_total_price_from_server_prices(self):
+        """Total price comes from the server size table, never the client value."""
+        order_id = str(uuid4())
+
         mock_table = MagicMock()
         self.mock_supabase.table.return_value = mock_table
 
-        # Mock insert().execute() for orders
         mock_insert = MagicMock()
         mock_table.insert.return_value = mock_insert
-        mock_insert.execute.return_value = MagicMock(
-            data=[{"id": order_id, "status": "pending", "total_price": 350000}]
-        )
+        mock_insert.execute.side_effect = [
+            MagicMock(data=[{"id": order_id, "status": "pending"}]),
+            MagicMock(data=[{"id": str(uuid4())}]),
+            MagicMock(data=[{"id": str(uuid4())}]),
+            MagicMock(data=[{"id": str(uuid4())}]),
+        ]
 
         order_data = {
             "full_name": "Test",
@@ -205,20 +249,216 @@ class TestCreateOrder:
             "email": None,
             "pickup_date": datetime.now(timezone.utc) + timedelta(hours=25),
             "items": [
-                {"product_id": uuid4(), "size": "20cm", "flavor": "chocolate",
-                 "quantity": 2, "unit_price": 150000, "customization_json": None},
-                {"product_id": uuid4(), "size": "16cm", "flavor": "vanilla",
-                 "quantity": 1, "unit_price": 50000, "customization_json": None},
+                # Custom cakes carry the nil product id. The client claims 1 VND
+                # and 999 VND; both must be ignored.
+                {"product_id": NIL_UUID, "size": "20cm", "flavor": "chocolate",
+                 "quantity": 2, "unit_price": 1, "customization_json": None},
+                {"product_id": NIL_UUID, "size": "16cm", "flavor": "vanilla",
+                 "quantity": 1, "unit_price": 999, "customization_json": None},
             ],
             "ai_summary": None,
         }
 
+        self.service.create_order(order_data, self.customer)
+
+        args = self._rpc_args()
+        assert args["p_total_price"] == 950000  # 350000*2 + 250000*1
+
+    # ── Voucher ──────────────────────────────────────────────────────────
+    #
+    # Khách đổi điểm được mã giảm 5.000đ; trước đây không nơi nào đọc mã đó.
+    # Các test khoá lại: mức giảm lấy từ bảng vouchers, không lấy từ client,
+    # và mã bị đánh dấu đã dùng sau khi đơn ghi xong.
+
+    def _voucher_query(self, row):
+        """Giả lập `table("vouchers").select(...).eq(...).limit(1).execute()`."""
+        mock_select = MagicMock()
+        mock_eq = MagicMock()
+        mock_limit = MagicMock()
+        mock_select.eq.return_value = mock_eq
+        mock_eq.limit.return_value = mock_limit
+        mock_limit.execute.return_value = MagicMock(data=[row] if row else [])
+        return mock_select
+
+    def test_voucher_hop_le_giam_tien_va_ghi_vao_don(self):
+        order_id = str(uuid4())
+        mock_table = MagicMock()
+        self.mock_supabase.table.return_value = mock_table
+        mock_insert = MagicMock()
+        mock_table.insert.return_value = mock_insert
+        mock_insert.execute.side_effect = [
+            MagicMock(data=[{"id": order_id, "status": "pending"}]),
+            *[MagicMock(data=[{"id": str(uuid4())}]) for _ in range(6)],
+        ]
+        voucher = {
+            "id": "v-1",
+            "code": "BNB-ABCD1234",
+            "user_id": self.customer["id"],
+            "discount_vnd": 5000,
+            "status": "active",
+            "expires_at": None,
+            "used_at": None,
+        }
+        mock_table.select.return_value = self._voucher_query(voucher)
+
+        order_data = {
+            "full_name": "Test",
+            "phone": "0901234567",
+            "email": None,
+            "pickup_date": datetime.now(timezone.utc) + timedelta(hours=25),
+            "items": [
+                {"product_id": NIL_UUID, "size": "20cm", "flavor": None,
+                 "quantity": 1, "unit_price": 1, "customization_json": None},
+            ],
+            "ai_summary": None,
+            "voucher_code": "BNB-ABCD1234",
+        }
+
+        self._mock_rpc_result(
+            total=350000 - 5000,
+            subtotal=350000,
+            discount=5000,
+            voucher_code="BNB-ABCD1234",
+        )
         result = self.service.create_order(order_data, self.customer)
 
-        # Verify the insert was called with correct total_price
-        insert_call = mock_table.insert.call_args_list[0]
-        inserted_data = insert_call[0][0]
-        assert inserted_data["total_price"] == 350000  # 150000*2 + 50000*1
+        args = self._rpc_args()
+        assert args["p_total_price"] == 350000 - 5000
+        assert args["p_voucher_code"] == "BNB-ABCD1234"
+        assert args["p_voucher_discount"] == 5000
+        assert result["discount"] == 5000
+        assert result["subtotal"] == 350000
+        # Voucher phải được tiêu thụ trong RPC, không phải bằng `mark_used` ở
+        # tầng Python: lệnh đó chạy ngoài transaction và mở lại đúng cửa sổ
+        # tranh chấp mà RPC đã đóng.
+        updates = [
+            call for call in self.mock_supabase.table.return_value.update.call_args_list
+            if call[0][0].get("status") == "used"
+        ]
+        assert not updates, "voucher phải do rpc_create_order tiêu thụ"
+        assert result["voucher_code"] == "BNB-ABCD1234"
+
+    def test_don_khong_voucher_thi_ghi_ma_null(self):
+        order_id = str(uuid4())
+        mock_table = MagicMock()
+        self.mock_supabase.table.return_value = mock_table
+        mock_insert = MagicMock()
+        mock_table.insert.return_value = mock_insert
+        mock_insert.execute.side_effect = [
+            MagicMock(data=[{"id": order_id, "status": "pending"}]),
+            *[MagicMock(data=[{"id": str(uuid4())}]) for _ in range(6)],
+        ]
+        order_data = {
+            "full_name": "Test",
+            "phone": "0901234567",
+            "email": None,
+            "pickup_date": datetime.now(timezone.utc) + timedelta(hours=25),
+            "items": [
+                {"product_id": NIL_UUID, "size": "20cm", "flavor": None,
+                 "quantity": 1, "unit_price": 1, "customization_json": None},
+            ],
+            "ai_summary": None,
+        }
+        self.service.create_order(order_data, self.customer)
+        args = self._rpc_args()
+        assert args["p_total_price"] == 350000
+        assert args["p_voucher_code"] is None
+        assert args["p_voucher_discount"] == 0
+
+    def test_voucher_cua_khach_khac_bi_tu_choi(self):
+        mock_table = MagicMock()
+        self.mock_supabase.table.return_value = mock_table
+        # Không có dòng nào khớp: mã không thuộc khách này.
+        mock_table.select.return_value = self._voucher_query(None)
+
+        order_data = {
+            "full_name": "Test",
+            "phone": "0901234567",
+            "email": None,
+            "pickup_date": datetime.now(timezone.utc) + timedelta(hours=25),
+            "items": [
+                {"product_id": NIL_UUID, "size": "20cm", "flavor": None,
+                 "quantity": 1, "unit_price": 1, "customization_json": None},
+            ],
+            "ai_summary": None,
+            "voucher_code": "BNB-KHACNGUOI",
+        }
+        with pytest.raises(OrderServiceError) as exc:
+            self.service.create_order(order_data, self.customer)
+        assert exc.value.status_code == 400
+    def test_order_item_rows_store_the_server_price(self):
+        """order_items.unit_price must hold the resolved price, not the client's."""
+        order_id = str(uuid4())
+
+        mock_table = MagicMock()
+        self.mock_supabase.table.return_value = mock_table
+
+        mock_insert = MagicMock()
+        mock_table.insert.return_value = mock_insert
+        mock_insert.execute.side_effect = [
+            MagicMock(data=[{"id": order_id, "status": "pending"}]),
+            MagicMock(data=[{"id": str(uuid4())}]),
+            MagicMock(data=[{"id": str(uuid4())}]),
+        ]
+
+        order_data = {
+            "full_name": "Test",
+            "phone": "0901234567",
+            "email": None,
+            # Two-tier cakes need 48h notice, so book far enough ahead.
+            "pickup_date": datetime.now(timezone.utc) + timedelta(hours=72),
+            "items": [
+                {"product_id": NIL_UUID, "size": "2-tier", "flavor": "chocolate",
+                 "quantity": 1, "unit_price": 1000, "customization_json": None},
+            ],
+            "ai_summary": None,
+        }
+
+        self.service.create_order(order_data, self.customer)
+
+        items = self._rpc_args()["p_items"]
+        assert len(items) == 1
+        assert items[0]["unit_price"] == 650000
+
+    def test_custom_cake_price_read_from_customization_size(self):
+        """The saved design's size wins over the loose item size field."""
+        prices = self.service._resolve_unit_prices([
+            {
+                "product_id": NIL_UUID,
+                "size": None,
+                "quantity": 1,
+                "unit_price": 1000,
+                "customization_json": {"size": "24cm"},
+            }
+        ])
+        assert prices == [450000]
+
+    def test_catalogue_product_uses_base_price(self):
+        """A real product is priced from products.base_price."""
+        mock_table = MagicMock()
+        self.mock_supabase.table.return_value = mock_table
+        mock_table.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value = MagicMock(
+            data={"base_price": 275000}
+        )
+
+        prices = self.service._resolve_unit_prices([
+            {"product_id": str(uuid4()), "quantity": 1, "unit_price": 1000}
+        ])
+        assert prices == [275000]
+
+    def test_unknown_product_is_rejected(self):
+        """A product id absent from the catalogue must not silently price at 0."""
+        mock_table = MagicMock()
+        self.mock_supabase.table.return_value = mock_table
+        mock_table.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value = MagicMock(
+            data=None
+        )
+
+        with pytest.raises(OrderServiceError) as exc_info:
+            self.service._resolve_unit_prices([
+                {"product_id": str(uuid4()), "quantity": 1, "unit_price": 1000}
+            ])
+        assert exc_info.value.status_code == 400
 
     def test_create_order_stores_ai_summary(self):
         """AI summary should be stored in the order record."""
@@ -227,11 +467,7 @@ class TestCreateOrder:
         mock_table = MagicMock()
         self.mock_supabase.table.return_value = mock_table
 
-        mock_insert = MagicMock()
-        mock_table.insert.return_value = mock_insert
-        mock_insert.execute.return_value = MagicMock(
-            data=[{"id": order_id, "status": "pending", "total_price": 200000}]
-        )
+        self._mock_rpc_result(total=350000)
 
         order_data = {
             "full_name": "Test",
@@ -239,7 +475,7 @@ class TestCreateOrder:
             "email": None,
             "pickup_date": datetime.now(timezone.utc) + timedelta(hours=25),
             "items": [
-                {"product_id": uuid4(), "size": "20cm", "flavor": "chocolate",
+                {"product_id": NIL_UUID, "size": "20cm", "flavor": "chocolate",
                  "quantity": 1, "unit_price": 200000, "customization_json": None},
             ],
             "ai_summary": "Bánh kem chocolate 20cm, nhận ngày mai",
@@ -247,10 +483,9 @@ class TestCreateOrder:
 
         self.service.create_order(order_data, self.customer)
 
-        # Verify ai_summary was included in the insert
-        insert_call = mock_table.insert.call_args_list[0]
-        inserted_data = insert_call[0][0]
-        assert inserted_data["ai_summary"] == "Bánh kem chocolate 20cm, nhận ngày mai"
+        assert self._rpc_args()["p_ai_summary"] == (
+            "Bánh kem chocolate 20cm, nhận ngày mai"
+        )
 
     def test_create_order_stores_customization_json(self):
         """Customization JSON should be stored in cake_customizations table."""
@@ -262,8 +497,9 @@ class TestCreateOrder:
 
         mock_insert = MagicMock()
         mock_table.insert.return_value = mock_insert
+        self._mock_rpc_result(total=350000)
 
-        # First call returns order, second returns item, third returns customization, fourth returns history
+        # (không còn insert tay: rpc_create_order ghi mọi bảng trong 1 lệnh)
         mock_insert.execute.side_effect = [
             MagicMock(data=[{"id": order_id, "status": "pending", "total_price": 200000}]),
             MagicMock(data=[{"id": item_id}]),
@@ -285,7 +521,7 @@ class TestCreateOrder:
             "email": None,
             "pickup_date": datetime.now(timezone.utc) + timedelta(hours=25),
             "items": [
-                {"product_id": uuid4(), "size": "20cm", "flavor": "chocolate",
+                {"product_id": NIL_UUID, "size": "20cm", "flavor": "chocolate",
                  "quantity": 1, "unit_price": 200000,
                  "customization_json": customization},
             ],
@@ -294,18 +530,14 @@ class TestCreateOrder:
 
         self.service.create_order(order_data, self.customer)
 
-        # Verify cake_customizations insert was called
-        # The third insert call should be for cake_customizations
-        all_insert_calls = mock_table.insert.call_args_list
-        # Find the customization insert (contains customization_json key)
-        customization_calls = [
-            call for call in all_insert_calls
-            if "customization_json" in call[0][0]
-        ]
-        assert len(customization_calls) == 1
-        assert customization_calls[0][0][0]["customization_json"] == customization
-        assert customization_calls[0][0][0]["order_id"] == order_id
-        assert customization_calls[0][0][0]["order_item_id"] == item_id
+        # Cấu hình bánh đi kèm từng món; `rpc_create_order` ghi vào
+        # `cake_customizations` trong cùng transaction.
+        items = self._rpc_args()["p_items"]
+        assert len(items) == 1
+        assert items[0]["customization_json"] == customization
+        # Món tùy chỉnh không có dòng sản phẩm danh mục: product_id rỗng để
+        # Postgres ghi NULL, tránh vi phạm khoá ngoại.
+        assert items[0]["product_id"] == ""
 
 
 # ============================================================

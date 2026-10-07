@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { createGanacheGeometry, type CakeDecorationTier } from "./cake-decoration-surface";
 
 /** A closed, rounded profile: soft icing edges without changing cake dimensions. */
 export function RoundedCylinder({ radius, height, bevel = 0.035, roundTop = true, roundBottom = true, capTop = true, capBottom = true }: {
@@ -62,10 +63,10 @@ export function useIcingTexture() {
 }
 
 /** Star-nozzle buttercream shells, rendered in one instanced draw call. */
-export function PipedBorder({ radius, y, color, rosettes = false }: {
-  radius: number; y: number; color: string; rosettes?: boolean;
+export function PipedBorder({ radius, y, color, rosettes = false, path }: {
+  radius: number; y: number; color: string; rosettes?: boolean; path?: THREE.Curve<THREE.Vector3>;
 }) {
-  const count = Math.round((Math.PI * 2 * radius) / (rosettes ? 0.18 : 0.105));
+  const count = Math.max(3, Math.round((path?.getLength() ?? Math.PI * 2 * radius) / (rosettes ? 0.18 : 0.105)));
   const ref = useRef<THREE.InstancedMesh>(null);
   const geometry = useMemo(() => {
     const shape = new THREE.SphereGeometry(1, 24, 16);
@@ -88,13 +89,18 @@ export function PipedBorder({ radius, y, color, rosettes = false }: {
       const a = i / count * Math.PI * 2;
       transform.position.set(Math.cos(a) * radius, y, Math.sin(a) * radius);
       transform.rotation.set(0, -a, rosettes ? 0 : 0.35);
+      if (path) {
+        transform.position.copy(path.getPointAt(i / count));
+        const tangent = path.getTangentAt(i / count);
+        transform.rotation.y = Math.atan2(-tangent.x, tangent.z);
+      }
       transform.scale.set(rosettes ? 0.1 : 0.064, rosettes ? 0.085 : 0.045, rosettes ? 0.1 : 0.052);
       transform.updateMatrix();
       ref.current.setMatrixAt(i, transform.matrix);
     }
     ref.current.instanceMatrix.needsUpdate = true;
     ref.current.computeBoundingSphere();
-  }, [count, radius, y, rosettes]);
+  }, [count, radius, y, rosettes, path]);
   return (
     <instancedMesh ref={ref} args={[geometry, undefined, count]} castShadow receiveShadow>
       <meshPhysicalMaterial color={color} roughness={0.57} metalness={0} clearcoat={0.12} />
@@ -103,8 +109,9 @@ export function PipedBorder({ radius, y, color, rosettes = false }: {
 }
 
 /** Ganache hangs over the rim, with rounded drops of alternating lengths. */
-export function Ganache({ radius, surfaceY }: { radius: number; surfaceY: number }) {
+export function Ganache({ radius, surfaceY, tier }: { radius: number; surfaceY: number; tier?: CakeDecorationTier }) {
   const geometry = useMemo(() => {
+    if (tier) return createGanacheGeometry(tier);
     const segments = 360;
     const positions: number[] = [], indices: number[] = [];
     for (let i = 0; i <= segments; i++) {
@@ -127,7 +134,7 @@ export function Ganache({ radius, surfaceY }: { radius: number; surfaceY: number
     result.setIndex(indices);
     result.computeVertexNormals();
     return result;
-  }, [radius, surfaceY]);
+  }, [radius, surfaceY, tier]);
   useEffect(() => () => geometry.dispose(), [geometry]);
   return <mesh geometry={geometry} castShadow receiveShadow>
     <meshPhysicalMaterial color="#42261E" roughness={0.3} clearcoat={0.5} side={THREE.DoubleSide} />

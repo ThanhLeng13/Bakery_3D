@@ -14,6 +14,7 @@ import type { CakeDesign } from "@/types";
 import { type CakeZone } from "./CakeSVG";
 import { Ganache, PipedBorder, RoundedCylinder, useIcingTexture } from "./CakeFinish";
 import GlbCakeBody from "./GlbCakeBody";
+import type { CakeDecorationTier } from "./cake-decoration-surface";
 
 interface Cake3DProps {
   design: CakeDesign;
@@ -305,7 +306,7 @@ function ModelOrFallback({
 }
 
 // ─── ToppingGroup cho từng loại topping cụ thể ──────────────────────────────
-function ToppingGroup({ type, surfaceY, R, slot = 0, slots = 1 }: { type: string; surfaceY: number; R: number; slot?: number; slots?: number }) {
+function ToppingGroup({ type, surfaceY, R, slot = 0, slots = 1, surfaceAt, edgeAt }: { type: string; surfaceY: number; R: number; slot?: number; slots?: number; surfaceAt?: (x: number, z: number) => number; edgeAt?: CakeDecorationTier["edgeAt"] }) {
   const sizeScale = Math.min(1, R / 0.78);
   const positions = useMemo<[number, number, number][]>(() => {
     // Model origins sit at the bottom of each decoration, just above the icing.
@@ -321,11 +322,12 @@ function ToppingGroup({ type, surfaceY, R, slot = 0, slots = 1 }: { type: string
       const radius = R * 0.64;
       for (let i = 0; i < count; i++) {
         const a = ((i * slots + slot) / (count * slots)) * Math.PI * 2 + 0.35;
-        pts.push([Math.cos(a) * radius, y, Math.sin(a) * radius]);
+        const edge = edgeAt?.(a / (Math.PI * 2)).multiplyScalar(0.62);
+        pts.push(edge ? [edge.x, y, edge.y] : [Math.cos(a) * radius, y, Math.sin(a) * radius]);
       }
     }
-    return pts;
-  }, [type, surfaceY, R, slot, slots]);
+    return surfaceAt ? pts.map(([x, , z]) => [x, surfaceAt(x, z) + 0.005, z]) : pts;
+  }, [type, surfaceY, R, slot, slots, surfaceAt, edgeAt]);
 
   return (
     <group>
@@ -345,15 +347,15 @@ function ToppingGroup({ type, surfaceY, R, slot = 0, slots = 1 }: { type: string
 }
 
 // ─── Toppings mặt trên (chấp nhận mảng toppings) ─────────────────────────────
-function TopToppings({ toppings, surfaceY, R }: { toppings?: string[]; surfaceY: number; R: number }) {
+function TopToppings({ toppings, surfaceY, R, surfaceAt, tier }: { toppings?: string[]; surfaceY: number; R: number; surfaceAt?: (x: number, z: number) => number; tier?: CakeDecorationTier }) {
   if (!toppings || toppings.length === 0) return null;
   const ringToppings = toppings.filter((type) => ["flowers", "fruits", "macarons"].includes(type));
   return (
     <group>
       {toppings.map((type) => type === "chocolate drip" ? (
-        <Ganache key={type} radius={R} surfaceY={surfaceY} />
+        <Ganache key={type} radius={R} surfaceY={surfaceY} tier={tier} />
       ) : (
-        <ToppingGroup key={type} type={type} surfaceY={surfaceY} R={R}
+        <ToppingGroup key={type} type={type} surfaceY={surfaceY} R={R} surfaceAt={surfaceAt} edgeAt={tier?.edgeAt}
           slot={Math.max(0, ringToppings.indexOf(type))} slots={Math.max(1, ringToppings.length)} />
       ))}
     </group>
@@ -373,13 +375,14 @@ function getVisibleToppings(design: CakeDesign): string[] {
   return Array.from(new Set(legacyToppings)).filter(Boolean);
 }
 
-function BorderDecor({ type, color, R, y }: { type: string; color: string; R: number; y: number }) {
+function BorderDecor({ type, color, R, y, path }: { type: string; color: string; R: number; y: number; path?: THREE.Curve<THREE.Vector3> }) {
   const N = 22;
   const pts = useMemo(() =>
     Array.from({ length: N }, (_, i) => {
       const a = (i / N) * Math.PI * 2;
-      return { x: Math.cos(a) * (R + 0.06), z: Math.sin(a) * (R + 0.06), a };
-    }), [R]);
+      const point = path?.getPointAt(i / N);
+      return { x: point?.x ?? Math.cos(a) * (R + 0.06), z: point?.z ?? Math.sin(a) * (R + 0.06), y: point?.y ?? y, a };
+    }), [R, y, path]);
 
   const pearlGeo   = useMemo(() => new THREE.SphereGeometry(0.052, 12, 12),   []);
   const pearlMat   = useMemo(() => new THREE.MeshPhysicalMaterial({ color: "#FAFAF9", roughness: 0.28, metalness: 0.1, clearcoat: 0.4 }), []);
@@ -393,14 +396,14 @@ function BorderDecor({ type, color, R, y }: { type: string; color: string; R: nu
 
   switch (type) {
     case "piping":
-      return <PipedBorder radius={R} y={y} color={color} />;
+      return <PipedBorder radius={R} y={y} color={color} path={path} />;
     case "rosettes":
-      return <PipedBorder radius={R} y={y} color={color} rosettes />;
+      return <PipedBorder radius={R} y={y} color={color} rosettes path={path} />;
     case "pearls":
       return (
         <group>
           {pts.map((p, i) => (
-            <mesh key={i} position={[p.x, y, p.z]} geometry={pearlGeo} material={pearlMat} />
+            <mesh key={i} position={[p.x, p.y, p.z]} geometry={pearlGeo} material={pearlMat} />
           ))}
         </group>
       );
@@ -410,7 +413,7 @@ function BorderDecor({ type, color, R, y }: { type: string; color: string; R: nu
       return (
         <group>
           {pts.map((p, i) => (
-            <mesh key={i} position={[p.x, y+(i%3-1)*0.022, p.z]} rotation={[Math.PI/2, 0, p.a]} geometry={spkGeo}>
+            <mesh key={i} position={[p.x, p.y+(i%3-1)*0.022, p.z]} rotation={[Math.PI/2, 0, p.a]} geometry={spkGeo}>
               <meshStandardMaterial color={sc[i%4]} roughness={0.55} />
             </mesh>
           ))}
@@ -418,6 +421,10 @@ function BorderDecor({ type, color, R, y }: { type: string; color: string; R: nu
       );
     }
     case "ribbon":
+      if (path) return <mesh>
+        <tubeGeometry args={[path, 192, 0.025, 8, true]} />
+        <meshPhysicalMaterial color={color} roughness={0.5} clearcoat={0.1} />
+      </mesh>;
       return (
         <mesh position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[R + 0.04, 0.04, 10, 80]} />
@@ -430,15 +437,17 @@ function BorderDecor({ type, color, R, y }: { type: string; color: string; R: nu
 }
 
 // ─── Hoa văn thân bánh ────────────────────────────────────────────────────────
-function BodyPattern({ type, R, H, y }: { type: string; R: number; H: number; y: number }) {
+function BodyPattern({ type, R, H, y, path }: { type: string; R: number; H: number; y: number; path?: THREE.Curve<THREE.Vector3> }) {
   switch (type) {
     case "stripes":
       return (
         <group>
           {Array.from({ length: 12 }, (_, i) => {
             const a = (i / 12) * Math.PI * 2;
+            const p = path?.getPointAt(i / 12).multiplyScalar(1.003);
+            const tangent = path?.getTangentAt(i / 12);
             return (
-              <mesh key={i} position={[Math.cos(a)*(R-0.005), y, Math.sin(a)*(R-0.005)]} rotation={[0, -a+Math.PI/2, 0]}>
+              <mesh key={i} position={[p?.x ?? Math.cos(a)*(R+0.002), y, p?.z ?? Math.sin(a)*(R+0.002)]} rotation={[0, tangent ? Math.atan2(tangent.z, -tangent.x) : -a+Math.PI/2, 0]}>
                 <planeGeometry args={[0.02, H*0.9]} />
                 <meshStandardMaterial color="#FFFFFF" transparent opacity={0.32} side={THREE.FrontSide} emissive="#FFFFFF" emissiveIntensity={0.15} />
               </mesh>
@@ -452,8 +461,9 @@ function BodyPattern({ type, R, H, y }: { type: string; R: number; H: number; y:
           {Array.from({ length: 24 }, (_, i) => {
             const a = (i / 24) * Math.PI * 2;
             const yOff = (i%4 - 1.5) * (H/4);
+            const p = path?.getPointAt(i / 24);
             return (
-              <mesh key={i} position={[Math.cos(a)*R*0.97, y+yOff, Math.sin(a)*R*0.97]}>
+              <mesh key={i} position={[p?.x ?? Math.cos(a)*R*0.97, y+yOff, p?.z ?? Math.sin(a)*R*0.97]}>
                 <sphereGeometry args={[0.034, 7, 7]} />
                 <meshStandardMaterial color="#FFFFFF" transparent opacity={0.45} emissive="#FFFFFF" emissiveIntensity={0.2} />
               </mesh>
@@ -462,6 +472,12 @@ function BodyPattern({ type, R, H, y }: { type: string; R: number; H: number; y:
         </group>
       );
     case "waves":
+      if (path) return <group>
+        {[-0.28, 0, 0.28].map((fraction, i) => <mesh key={i} position={[0, y + fraction * H, 0]}>
+          <tubeGeometry args={[path, 192, 0.018, 8, true]} />
+          <meshStandardMaterial color="#FFFFFF" transparent opacity={0.6} />
+        </mesh>)}
+      </group>;
       return (
         <group>
           {[0.28, 0.0, -0.28].map((off, i) => (
@@ -657,28 +673,80 @@ class CakeBodyFallbackBoundary extends Component<{
 }
 
 function SelectedCakeBody(props: Cake3DProps) {
+  const toppings = getVisibleToppings(props.design);
   return (
     <CakeBodyFallbackBoundary fallback={<CakeMesh {...props} />}>
       <Suspense fallback={<CakeMesh {...props} />}>
-        <GlbCakeBody {...props} />
+        <GlbCakeBody {...props} renderDecorations={(tiers) => (
+          <group>
+            {tiers.map((tier, index) => (
+              <group key={index}>
+                <BodyPattern type={props.design.zones?.body?.decoration || ""} R={tier.radius} H={tier.height} y={tier.bodyY} path={tier.bodyPath} />
+                <BorderDecor type={props.design.zones?.border?.decoration || ""} color={props.design.zones?.border?.color || "#F2F1EE"} R={tier.radius} y={tier.borderY} path={tier.borderPath} />
+                {index === tiers.length - 1 && <TopToppings
+                  toppings={toppings}
+                  R={tier.radius} surfaceY={tier.surfaceY} surfaceAt={tier.surfaceAt} tier={tier}
+                />}
+              </group>
+            ))}
+          </group>
+        )} />
       </Suspense>
     </CakeBodyFallbackBoundary>
   );
 }
 
 // ─── Slow auto-rotate bằng ref (không gây re-render) ─────────────────────────
+/**
+ * Góc nhìn cố định theo yêu cầu `?view=`.
+ *
+ * Dùng để chụp ảnh kiểm tra nhiều góc của cùng một mẫu: `scripts/capture-cake-shots.mjs`
+ * chạy Chrome headless, mà headless không kéo-xoay được. Không có `?view=` thì
+ * hành vi cũ giữ nguyên (nhìn 3/4 như trước).
+ */
+const FIXED_VIEWS: Record<string, [number, number, number]> = {
+  front: [0, 1.1, 3.4],
+  top: [0.01, 3.2, 1.1],
+  side: [3.4, 1.1, 0.01],
+  back: [0, 1.1, -3.4],
+};
+
+/** `spin-N`: quanh trục đứng, mỗi 45°, để ghép thành vòng 360°. */
+function spinView(view: string): [number, number, number] | null {
+  const match = /^spin-([0-7])$/.exec(view);
+  if (!match) return null;
+  const angle = (Number(match[1]) * Math.PI) / 4;
+  const distance = 3.4;
+  return [Math.sin(angle) * distance, 1.1, Math.cos(angle) * distance];
+}
+
+function useFixedCamera(): [number, number, number] | null {
+  if (typeof window === "undefined") return null;
+  const view = new URLSearchParams(window.location.search).get("view");
+  if (!view) return null;
+  if (FIXED_VIEWS[view]) return FIXED_VIEWS[view];
+  return spinView(view);
+}
+
 function RotatingCake(props: Cake3DProps) {
   const groupRef  = useRef<THREE.Group>(null!);
   const rotating  = useRef(true);
+  const fixedView = useFixedCamera();
 
   useFrame((_, dt) => {
-    if (props.autoRotate !== false && rotating.current && groupRef.current) {
+    // Đọc trong callback để mỗi khung hình thấy trạng thái hiện tại. Tính
+    // ở thời điểm render sẽ giữ giá trị cũ của `rotating.current`, nên bánh
+    // không dừng xoay sau khi người dùng thả chuột.
+    // Góc cố định thì không xoay: ảnh chụp phải giống nhau giữa các lần chạy.
+    const spinning =
+      props.autoRotate !== false && rotating.current && groupRef.current && !fixedView;
+    if (spinning) {
       groupRef.current.rotation.y += dt * 0.28;
     }
   });
 
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} rotation={fixedView ? [0, 0, 0] : undefined}>
       {/* Expose rotating ref to OrbitControls via a separate child */}
       <OrbitControls
         makeDefault
@@ -742,6 +810,8 @@ function Scene(props: Cake3DProps) {
 
 // ─── Component chính ──────────────────────────────────────────────────────────
 export default function Cake3D(props: Cake3DProps) {
+  const fixedCamera = useFixedCamera();
+
   return (
     <div
       data-cake3d="true"
@@ -756,9 +826,12 @@ export default function Cake3D(props: Cake3DProps) {
         cursor: props.enableControls === false ? "default" : "grab",
       }}
     >
-      {/* Canvas */}
+      {/* Canvas. `?view=` đặt camera ở góc cố định để chụp ảnh kiểm tra;
+          không có tham số thì dùng góc 3/4 như trước. */}
       <Canvas
-        camera={{ position: [2.2, 2, 3.2], fov: 30 }}
+        camera={fixedCamera
+          ? { position: fixedCamera, fov: 30 }
+          : { position: [2.2, 2, 3.2] as [number, number, number], fov: 30 }}
         shadows="variance"
         dpr={[1, 1.5]}
         gl={{ antialias: true, alpha: true }}
@@ -766,7 +839,10 @@ export default function Cake3D(props: Cake3DProps) {
         aria-label="Xem trước bánh kem 3D; dùng các nút tùy chỉnh để chọn vùng bánh"
         style={{ width:"100%", height:"100%" }}
       >
-        <Suspense fallback={null}>
+        {/* Fallback là bánh vẽ bằng code, không phải null: trong lúc thân GLB
+            đang tải trên mạng chậm, khách phải thấy bánh ngay. `fallback={null}`
+            khiến canvas trắng trơn cho tới khi tải xong. */}
+        <Suspense fallback={<CakeMesh {...props} />}>
           <Scene {...props} />
         </Suspense>
       </Canvas>

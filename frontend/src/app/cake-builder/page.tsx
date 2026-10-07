@@ -110,6 +110,13 @@ function CakeBuilderContent() {
   );
   const configuratorRef = useRef<HTMLDivElement>(null);
 
+  // `?bare=1` ẩn toàn bộ giao diện, chỉ còn canvas. Dùng cho ảnh chụp kiểm tra
+  // hình học: đo trên ảnh có nút bấm và chữ thì mọi mẫu đều ra cùng một con
+  // số, vì phần lớn vùng đo rơi vào giao diện chứ không phải bánh.
+  const bareCapture =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("bare") === "1";
+
   useEffect(() => {
     if (requestedModel && requestedModel in CAKE_BODY_MODELS) {
       actions.setModelSlug(requestedModel as Cake3DModelSlug);
@@ -228,11 +235,11 @@ function CakeBuilderContent() {
           </h1>
         </div>
 
-        <div className="grid items-start gap-y-8 md:grid-cols-[112px_minmax(360px,1fr)_132px] md:gap-x-[9px] lg:grid-cols-[150px_minmax(480px,1fr)_190px] lg:gap-x-5 xl:grid-cols-[180px_minmax(0,1fr)_230px] xl:gap-x-8 2xl:grid-cols-[220px_minmax(0,1fr)_280px] 2xl:gap-x-10">
+        <div className={bareCapture ? "block" : "grid items-start gap-y-8 md:grid-cols-[112px_minmax(360px,1fr)_132px] md:gap-x-[9px] lg:grid-cols-[150px_minmax(480px,1fr)_190px] lg:gap-x-5 xl:grid-cols-[180px_minmax(0,1fr)_230px] xl:gap-x-8 2xl:grid-cols-[220px_minmax(0,1fr)_280px] 2xl:gap-x-10"}>
           <div
             ref={configuratorRef}
             tabIndex={-1}
-            className="order-2 scroll-mt-24 focus:outline-none md:order-1 md:sticky md:top-[106px] md:max-h-[calc(100vh-116px)] md:overflow-y-auto md:pr-1 xl:top-[126px] xl:max-h-[calc(100vh-142px)]"
+            className={bareCapture ? "hidden" : "order-2 scroll-mt-24 focus:outline-none md:order-1 md:sticky md:top-[106px] md:max-h-[calc(100vh-116px)] md:overflow-y-auto md:pr-1 xl:top-[126px] xl:max-h-[calc(100vh-142px)]"}
           >
             <CakeModelPicker
               models={modelLibrary}
@@ -355,7 +362,7 @@ function CakeBuilderContent() {
             </div>
           </section>
 
-          <div className="order-3 md:sticky md:top-[106px] xl:top-[126px]">
+          <div className={bareCapture ? "hidden" : "order-3 md:sticky md:top-[106px] xl:top-[126px]"}>
             <OrderSummary
               design={design}
               priceBreakdown={priceBreakdown}

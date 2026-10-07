@@ -6,8 +6,17 @@ Enforces pickup date validation and role-based status transition rules.
 
 import logging
 import math
+from uuid import uuid4
 from datetime import datetime, timezone
 from typing import Any
+
+from app.services.pricing import is_custom_cake, is_two_tier, order_total
+from app.services.orderable_3d import OrderableModelError, ensure_orderable_model
+from app.services.voucher_service import (
+    VoucherService,
+    VoucherServiceError,
+    apply_voucher,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -58,7 +67,14 @@ class PickupDateValidationError(OrderServiceError):
 
 
 # Valid status transitions and required roles
+#
+# `draft` is an order the agent drafted from a conversation. It is not an order
+# the bakery has accepted, so it sits outside the production line and only
+# staff can confirm it. Before this status existed, drafts were written as
+# 'pending' and appeared in the sales queue as if they were real orders.
+# Requires migration add_draft_order_status.sql.
 VALID_TRANSITIONS: dict[str, dict[str, list[str]]] = {
+    "draft": {"pending": ["staff"]},
     "pending": {"confirmed": ["staff"]},
     "confirmed": {"in_production": ["baker"]},
     "in_production": {"ready": ["baker"]},
@@ -127,6 +143,9 @@ class OrderService:
         """
         now = datetime.now(timezone.utc)
 
+        if pickup_date is None:
+            raise PickupDateValidationError("Thiếu ngày nhận bánh.")
+
         # Ensure pickup_date is timezone-aware
         if pickup_date.tzinfo is None:
             pickup_date = pickup_date.replace(tzinfo=timezone.utc)
@@ -142,7 +161,7 @@ class OrderService:
 
         # Check if any item is 2-tier
         has_two_tier = any(
-            item.get("size", "").lower() in ("2-tier", "2 tier", "2tier")
+            is_two_tier(item.get("size"))
             for item in items
         )
 
@@ -158,6 +177,94 @@ class OrderService:
                     "Standard cakes require at least 24 hours advance notice. "
                     "Please select a later pickup date."
                 )
+
+    def _catalog_price(self, product_id: str) -> int:
+        """Read the authoritative unit price of a catalogue product.
+
+        Also refuses products whose 3D model is preview-only: a model being
+        viewable in the Studio does not mean the bakery has approved its price
+        and lead time for production. Blocking here, in the pricing path, means
+        neither the UI nor a direct API call can create such an order.
+        """
+        result = (
+            self._supabase.table("products")
+            .select(
+                "id, base_price, product_3d_models("
+                "is_primary, cake_3d_models(id, slug))"
+            )
+            .eq("id", product_id)
+            .maybe_single()
+            .execute()
+        )
+        # supabase-py >= 2.30 returns None from maybe_single() when no row matched.
+        if result is None or not result.data:
+            raise OrderServiceError("Sản phẩm không tồn tại.", status_code=400)
+
+        product = result.data
+        self._reject_preview_only_model(product)
+
+        return int(product.get("base_price") or 0)
+
+    def _reject_preview_only_model(self, product: dict) -> None:
+        """Raise if the product's primary 3D model is not cleared for sale."""
+        links = product.get("product_3d_models") or []
+        # Fall back to any link when nothing is flagged primary, so a product
+        # cannot slip through by having its primary flag unset.
+        ordered = [lnk for lnk in links if lnk.get("is_primary")] or links
+        for link in ordered:
+            model = link.get("cake_3d_models") or {}
+            # PostgREST returns an embedded many-to-one row as a dict here, but
+            # it can come back as a single-element list depending on how the
+            # relation is inferred. Tolerate both rather than letting the check
+            # silently pass on a shape it did not recognise.
+            if isinstance(model, list):
+                model = model[0] if model else {}
+            if not isinstance(model, dict):
+                model = {}
+            try:
+                ensure_orderable_model(model.get("slug"))
+            except OrderableModelError as exc:
+                raise OrderServiceError(
+                    exc.message,
+                    status_code=exc.status_code,
+                ) from exc
+
+    def _resolve_unit_prices(self, items: list[dict]) -> list[int]:
+        """Resolve every order item's unit price on the server.
+
+        Custom cakes (nil product id) are priced from the saved design - size
+        plus toppings plus decorations, so the charge matches what the Studio
+        showed. Catalogue products are priced from `products.base_price`. The
+        client-supplied `unit_price` is only compared, never used, and a mismatch
+        is logged so an inconsistent frontend becomes visible instead of
+        silently changing what we charge.
+        """
+        prices: list[int] = []
+        for item in items:
+            raw_pid = item.get("product_id")
+            if is_custom_cake(raw_pid):
+                design = item.get("customization_json")
+                if not isinstance(design, dict) or not design:
+                    # No saved design: fall back to the loose size field so the
+                    # order can still be priced instead of failing outright.
+                    design = {"size": item.get("size")}
+                try:
+                    unit_price = order_total(design)
+                except ValueError as exc:
+                    raise OrderServiceError(str(exc), status_code=400) from exc
+            else:
+                unit_price = self._catalog_price(str(raw_pid))
+
+            claimed = item.get("unit_price")
+            if claimed is not None and claimed != unit_price:
+                _logger.warning(
+                    "Client sent unit_price %s but server resolved %s; charging the "
+                    "server price",
+                    claimed,
+                    unit_price,
+                )
+            prices.append(unit_price)
+        return prices
 
     def create_order(self, order_data: dict, customer: dict) -> dict:
         """
@@ -179,86 +286,130 @@ class OrderService:
         # Validate pickup date
         self._validate_pickup_date(order_data["pickup_date"], items)
 
-        # Calculate total price
-        total_price = sum(item["unit_price"] * item["quantity"] for item in items)
+        # Calculate total price.
+        # The unit_price sent by the browser is NOT trusted: a client could
+        # otherwise order any cake for 1,000 VND. Prices are resolved on the
+        # server - from the size table for custom cakes, from the catalogue for
+        # real products.
+        unit_prices = self._resolve_unit_prices(items)
+        subtotal = sum(
+            unit_price * item["quantity"]
+            for unit_price, item in zip(unit_prices, items)
+        )
 
-        # Create order record
-        order_insert = {
-            "customer_id": customer["id"],
-            "status": "pending",
-            "total_price": total_price,
+        # ── Voucher ────────────────────────────────────────────────────────
+        # Khách đổi điểm được mã giảm giá; mã phải dùng được ở đây. Mức giảm
+        # đọc từ bảng `vouchers` — không bao giờ lấy con số từ trình duyệt.
+        voucher_code = order_data.get("voucher_code")
+        voucher_row = None
+        if voucher_code:
+            voucher_svc = VoucherService(self._supabase)
+            voucher_row = voucher_svc.find_usable(
+                voucher_code, str(customer["id"])
+            )
+        try:
+            money = apply_voucher(
+                {"total": subtotal},
+                voucher_row,
+                customer_id=str(customer["id"]),
+                code=voucher_code,
+            )
+        except VoucherServiceError as exc:
+            raise OrderServiceError(exc.message, status_code=exc.status_code) from exc
+
+        total_price = money["total"]
+
+        # ── Ghi đơn: MỘT lệnh ───────────────────────────────────────────────
+        # Trước đây ghi orders, rồi order_items từng món, rồi cake_customizations,
+        # rồi order_status_history bằng các lệnh rời rạc. Lệnh sau hỏng thì các
+        # bảng trước vẫn còn: đơn nằm trong CSDL thiếu món, tổng tiền không khớp
+        # số tiền thực, và thợ nhận việc không làm được. RPC `rpc_create_order`
+        # ghi tất cả trong một transaction — hoặc hết, hoặc không có gì.
+        #
+        # `p_idempotency_key` chặn việc khách bấm "Đặt hàng" hai lần trên mạng
+        # chập chờn: lần gửi lại trả về đơn cũ thay vì tạo đơn thứ hai.
+        idempotency_key = order_data.get("idempotency_key") or str(uuid4())
+        rpc_items = [
+            {
+                "product_id": (
+                    ""
+                    if is_custom_cake(item.get("product_id"))
+                    else str(item.get("product_id"))
+                ),
+                "size": item.get("size"),
+                "flavor": item.get("flavor"),
+                "quantity": item["quantity"],
+                "unit_price": unit_prices[index],
+                "customization_json": item.get("customization_json"),
+            }
+            for index, item in enumerate(items)
+        ]
+
+        try:
+            rpc_result = (
+                self._supabase.rpc(
+                    "rpc_create_order",
+                    {
+                        "p_customer_id": str(customer["id"]),
+                        "p_full_name": order_data["full_name"],
+                        "p_phone": order_data["phone"],
+                        "p_email": order_data.get("email"),
+                        "p_pickup_date": order_data["pickup_date"].isoformat(),
+                        "p_total_price": total_price,
+                        "p_ai_summary": order_data.get("ai_summary"),
+                        "p_voucher_code": money["voucher_code"],
+                        "p_voucher_discount": money["discount"],
+                        "p_items": rpc_items,
+                        "p_customizations": [],
+                        "p_idempotency_key": idempotency_key,
+                    },
+                )
+                .execute()
+            )
+        except Exception as exc:
+            _logger.error(
+                "rpc_create_order thất bại cho khách %s: %s",
+                customer.get("id"),
+                exc,
+            )
+            raise OrderServiceError(
+                "Không tạo được đơn hàng. Vui lòng thử lại.",
+                status_code=500,
+            ) from exc
+
+        rows = rpc_result.data or []
+        if not rows:
+            raise OrderServiceError(
+                "Không tạo được đơn hàng. Vui lòng thử lại.", status_code=500
+            )
+
+        created = rows[0]
+        order_id = created["order_id"]
+
+        is_duplicate = bool(created.get("duplicate"))
+
+        # Voucher không còn được đánh dấu ở đây: `rpc_create_order` tiêu thụ nó
+        # trong chính transaction tạo đơn. Gọi `mark_used` ở đây sẽ mở lại
+        # đúng cái cửa sổ tranh chấp mà lệnh đó đóng, và với một lần gửi lại thì
+        # còn đánh dấu nhầm voucher của đơn đã có.
+
+        # Khi là lần gửi lại, đơn đã tồn tại: phải trả về đúng số tiền và trạng
+        # thái đã lưu, không phải giá trị tính lại từ request này.
+        order = {
+            "id": order_id,
+            "status": created.get("status") or "pending",
+            "total_price": created.get("total", total_price),
             "pickup_date": order_data["pickup_date"].isoformat(),
             "customer_name": order_data["full_name"],
             "customer_phone": order_data["phone"],
             "customer_email": order_data.get("email"),
             "ai_summary": order_data.get("ai_summary"),
+            "voucher_code": created.get("voucher_code") or money["voucher_code"],
+            "voucher_discount": created.get("discount", money["discount"]),
+            "duplicate": is_duplicate,
         }
-
-        order_result = (
-            self._supabase.table("orders")
-            .insert(order_insert)
-            .execute()
-        )
-
-        if not order_result.data:
-            raise OrderServiceError("Failed to create order", status_code=500)
-
-        order = order_result.data[0]
-        order_id = order["id"]
-
-        # Create order items
-        for item in items:
-            # Cake Builder custom cakes use a null/placeholder UUID
-            # (00000000-0000-0000-0000-000000000000) because they are not a
-            # catalog product. Store as NULL to avoid FK constraint violations.
-            NULL_UUID = "00000000-0000-0000-0000-000000000000"
-            raw_pid = item.get("product_id")
-            # Treat Python None AND the placeholder UUID both as NULL in DB.
-            # Calling str(None) would produce the literal string "None" which
-            # causes a UUID column constraint error.
-            product_id_value = None if (raw_pid is None or str(raw_pid) == NULL_UUID) else str(raw_pid)
-
-            item_insert = {
-                "order_id": order_id,
-                "product_id": product_id_value,
-                "size": item.get("size"),
-                "flavor": item.get("flavor"),
-                "quantity": item["quantity"],
-                "unit_price": item["unit_price"],
-            }
-
-            item_result = (
-                self._supabase.table("order_items")
-                .insert(item_insert)
-                .execute()
-            )
-
-            if not item_result.data:
-                raise OrderServiceError("Failed to create order item", status_code=500)
-
-            order_item_id = item_result.data[0]["id"]
-
-            # Create cake customization if present
-            if item.get("customization_json"):
-                customization_insert = {
-                    "order_id": order_id,
-                    "order_item_id": order_item_id,
-                    "customization_json": item["customization_json"],
-                }
-
-                self._supabase.table("cake_customizations").insert(
-                    customization_insert
-                ).execute()
-
-        # Record initial status in history
-        changed_by_id = customer.get("id") or None
-        self._supabase.table("order_status_history").insert({
-            "order_id": order_id,
-            "old_status": None,
-            "new_status": "pending",
-            "changed_by": changed_by_id,
-        }).execute()
-
+        order["subtotal"] = created.get("subtotal", money["subtotal"])
+        order["discount"] = created.get("discount", money["discount"])
         return order
 
     def list_customer_orders(
@@ -398,6 +549,8 @@ class OrderService:
             "customer_email": order.get("customer_email"),
             "ai_summary": order.get("ai_summary"),
             "baker_notes": order.get("baker_notes"),
+            "voucher_code": order.get("voucher_code"),
+            "voucher_discount": order.get("voucher_discount") or 0,
             "items": items,
             "customizations": customizations,
             "status_history": status_history,

@@ -10,7 +10,7 @@ Tests cover:
 """
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -935,13 +935,13 @@ class TestCreateDraftOrderIntegrity:
         assert items.inserts() == []
         # Truy vấn chống trùng phải khoá đúng khách / trạng thái / ngày nhận.
         assert ("eq", "customer_id", args["customer_id"]) in orders.ops
-        assert ("eq", "status", "pending") in orders.ops
+        assert ("eq", "status", "draft") in orders.ops
         assert ("eq", "pickup_date", _pickup_date_iso(args["pickup_date"])) in orders.ops
         assert any(op[0] == "gte" and op[1] == "created_at" for op in orders.ops)
 
     def test_first_call_with_no_existing_draft_still_creates(self):
         orders = _StubTable(
-            select_data=[], insert_data=[{"id": "order-new", "status": "pending"}]
+            select_data=[], insert_data=[{"id": "order-new", "status": "draft"}]
         )
         items = _StubTable(insert_data=[{"id": "item-1"}])
 
@@ -953,10 +953,16 @@ class TestCreateDraftOrderIntegrity:
 
 
 def _pickup_date_iso(pickup_date: str) -> str:
-    """Chuỗi `pickup_date` mà create_draft_order ghi xuống CSDL (VN_TZ)."""
+    """Chuỗi `pickup_date` mà create_draft_order ghi xuống CSDL (VN_TZ).
+
+    Ngày chỉ có ngày-tháng được hiểu là CUỐI NGÀY (23:59), không phải 00:00.
+    Đây chính là mốc `check_bake_time` đã dùng để kết luận kịp/không kịp —
+    trước đây đơn lưu 00:00, mất 24 giờ so với mức vừa nói với khách.
+    """
     from app.services.order_tools import VN_TZ
 
-    return datetime.strptime(pickup_date, "%Y-%m-%d").replace(tzinfo=VN_TZ).isoformat()
+    parsed = datetime.strptime(pickup_date, "%Y-%m-%d").replace(tzinfo=VN_TZ)
+    return (parsed + timedelta(hours=23, minutes=59)).isoformat()
 
 
 # ============================================================

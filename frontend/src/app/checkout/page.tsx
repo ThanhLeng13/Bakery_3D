@@ -19,6 +19,7 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useLoyaltyContext } from "@/contexts/LoyaltyContext";
 import { apiClient } from "@/lib/api";
+import { useCakeQuote } from "@/lib/use-cake-quote";
 import type { CakeDesign, CakeSize } from "@/types";
 
 interface OrderConfirmation {
@@ -41,14 +42,6 @@ interface FormErrors {
   branch?: string;   // lỗi chi nhánh khi isCartMode
   general?: string;
 }
-
-// Price map by size (for Cake Builder mode only)
-const SIZE_PRICES: Record<CakeSize, number> = {
-  "16cm": 250000,
-  "20cm": 350000,
-  "24cm": 450000,
-  "2-tier": 650000,
-};
 
 const SIZE_LABELS: Record<CakeSize, string> = {
   "16cm": "16cm (4-6 người)",
@@ -135,11 +128,25 @@ function CheckoutContent() {
     }
   }, [user]);
 
-  // Calculate totals
-  const builderTotal = useMemo(() => {
-    if (!cakeDesign) return 0;
-    return SIZE_PRICES[cakeDesign.size] || 350000;
-  }, [cakeDesign]);
+  // Giá do server quyết định (POST /api/v1/orders/quote). Không tự nhân bản
+  // bảng giá ở đây — đó là nguồn của lỗi chênh 130.000đ trước đây.
+  const {
+    quote: builderQuote,
+    loading: quoteLoading,
+    error: quoteError,
+  } = useCakeQuote(isCakeMode ? cakeDesign : null);
+  const builderTotal = builderQuote?.total ?? 0;
+
+  // Mã voucher khách nhập. Server kiểm tra và tính giảm; frontend không tự giảm.
+  const [voucherCode, setVoucherCode] = useState("");
+  // Khoá chống tạo trùng. Giữ nguyên qua các lần bấm lại; chỉ đổi sau khi
+  // đơn đã tạo thành công, để lần thử lại sau lỗi mạng dùng lại khoá cũ.
+  const [idempotencyKey, setIdempotencyKey] = useState(() =>
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `k-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
+  const [voucherError, setVoucherError] = useState<string | null>(null);
 
   const cartTotal = useMemo(
     () => cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
@@ -201,6 +208,17 @@ function CheckoutContent() {
     if (!validateForm()) return;
     if (isCakeMode && !cakeDesign) return;
 
+    // Giá do server quyết định. Chưa có giá thì chưa được đặt — gửi
+    // unit_price 0 sẽ bị server từ chối, và khách thấy màn hình lỗi không
+    // hiểu vì sao.
+    if (isCakeMode && !builderQuote) {
+      setErrors({
+        general:
+          quoteError ?? "Chưa lấy được giá. Tải lại trang rồi thử lại.",
+      });
+      return;
+    }
+
     setSubmitting(true);
     setErrors({});
 
@@ -227,6 +245,12 @@ function CheckoutContent() {
         setSubmittedIsCartMode(true);
         setSubmittedBranchName(selectedBranchName ?? null);
         setConfirmation(response);
+        // Đơn đã tạo xong: đổi khoá để lần đặt kế tiếp là một đơn mới.
+        setIdempotencyKey(
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `k-${Date.now()}-${Math.random().toString(36).slice(2)}`
+        );
         clearCart();
         refreshLoyalty().catch((refreshError) => {
           console.warn("[Checkout] Loyalty refresh failed:", refreshError);
@@ -253,6 +277,10 @@ function CheckoutContent() {
           pickup_date: new Date(pickupDate).toISOString(),
           items: orderItems,
           ai_summary: null,
+          voucher_code: voucherCode.trim() || null,
+          // Khoá chống tạo trùng: bấm "Đặt hàng" hai lần khi mạng chập
+          // chờn sẽ dùng chung khoá này, server trả về đơn cũ.
+          idempotency_key: idempotencyKey,
         };
 
         const response = await apiClient.post<OrderConfirmation>(
@@ -260,6 +288,12 @@ function CheckoutContent() {
           orderData
         );
         setConfirmation(response);
+        // Đơn đã tạo xong: đổi khoá để lần đặt kế tiếp là một đơn mới.
+        setIdempotencyKey(
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `k-${Date.now()}-${Math.random().toString(36).slice(2)}`
+        );
         localStorage.removeItem("cake_customization_json");
       }
 
@@ -267,7 +301,13 @@ function CheckoutContent() {
       const apiErr = err as { detail?: string | Array<{ field: string; message: string; loc?: string[] }> };
       if (apiErr?.detail) {
         if (typeof apiErr.detail === "string") {
-          setErrors({ general: apiErr.detail });
+          // Lỗi voucher nói về mã giảm giá: hiện ngay cạnh ô nhập mã.
+          if (/voucher/i.test(apiErr.detail)) {
+            setVoucherError(apiErr.detail);
+            setErrors({});
+          } else {
+            setErrors({ general: apiErr.detail });
+          }
         } else if (Array.isArray(apiErr.detail)) {
           const fieldErrors: FormErrors = {};
           apiErr.detail.forEach((e) => {
@@ -276,9 +316,12 @@ function CheckoutContent() {
             else if (field === "phone") fieldErrors.phone = e.message || "Trường bắt buộc";
             else if (field === "email") fieldErrors.email = e.message || "Email không hợp lệ";
             else if (field === "pickup_date") fieldErrors.pickup_date = e.message || "Ngày không hợp lệ";
-            else fieldErrors.general = e.message || "Đã xảy ra lỗi";
+            else if (field === "voucher_code") {
+              setVoucherError(e.message || "Mã giảm giá không hợp lệ");
+              return;
+            } else fieldErrors.general = e.message || "Đã xảy ra lỗi";
           });
-          setErrors(fieldErrors);
+          if (Object.keys(fieldErrors).length > 0) setErrors(fieldErrors);
         }
       } else {
         setErrors({ general: "Đã xảy ra lỗi, vui lòng thử lại sau" });
@@ -584,9 +627,28 @@ function CheckoutContent() {
                 )}
                 <div className="pt-3 border-t border-mocha/10 flex justify-between items-center">
                   <span className="font-medium text-mocha">Tổng tiền</span>
-                  <span className="font-bold text-pink-pastel text-xl">
-                    {formatPrice(totalPrice)}
-                  </span>
+                  {quoteLoading || !builderQuote ? (
+                    <span className="text-sm text-mocha/60" aria-live="polite">
+                      Đang tính giá...
+                    </span>
+                  ) : (
+                    <span className="text-right">
+                      {/* Chi tiết từng khoản do server quyết định, khớp với
+                          những gì Studio hiển thị trước khi lưu đơn. */}
+                      {builderQuote.topping_cost > 0 && (
+                        <span className="block text-xs text-mocha/60">
+                          Gồm topping và trang trí:{" "}
+                          {formatPrice(
+                            builderQuote.topping_cost +
+                              builderQuote.decoration_cost
+                          )}
+                        </span>
+                      )}
+                      <span className="font-bold text-pink-pastel text-xl">
+                        {formatPrice(totalPrice)}
+                      </span>
+                    </span>
+                  )}
                 </div>
               </div>
             </section>
@@ -689,6 +751,45 @@ function CheckoutContent() {
               )}
             </section>
           )}
+
+          {/* Voucher đổi điểm. Mức giảm do server quyết định — ô này chỉ gửi
+              mã lên, không tự tính tiền. */}
+          <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
+            <h2 className="font-heading text-lg font-bold text-mocha mb-1">
+              Mã giảm giá
+            </h2>
+            <p className="text-sm text-mocha/60 mb-3">
+              Nếu bạn đã đổi điểm lấy voucher, nhập mã ở đây.
+            </p>
+            <div className="flex gap-2">
+              <input
+                id="voucherCode"
+                type="text"
+                value={voucherCode}
+                onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                placeholder="VD: BNB-ABCD1234"
+                aria-label="Mã voucher"
+                className="flex-1 px-4 py-3 rounded-xl border border-mocha/20 text-mocha bg-cream/50 focus:outline-none focus:ring-2 focus:ring-pink-pastel/50 min-h-[44px] uppercase"
+              />
+              {voucherCode && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVoucherCode("");
+                    setVoucherError(null);
+                  }}
+                  className="px-4 rounded-xl border border-mocha/20 text-mocha/70 hover:bg-cream min-h-[44px]"
+                >
+                  Xoá
+                </button>
+              )}
+            </div>
+            {voucherError && (
+              <p className="mt-2 text-sm text-red-600" role="alert">
+                {voucherError}
+              </p>
+            )}
+          </section>
 
           {/* Submit */}
           <button

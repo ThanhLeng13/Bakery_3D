@@ -49,7 +49,16 @@ def list_admin_orders(
 
     try:
         # Build query for counting
-        valid_statuses = {"pending", "confirmed", "in_production", "ready", "delivered"}
+        # 'draft' is included so an admin can see and audit orders the agent
+        # drafted. Staff still handle acceptance; this is visibility only.
+        valid_statuses = {
+            "draft",
+            "pending",
+            "confirmed",
+            "in_production",
+            "ready",
+            "delivered",
+        }
         if status and status not in valid_statuses:
             raise HTTPException(status_code=400, detail=f"Invalid status. Valid values: {', '.join(valid_statuses)}")
 

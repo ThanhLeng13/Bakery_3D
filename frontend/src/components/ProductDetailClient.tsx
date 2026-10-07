@@ -567,8 +567,20 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
     ? product.base_price
     : getSelectedSizePrice() + getSelectedFlavorCost();
 
+  const primary3DModel = product.three_d_models?.find((model) => model.is_primary)
+    ?? product.three_d_models?.[0]
+    ?? null;
+
+  // Mẫu 3D xem được không đồng nghĩa mẫu đó bán được: `is_orderable` = false
+  // nghĩa là tiệm chưa duyệt giá và thời gian chuẩn bị. Server cũng từ chối,
+  // nên ở đây chỉ là để khách hiểu vì sao không bấm được.
+  const isPreviewOnly = primary3DModel ? primary3DModel.is_orderable === false : false;
+  // Cả hai nút mua và cả handler đều kiểm tra `cannotOrder`: chỉ khoá nút thì
+  // gọi handler bằng cách khác vẫn đi được, và server sẽ trả lỗi 400.
+  const cannotOrder = isOutOfStock || isPreviewOnly;
+
   const handleAddToCart = () => {
-    if (isOutOfStock) return;
+    if (cannotOrder) return;
     addItem({
       productId: product.id,
       productName: product.name,
@@ -583,7 +595,7 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
   };
 
   const handleBuyNow = () => {
-    if (isOutOfStock) return;
+    if (cannotOrder) return;
     // flushSync forces React to immediately commit the addItem state update
     // so the in-memory cart (read by useCart()/checkout page) is populated
     // BEFORE router.push navigates. localStorage persistence of bakery_cart
@@ -606,10 +618,6 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
     product.images.length > 0 && !imgErrors.has(selectedImageIndex)
       ? product.images[selectedImageIndex]
       : null;
-  const primary3DModel = product.three_d_models?.find((model) => model.is_primary)
-    ?? product.three_d_models?.[0]
-    ?? null;
-
   return (
     <main className="min-h-screen bg-cream">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
@@ -928,20 +936,27 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
                     </div>
                   )}
 
-                  {/* Mua ngay — trực tiếp checkout không cần admin duyệt */}
+                  {/* Mua ngay — trực tiếp checkout không cần admin duyệt.
+                      Cùng chặn như nút thêm giỏ: mẫu chỉ xem thì không bán. */}
                   <button
                     id={`buy-now-${product.id}`}
                     onClick={handleBuyNow}
-                    disabled={isOutOfStock}
+                    disabled={cannotOrder}
                     className={`w-full py-3 px-6 font-semibold rounded-full transition-all min-h-[44px] shadow-sm hover:shadow-md active:scale-[0.98] ${
-                      isOutOfStock
+                      cannotOrder
                         ? "bg-subtle text-muted cursor-not-allowed"
                         : "bg-pink-pastel text-white hover:bg-pink-pastel/90"
                     }`}
-                    aria-label={isOutOfStock ? "Hết hàng" : `Mua ${product.name} ngay`}
+                    aria-label={
+                      isOutOfStock
+                        ? "Hết hàng"
+                        : isPreviewOnly
+                          ? "Mẫu chỉ xem thử, chưa mở bán"
+                          : `Mua ${product.name} ngay`
+                    }
                   >
-                    {isOutOfStock ? (
-                      "Hết hàng"
+                    {cannotOrder ? (
+                      isOutOfStock ? "Hết hàng" : "Chưa mở bán"
                     ) : (
                       <span className="flex items-center justify-center gap-2">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -952,19 +967,37 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
                     )}
                   </button>
 
+                  {/* Mẫu chỉ xem: nói rõ lý do thay vì chỉ làm nút chết. */}
+                  {isPreviewOnly && (
+                    <p
+                      role="status"
+                      className="mb-3 rounded-xl bg-subtle border border-line px-4 py-3 text-sm text-muted"
+                    >
+                      Mẫu 3D này hiện chỉ xem thử, chưa mở bán vì giá và thời gian
+                      chuẩn bị chưa được duyệt. Bạn có thể xem mẫu, hoặc chọn bánh
+                      tròn 1 tầng / 2 tầng.
+                    </p>
+                  )}
+
                   {/* Thêm vào giỏ */}
                   <button
                     id={`add-to-cart-${product.id}`}
                     onClick={handleAddToCart}
-                    disabled={isOutOfStock}
+                    disabled={cannotOrder}
                     className={`w-full py-2.5 px-6 font-medium rounded-full transition-all min-h-[44px] border ${
-                      isOutOfStock
+                      cannotOrder
                         ? "bg-subtle text-muted border-line cursor-not-allowed"
                         : addedToCart
                           ? "bg-green-50 text-green-600 border-green-200"
                           : "bg-white text-mocha border-mocha/20 hover:border-pink-pastel hover:text-pink-pastel"
                     }`}
-                    aria-label={isOutOfStock ? "Hết hàng" : `Thêm ${product.name} vào giỏ hàng`}
+                    aria-label={
+                      isOutOfStock
+                        ? "Hết hàng"
+                        : isPreviewOnly
+                          ? "Mẫu chỉ xem thử, chưa mở bán"
+                          : `Thêm ${product.name} vào giỏ hàng`
+                    }
                   >
                     {addedToCart ? (
                       <span className="flex items-center justify-center gap-2">
