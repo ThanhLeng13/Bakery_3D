@@ -385,7 +385,7 @@ class OrderTools:
         customer_id: Optional[str] = None,
         notes: Optional[str] = None,
     ) -> dict:
-        """Tạo đơn NHÁP (status='pending'), chưa phải đơn chính thức.
+        """Tạo đơn NHÁP (status='draft'), chưa phải đơn chính thức.
 
         Chỉ gọi sau khi khách đã xác nhận rõ ràng: mẫu bánh, số lượng, ngày nhận.
 
@@ -436,7 +436,7 @@ class OrderTools:
 
         order_insert: dict[str, Any] = {
             "customer_id": customer_id,
-            "status": "pending",
+            "status": "draft",
             "total_price": priced["total_price"],
             "pickup_date": parsed.isoformat(),
             "customer_name": str(customer_name).strip(),
@@ -457,7 +457,7 @@ class OrderTools:
                 self._supabase.table("orders")
                 .select("id, status")
                 .eq("customer_id", customer_id)
-                .eq("status", "pending")
+                .eq("status", "draft")
                 .eq("pickup_date", parsed.isoformat())
                 .eq("ai_summary", ai_summary)
                 .gte("created_at", retry_since.isoformat())
@@ -476,7 +476,7 @@ class OrderTools:
                 "created": True,
                 "duplicate": True,
                 "order_id": same["id"],
-                "status": same.get("status") or "pending",
+                "status": same.get("status") or "draft",
                 "total_price": priced["total_price"],
                 "pickup_date": timed["pickup_date"],
                 "items": priced["items"],

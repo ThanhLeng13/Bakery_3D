@@ -156,3 +156,47 @@ class TestLeadHours:
         tools = OrderTools.__new__(OrderTools)
         result = tools.check_bake_time("2026-10-07")
         assert result["required_lead_hours"] >= 0
+
+
+class TestDraftStatusIsDistinct:
+    """Đơn nháp của agent không được trùng trạng thái với đơn thật."""
+
+    def test_tao_don_nhap_gan_status_draft(self):
+        """Đây là lỗi C. Trước khi sửa, đơn nháp ghi status='pending' —
+        đúng trạng thái mà /staff/orders lọc, nên lọt vào hàng đợi bán hàng."""
+        import inspect
+
+        from app.services import order_tools
+
+        source = inspect.getsource(order_tools.OrderTools.create_draft_order)
+        assert '"status": "draft"' in source, (
+            "create_draft_order phải ghi status='draft' để tách khỏi đơn thật"
+        )
+        assert '"status": "pending"' not in source, (
+            "đơn nháp không được ghi 'pending' — trùng đơn thật trong hàng đợi"
+        )
+
+    def test_chi_nhan_vien_duoc_nhan_don_nhap(self):
+        """Chuyển draft sang pending là hành động của nhân viên, không phải
+        bước tự động. Không có ai khác được nhảy qua trạng thái này."""
+        from app.services.order_service import VALID_TRANSITIONS
+
+        assert VALID_TRANSITIONS.get("draft") == {"pending": ["staff"]}, (
+            "chỉ nhân viên bán hàng được xác nhận đơn nháp thành đơn thật"
+        )
+        # Đơn nháp không tự nhảy sang bất kỳ trạng thái sản xuất nào.
+        assert "confirmed" not in VALID_TRANSITIONS.get("draft", {})
+        assert "in_production" not in VALID_TRANSITIONS.get("draft", {})
+        # Không có đường nào quay ngược từ đơn thật về nháp.
+        for frm, targets in VALID_TRANSITIONS.items():
+            if frm != "draft":
+                assert "draft" not in targets, (
+                    f"không được quay lại 'draft' từ '{frm}'"
+                )
+
+    def test_don_nhap_khong_xuat_hien_trong_bo_don_ban_hang(self):
+        """staff_orders lọc danh sách trạng thái; phải loại draft."""
+        from app.api.v1.endpoints.staff_orders import SALES_STATUSES
+
+        assert "draft" not in SALES_STATUSES
+        assert "pending" in SALES_STATUSES

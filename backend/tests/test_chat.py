@@ -935,13 +935,13 @@ class TestCreateDraftOrderIntegrity:
         assert items.inserts() == []
         # Truy vấn chống trùng phải khoá đúng khách / trạng thái / ngày nhận.
         assert ("eq", "customer_id", args["customer_id"]) in orders.ops
-        assert ("eq", "status", "pending") in orders.ops
+        assert ("eq", "status", "draft") in orders.ops
         assert ("eq", "pickup_date", _pickup_date_iso(args["pickup_date"])) in orders.ops
         assert any(op[0] == "gte" and op[1] == "created_at" for op in orders.ops)
 
     def test_first_call_with_no_existing_draft_still_creates(self):
         orders = _StubTable(
-            select_data=[], insert_data=[{"id": "order-new", "status": "pending"}]
+            select_data=[], insert_data=[{"id": "order-new", "status": "draft"}]
         )
         items = _StubTable(insert_data=[{"id": "item-1"}])
 

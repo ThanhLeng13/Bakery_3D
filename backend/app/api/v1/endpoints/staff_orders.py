@@ -20,17 +20,33 @@ from app.services.order_service import (
 )
 
 router = APIRouter()
+# Trạng thái còn cần nhân viên bán hàng xử lý. 'draft' có mặt để staff MỞ
+# ĐƯỢC đơn nháp của agent và xác nhận; nó không xuất hiện trong danh sách
+# liệt kê, nên đơn nháp không lọt vào hàng đợi như một đơn đã nhận.
 SALES_STATUSES = ("pending", "ready")
+# Staff cần đọc đơn nháp để quyết định có nhận hay không.
+READABLE_STATUSES = ("draft", "pending", "ready")
 
 
 class StaffStatusRequest(BaseModel):
-    status: str = Field(..., description="New status: confirmed or delivered")
+    status: str = Field(
+        ...,
+        description=(
+            "New status: pending to accept an agent draft, confirmed to start "
+            "production, or delivered to hand over."
+        ),
+    )
 
     @field_validator("status")
     @classmethod
     def validate_status(cls, value: str) -> str:
-        if value not in {"confirmed", "delivered"}:
-            raise ValueError("Staff may only confirm or deliver an order")
+        # 'pending' accepts a draft the agent created from a conversation:
+        # staff take responsibility for it. 'confirmed' and 'delivered' move a
+        # real order along.
+        if value not in {"pending", "confirmed", "delivered"}:
+            raise ValueError(
+                "Staff may only accept a draft, confirm an order, or deliver it"
+            )
         return value
 
 
@@ -70,7 +86,7 @@ def get_sales_order(order_id: str, staff: dict = Depends(require_staff)):
     service = _get_order_service()
     try:
         order = service.get_order_detail(order_id, staff)
-        if order["status"] not in SALES_STATUSES:
+        if order["status"] not in READABLE_STATUSES:
             raise HTTPException(status_code=403, detail="Đơn hàng không thuộc hàng đợi bán hàng.")
         return order
     except HTTPException:

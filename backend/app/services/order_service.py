@@ -60,7 +60,14 @@ class PickupDateValidationError(OrderServiceError):
 
 
 # Valid status transitions and required roles
+#
+# `draft` is an order the agent drafted from a conversation. It is not an order
+# the bakery has accepted, so it sits outside the production line and only
+# staff can confirm it. Before this status existed, drafts were written as
+# 'pending' and appeared in the sales queue as if they were real orders.
+# Requires migration add_draft_order_status.sql.
 VALID_TRANSITIONS: dict[str, dict[str, list[str]]] = {
+    "draft": {"pending": ["staff"]},
     "pending": {"confirmed": ["staff"]},
     "confirmed": {"in_production": ["baker"]},
     "in_production": {"ready": ["baker"]},

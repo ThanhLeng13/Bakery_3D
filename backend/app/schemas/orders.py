@@ -47,7 +47,17 @@ class UpdateStatusRequest(BaseModel):
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: str) -> str:
-        valid_statuses = ["pending", "confirmed", "in_production", "ready", "delivered"]
+        # 'draft' is a valid stored status but nothing transitions *into* it:
+        # only the agent creates drafts, and it creates them directly. Staff
+        # move a draft to 'pending' to accept it.
+        valid_statuses = [
+            "draft",
+            "pending",
+            "confirmed",
+            "in_production",
+            "ready",
+            "delivered",
+        ]
         if v not in valid_statuses:
             raise ValueError(
                 f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
