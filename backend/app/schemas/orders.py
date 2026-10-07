@@ -38,6 +38,14 @@ class CreateOrderRequest(BaseModel):
             "không nhận từ phía trình duyệt."
         ),
     )
+    idempotency_key: Optional[str] = Field(
+        default=None,
+        max_length=128,
+        description=(
+            "Khoá chống tạo trùng. Trình duyệt dùng lại cùng một khoá khi bấm "
+            "'Đặt hàng' nhiều lần; server trả về đơn cũ thay vì tạo đơn mới."
+        ),
+    )
 
     @field_validator("phone")
     @classmethod

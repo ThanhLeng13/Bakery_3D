@@ -139,6 +139,13 @@ function CheckoutContent() {
 
   // Mã voucher khách nhập. Server kiểm tra và tính giảm; frontend không tự giảm.
   const [voucherCode, setVoucherCode] = useState("");
+  // Khoá chống tạo trùng. Giữ nguyên qua các lần bấm lại; chỉ đổi sau khi
+  // đơn đã tạo thành công, để lần thử lại sau lỗi mạng dùng lại khoá cũ.
+  const [idempotencyKey, setIdempotencyKey] = useState(() =>
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `k-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
   const [voucherError, setVoucherError] = useState<string | null>(null);
 
   const cartTotal = useMemo(
@@ -238,6 +245,12 @@ function CheckoutContent() {
         setSubmittedIsCartMode(true);
         setSubmittedBranchName(selectedBranchName ?? null);
         setConfirmation(response);
+        // Đơn đã tạo xong: đổi khoá để lần đặt kế tiếp là một đơn mới.
+        setIdempotencyKey(
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `k-${Date.now()}-${Math.random().toString(36).slice(2)}`
+        );
         clearCart();
         refreshLoyalty().catch((refreshError) => {
           console.warn("[Checkout] Loyalty refresh failed:", refreshError);
@@ -265,6 +278,9 @@ function CheckoutContent() {
           items: orderItems,
           ai_summary: null,
           voucher_code: voucherCode.trim() || null,
+          // Khoá chống tạo trùng: bấm "Đặt hàng" hai lần khi mạng chập
+          // chờn sẽ dùng chung khoá này, server trả về đơn cũ.
+          idempotency_key: idempotencyKey,
         };
 
         const response = await apiClient.post<OrderConfirmation>(
@@ -272,6 +288,12 @@ function CheckoutContent() {
           orderData
         );
         setConfirmation(response);
+        // Đơn đã tạo xong: đổi khoá để lần đặt kế tiếp là một đơn mới.
+        setIdempotencyKey(
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `k-${Date.now()}-${Math.random().toString(36).slice(2)}`
+        );
         localStorage.removeItem("cake_customization_json");
       }
 

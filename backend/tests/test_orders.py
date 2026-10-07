@@ -196,6 +196,30 @@ class TestCreateOrder:
 
         return mock_execute
 
+    def _rpc_args(self, name="rpc_create_order"):
+        """Tham số truyền cho RPC, theo tên.
+
+        Đơn được ghi trong MỘT lệnh `rpc_create_order` để Postgres hoặc ghi hết,
+        hoặc không ghi gì — tránh đơn lưu dở. Test cũ đọc `table().insert()`
+        không còn đúng, nên dùng helper này.
+        """
+        calls = self.mock_supabase.rpc.call_args_list
+        for call in calls:
+            if call[0][0] == name:
+                return call[0][1]
+        raise AssertionError(f"không có lệnh RPC '{name}' trong số lệnh đã gọi")
+
+    def _mock_rpc_result(self, total=0, duplicate=False):
+        """Cho `supabase.rpc(...)` trả về một đơn đã tạo."""
+        self.mock_supabase.rpc.return_value.execute.return_value = MagicMock(
+            data=[{
+                "order_id": str(uuid4()),
+                "subtotal": total,
+                "discount": 0,
+                "total": total,
+                "duplicate": duplicate,
+            }]
+        )
     def test_create_order_calculates_total_price_from_server_prices(self):
         """Total price comes from the server size table, never the client value."""
         order_id = str(uuid4())
@@ -230,9 +254,8 @@ class TestCreateOrder:
 
         self.service.create_order(order_data, self.customer)
 
-        insert_call = mock_table.insert.call_args_list[0]
-        inserted_data = insert_call[0][0]
-        assert inserted_data["total_price"] == 950000  # 350000*2 + 250000*1
+        args = self._rpc_args()
+        assert args["p_total_price"] == 950000  # 350000*2 + 250000*1
 
     # ── Voucher ──────────────────────────────────────────────────────────
     #
@@ -286,10 +309,10 @@ class TestCreateOrder:
 
         result = self.service.create_order(order_data, self.customer)
 
-        inserted = mock_table.insert.call_args_list[0][0][0]
-        assert inserted["total_price"] == 350000 - 5000
-        assert inserted["voucher_code"] == "BNB-ABCD1234"
-        assert inserted["voucher_discount"] == 5000
+        args = self._rpc_args()
+        assert args["p_total_price"] == 350000 - 5000
+        assert args["p_voucher_code"] == "BNB-ABCD1234"
+        assert args["p_voucher_discount"] == 5000
         assert result["discount"] == 5000
         assert result["subtotal"] == 350000
 
@@ -315,10 +338,10 @@ class TestCreateOrder:
             "ai_summary": None,
         }
         self.service.create_order(order_data, self.customer)
-        inserted = mock_table.insert.call_args_list[0][0][0]
-        assert inserted["total_price"] == 350000
-        assert inserted["voucher_code"] is None
-        assert inserted["voucher_discount"] == 0
+        args = self._rpc_args()
+        assert args["p_total_price"] == 350000
+        assert args["p_voucher_code"] is None
+        assert args["p_voucher_discount"] == 0
 
     def test_voucher_cua_khach_khac_bi_tu_choi(self):
         mock_table = MagicMock()
@@ -371,12 +394,9 @@ class TestCreateOrder:
 
         self.service.create_order(order_data, self.customer)
 
-        item_inserts = [
-            call[0][0] for call in mock_table.insert.call_args_list
-            if "product_id" in call[0][0]
-        ]
-        assert len(item_inserts) == 1
-        assert item_inserts[0]["unit_price"] == 650000
+        items = self._rpc_args()["p_items"]
+        assert len(items) == 1
+        assert items[0]["unit_price"] == 650000
 
     def test_custom_cake_price_read_from_customization_size(self):
         """The saved design's size wins over the loose item size field."""
@@ -425,11 +445,7 @@ class TestCreateOrder:
         mock_table = MagicMock()
         self.mock_supabase.table.return_value = mock_table
 
-        mock_insert = MagicMock()
-        mock_table.insert.return_value = mock_insert
-        mock_insert.execute.return_value = MagicMock(
-            data=[{"id": order_id, "status": "pending", "total_price": 200000}]
-        )
+        self._mock_rpc_result(total=350000)
 
         order_data = {
             "full_name": "Test",
@@ -445,10 +461,9 @@ class TestCreateOrder:
 
         self.service.create_order(order_data, self.customer)
 
-        # Verify ai_summary was included in the insert
-        insert_call = mock_table.insert.call_args_list[0]
-        inserted_data = insert_call[0][0]
-        assert inserted_data["ai_summary"] == "Bánh kem chocolate 20cm, nhận ngày mai"
+        assert self._rpc_args()["p_ai_summary"] == (
+            "Bánh kem chocolate 20cm, nhận ngày mai"
+        )
 
     def test_create_order_stores_customization_json(self):
         """Customization JSON should be stored in cake_customizations table."""
@@ -460,8 +475,9 @@ class TestCreateOrder:
 
         mock_insert = MagicMock()
         mock_table.insert.return_value = mock_insert
+        self._mock_rpc_result(total=350000)
 
-        # First call returns order, second returns item, third returns customization, fourth returns history
+        # (không còn insert tay: rpc_create_order ghi mọi bảng trong 1 lệnh)
         mock_insert.execute.side_effect = [
             MagicMock(data=[{"id": order_id, "status": "pending", "total_price": 200000}]),
             MagicMock(data=[{"id": item_id}]),
@@ -492,18 +508,14 @@ class TestCreateOrder:
 
         self.service.create_order(order_data, self.customer)
 
-        # Verify cake_customizations insert was called
-        # The third insert call should be for cake_customizations
-        all_insert_calls = mock_table.insert.call_args_list
-        # Find the customization insert (contains customization_json key)
-        customization_calls = [
-            call for call in all_insert_calls
-            if "customization_json" in call[0][0]
-        ]
-        assert len(customization_calls) == 1
-        assert customization_calls[0][0][0]["customization_json"] == customization
-        assert customization_calls[0][0][0]["order_id"] == order_id
-        assert customization_calls[0][0][0]["order_item_id"] == item_id
+        # Cấu hình bánh đi kèm từng món; `rpc_create_order` ghi vào
+        # `cake_customizations` trong cùng transaction.
+        items = self._rpc_args()["p_items"]
+        assert len(items) == 1
+        assert items[0]["customization_json"] == customization
+        # Món tùy chỉnh không có dòng sản phẩm danh mục: product_id rỗng để
+        # Postgres ghi NULL, tránh vi phạm khoá ngoại.
+        assert items[0]["product_id"] == ""
 
 
 # ============================================================

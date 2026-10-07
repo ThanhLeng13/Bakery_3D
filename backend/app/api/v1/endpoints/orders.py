@@ -100,6 +100,8 @@ def create_order(
         "ai_summary": body.ai_summary,
         # Mã khách nhập. Mức giảm đọc từ bảng `vouchers` trong service.
         "voucher_code": body.voucher_code,
+        # Khoá chống tạo trùng khi khách bấm "Đặt hàng" nhiều lần.
+        "idempotency_key": body.idempotency_key,
     }
 
     try:

@@ -6,6 +6,7 @@ Enforces pickup date validation and role-based status transition rules.
 
 import logging
 import math
+from uuid import uuid4
 from datetime import datetime, timezone
 from typing import Any
 
@@ -277,9 +278,80 @@ class OrderService:
 
         total_price = money["total"]
 
-        # Create order record
-        order_insert = {
-            "customer_id": customer["id"],
+        # ── Ghi đơn: MỘT lệnh ───────────────────────────────────────────────
+        # Trước đây ghi orders, rồi order_items từng món, rồi cake_customizations,
+        # rồi order_status_history bằng các lệnh rời rạc. Lệnh sau hỏng thì các
+        # bảng trước vẫn còn: đơn nằm trong CSDL thiếu món, tổng tiền không khớp
+        # số tiền thực, và thợ nhận việc không làm được. RPC `rpc_create_order`
+        # ghi tất cả trong một transaction — hoặc hết, hoặc không có gì.
+        #
+        # `p_idempotency_key` chặn việc khách bấm "Đặt hàng" hai lần trên mạng
+        # chập chờn: lần gửi lại trả về đơn cũ thay vì tạo đơn thứ hai.
+        idempotency_key = order_data.get("idempotency_key") or str(uuid4())
+        rpc_items = [
+            {
+                "product_id": (
+                    ""
+                    if is_custom_cake(item.get("product_id"))
+                    else str(item.get("product_id"))
+                ),
+                "size": item.get("size"),
+                "flavor": item.get("flavor"),
+                "quantity": item["quantity"],
+                "unit_price": unit_prices[index],
+                "customization_json": item.get("customization_json"),
+            }
+            for index, item in enumerate(items)
+        ]
+
+        try:
+            rpc_result = (
+                self._supabase.rpc(
+                    "rpc_create_order",
+                    {
+                        "p_customer_id": str(customer["id"]),
+                        "p_full_name": order_data["full_name"],
+                        "p_phone": order_data["phone"],
+                        "p_email": order_data.get("email"),
+                        "p_pickup_date": order_data["pickup_date"].isoformat(),
+                        "p_total_price": total_price,
+                        "p_ai_summary": order_data.get("ai_summary"),
+                        "p_voucher_code": money["voucher_code"],
+                        "p_voucher_discount": money["discount"],
+                        "p_items": rpc_items,
+                        "p_customizations": [],
+                        "p_idempotency_key": idempotency_key,
+                    },
+                )
+                .execute()
+            )
+        except Exception as exc:
+            _logger.error(
+                "rpc_create_order thất bại cho khách %s: %s",
+                customer.get("id"),
+                exc,
+            )
+            raise OrderServiceError(
+                "Không tạo được đơn hàng. Vui lòng thử lại.",
+                status_code=500,
+            ) from exc
+
+        rows = rpc_result.data or []
+        if not rows:
+            raise OrderServiceError(
+                "Không tạo được đơn hàng. Vui lòng thử lại.", status_code=500
+            )
+
+        created = rows[0]
+        order_id = created["order_id"]
+
+        # Đánh dấu voucher đã dùng sau khi đơn ghi xong. Làm ở cuối để nếu
+        # phần trước hỏng thì mã vẫn còn hiệu lực cho khách thử lại.
+        if voucher_row is not None:
+            VoucherService(self._supabase).mark_used(str(voucher_row["id"]))
+
+        order = {
+            "id": order_id,
             "status": "pending",
             "total_price": total_price,
             "pickup_date": order_data["pickup_date"].isoformat(),
@@ -289,78 +361,8 @@ class OrderService:
             "ai_summary": order_data.get("ai_summary"),
             "voucher_code": money["voucher_code"],
             "voucher_discount": money["discount"],
+            "duplicate": bool(created.get("duplicate")),
         }
-
-        order_result = (
-            self._supabase.table("orders")
-            .insert(order_insert)
-            .execute()
-        )
-
-        if not order_result.data:
-            raise OrderServiceError("Failed to create order", status_code=500)
-
-        order = order_result.data[0]
-        order_id = order["id"]
-
-        # Create order items
-        for index, item in enumerate(items):
-            # Cake Builder custom cakes use a null/placeholder UUID
-            # (00000000-0000-0000-0000-000000000000) because they are not a
-            # catalog product. Store as NULL to avoid FK constraint violations.
-            raw_pid = item.get("product_id")
-            # Treat Python None AND the placeholder UUID both as NULL in DB.
-            # Calling str(None) would produce the literal string "None" which
-            # causes a UUID column constraint error.
-            product_id_value = None if is_custom_cake(raw_pid) else str(raw_pid)
-
-            item_insert = {
-                "order_id": order_id,
-                "product_id": product_id_value,
-                "size": item.get("size"),
-                "flavor": item.get("flavor"),
-                "quantity": item["quantity"],
-                # Server-resolved price, never the client-supplied one.
-                "unit_price": unit_prices[index],
-            }
-
-            item_result = (
-                self._supabase.table("order_items")
-                .insert(item_insert)
-                .execute()
-            )
-
-            if not item_result.data:
-                raise OrderServiceError("Failed to create order item", status_code=500)
-
-            order_item_id = item_result.data[0]["id"]
-
-            # Create cake customization if present
-            if item.get("customization_json"):
-                customization_insert = {
-                    "order_id": order_id,
-                    "order_item_id": order_item_id,
-                    "customization_json": item["customization_json"],
-                }
-
-                self._supabase.table("cake_customizations").insert(
-                    customization_insert
-                ).execute()
-
-        # Record initial status in history
-        changed_by_id = customer.get("id") or None
-        self._supabase.table("order_status_history").insert({
-            "order_id": order_id,
-            "old_status": None,
-            "new_status": "pending",
-            "changed_by": changed_by_id,
-        }).execute()
-
-        # Đánh dấu voucher đã dùng sau khi đơn ghi xong. Làm ở cuối để nếu
-        # phần trước hỏng thì mã vẫn còn hiệu lực cho khách thử lại.
-        if voucher_row is not None:
-            VoucherService(self._supabase).mark_used(str(voucher_row["id"]))
-
         order["subtotal"] = money["subtotal"]
         order["discount"] = money["discount"]
         return order
