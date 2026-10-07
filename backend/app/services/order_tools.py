@@ -354,6 +354,10 @@ class OrderTools:
         return {
             # Vẫn trả về đúng ngày khách nói, không kèm giờ giả.
             "pickup_date": parsed.strftime("%Y-%m-%d"),
+            # Mốc thời gian đã dùng để kết luận. `create_draft_order` phải lưu
+            # đúng mốc này: trước đây nó parse lại chuỗi ngày thành 00:00, mất 24
+            # giờ, nên agent nói "kịp" nhưng đơn lại lưu thành không kịp.
+            "deadline": deadline.isoformat(),
             "hours_notice": round(hours_notice, 1),
             "required_lead_hours": lead,
             "is_possible": hours_notice >= lead,
@@ -419,7 +423,10 @@ class OrderTools:
             }
 
         priced = self.price_order(items)
-        parsed = datetime.strptime(timed["pickup_date"], "%Y-%m-%d").replace(tzinfo=VN_TZ)
+        # Dùng đúng mốc `check_bake_time` đã kiểm tra, không parse lại chuỗi
+        # ngày. Parse lại sẽ ra 00:00 và đơn lưu mất đúng 24 giờ so với mức
+        # vừa kết luận là kịp.
+        parsed = datetime.fromisoformat(timed["deadline"])
 
         # Tóm tắt cho thợ làm bánh đọc.
         summary = "; ".join(f"{l['name']} x{l['quantity']}" for l in priced["items"])
