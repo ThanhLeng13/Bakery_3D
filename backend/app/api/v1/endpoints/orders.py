@@ -98,6 +98,8 @@ def create_order(
             for item in body.items
         ],
         "ai_summary": body.ai_summary,
+        # Mã khách nhập. Mức giảm đọc từ bảng `vouchers` trong service.
+        "voucher_code": body.voucher_code,
     }
 
     try:

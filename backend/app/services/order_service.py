@@ -10,6 +10,11 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.services.pricing import is_custom_cake, is_two_tier, order_total
+from app.services.voucher_service import (
+    VoucherService,
+    VoucherServiceError,
+    apply_voucher,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -245,10 +250,32 @@ class OrderService:
         # server - from the size table for custom cakes, from the catalogue for
         # real products.
         unit_prices = self._resolve_unit_prices(items)
-        total_price = sum(
+        subtotal = sum(
             unit_price * item["quantity"]
             for unit_price, item in zip(unit_prices, items)
         )
+
+        # ── Voucher ────────────────────────────────────────────────────────
+        # Khách đổi điểm được mã giảm giá; mã phải dùng được ở đây. Mức giảm
+        # đọc từ bảng `vouchers` — không bao giờ lấy con số từ trình duyệt.
+        voucher_code = order_data.get("voucher_code")
+        voucher_row = None
+        if voucher_code:
+            voucher_svc = VoucherService(self._supabase)
+            voucher_row = voucher_svc.find_usable(
+                voucher_code, str(customer["id"])
+            )
+        try:
+            money = apply_voucher(
+                {"total": subtotal},
+                voucher_row,
+                customer_id=str(customer["id"]),
+                code=voucher_code,
+            )
+        except VoucherServiceError as exc:
+            raise OrderServiceError(exc.message, status_code=exc.status_code) from exc
+
+        total_price = money["total"]
 
         # Create order record
         order_insert = {
@@ -260,6 +287,8 @@ class OrderService:
             "customer_phone": order_data["phone"],
             "customer_email": order_data.get("email"),
             "ai_summary": order_data.get("ai_summary"),
+            "voucher_code": money["voucher_code"],
+            "voucher_discount": money["discount"],
         }
 
         order_result = (
@@ -327,6 +356,13 @@ class OrderService:
             "changed_by": changed_by_id,
         }).execute()
 
+        # Đánh dấu voucher đã dùng sau khi đơn ghi xong. Làm ở cuối để nếu
+        # phần trước hỏng thì mã vẫn còn hiệu lực cho khách thử lại.
+        if voucher_row is not None:
+            VoucherService(self._supabase).mark_used(str(voucher_row["id"]))
+
+        order["subtotal"] = money["subtotal"]
+        order["discount"] = money["discount"]
         return order
 
     def list_customer_orders(
@@ -466,6 +502,8 @@ class OrderService:
             "customer_email": order.get("customer_email"),
             "ai_summary": order.get("ai_summary"),
             "baker_notes": order.get("baker_notes"),
+            "voucher_code": order.get("voucher_code"),
+            "voucher_discount": order.get("voucher_discount") or 0,
             "items": items,
             "customizations": customizations,
             "status_history": status_history,

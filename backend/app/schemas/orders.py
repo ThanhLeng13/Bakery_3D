@@ -30,6 +30,14 @@ class CreateOrderRequest(BaseModel):
     pickup_date: datetime
     items: List[OrderItemRequest] = Field(min_length=1)
     ai_summary: Optional[str] = None
+    voucher_code: Optional[str] = Field(
+        default=None,
+        max_length=64,
+        description=(
+            "Mã voucher khách nhập. Mức giảm đọc từ bảng `vouchers` ở server, "
+            "không nhận từ phía trình duyệt."
+        ),
+    )
 
     @field_validator("phone")
     @classmethod
@@ -37,6 +45,15 @@ class CreateOrderRequest(BaseModel):
         if not v.isdigit() or len(v) != 10:
             raise ValueError("Phone must be exactly 10 digits")
         return v
+
+    @field_validator("voucher_code")
+    @classmethod
+    def normalize_voucher_code(cls, v: Optional[str]) -> Optional[str]:
+        """Mã không phân biệt hoa thường, bỏ khoảng trắng thừa."""
+        if v is None:
+            return None
+        clean = v.strip().upper()
+        return clean or None
 
 
 class UpdateStatusRequest(BaseModel):
@@ -144,6 +161,8 @@ class OrderDetailResponse(BaseModel):
     customer_email: Optional[str] = None
     ai_summary: Optional[str] = None
     baker_notes: Optional[str] = None
+    voucher_code: Optional[str] = None
+    voucher_discount: int = 0
     items: List[OrderItemResponse] = Field(default_factory=list)
     customizations: List[CakeCustomizationResponse] = Field(default_factory=list)
     status_history: List[StatusHistoryEntry] = Field(default_factory=list)

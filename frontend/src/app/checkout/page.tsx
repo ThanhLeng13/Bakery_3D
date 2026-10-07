@@ -137,6 +137,10 @@ function CheckoutContent() {
   } = useCakeQuote(isCakeMode ? cakeDesign : null);
   const builderTotal = builderQuote?.total ?? 0;
 
+  // Mã voucher khách nhập. Server kiểm tra và tính giảm; frontend không tự giảm.
+  const [voucherCode, setVoucherCode] = useState("");
+  const [voucherError, setVoucherError] = useState<string | null>(null);
+
   const cartTotal = useMemo(
     () => cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
     [cartItems]
@@ -260,6 +264,7 @@ function CheckoutContent() {
           pickup_date: new Date(pickupDate).toISOString(),
           items: orderItems,
           ai_summary: null,
+          voucher_code: voucherCode.trim() || null,
         };
 
         const response = await apiClient.post<OrderConfirmation>(
@@ -274,7 +279,13 @@ function CheckoutContent() {
       const apiErr = err as { detail?: string | Array<{ field: string; message: string; loc?: string[] }> };
       if (apiErr?.detail) {
         if (typeof apiErr.detail === "string") {
-          setErrors({ general: apiErr.detail });
+          // Lỗi voucher nói về mã giảm giá: hiện ngay cạnh ô nhập mã.
+          if (/voucher/i.test(apiErr.detail)) {
+            setVoucherError(apiErr.detail);
+            setErrors({});
+          } else {
+            setErrors({ general: apiErr.detail });
+          }
         } else if (Array.isArray(apiErr.detail)) {
           const fieldErrors: FormErrors = {};
           apiErr.detail.forEach((e) => {
@@ -283,9 +294,12 @@ function CheckoutContent() {
             else if (field === "phone") fieldErrors.phone = e.message || "Trường bắt buộc";
             else if (field === "email") fieldErrors.email = e.message || "Email không hợp lệ";
             else if (field === "pickup_date") fieldErrors.pickup_date = e.message || "Ngày không hợp lệ";
-            else fieldErrors.general = e.message || "Đã xảy ra lỗi";
+            else if (field === "voucher_code") {
+              setVoucherError(e.message || "Mã giảm giá không hợp lệ");
+              return;
+            } else fieldErrors.general = e.message || "Đã xảy ra lỗi";
           });
-          setErrors(fieldErrors);
+          if (Object.keys(fieldErrors).length > 0) setErrors(fieldErrors);
         }
       } else {
         setErrors({ general: "Đã xảy ra lỗi, vui lòng thử lại sau" });
@@ -715,6 +729,45 @@ function CheckoutContent() {
               )}
             </section>
           )}
+
+          {/* Voucher đổi điểm. Mức giảm do server quyết định — ô này chỉ gửi
+              mã lên, không tự tính tiền. */}
+          <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
+            <h2 className="font-heading text-lg font-bold text-mocha mb-1">
+              Mã giảm giá
+            </h2>
+            <p className="text-sm text-mocha/60 mb-3">
+              Nếu bạn đã đổi điểm lấy voucher, nhập mã ở đây.
+            </p>
+            <div className="flex gap-2">
+              <input
+                id="voucherCode"
+                type="text"
+                value={voucherCode}
+                onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                placeholder="VD: BNB-ABCD1234"
+                aria-label="Mã voucher"
+                className="flex-1 px-4 py-3 rounded-xl border border-mocha/20 text-mocha bg-cream/50 focus:outline-none focus:ring-2 focus:ring-pink-pastel/50 min-h-[44px] uppercase"
+              />
+              {voucherCode && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVoucherCode("");
+                    setVoucherError(null);
+                  }}
+                  className="px-4 rounded-xl border border-mocha/20 text-mocha/70 hover:bg-cream min-h-[44px]"
+                >
+                  Xoá
+                </button>
+              )}
+            </div>
+            {voucherError && (
+              <p className="mt-2 text-sm text-red-600" role="alert">
+                {voucherError}
+              </p>
+            )}
+          </section>
 
           {/* Submit */}
           <button

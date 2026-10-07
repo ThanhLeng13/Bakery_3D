@@ -234,6 +234,113 @@ class TestCreateOrder:
         inserted_data = insert_call[0][0]
         assert inserted_data["total_price"] == 950000  # 350000*2 + 250000*1
 
+    # ── Voucher ──────────────────────────────────────────────────────────
+    #
+    # Khách đổi điểm được mã giảm 5.000đ; trước đây không nơi nào đọc mã đó.
+    # Các test khoá lại: mức giảm lấy từ bảng vouchers, không lấy từ client,
+    # và mã bị đánh dấu đã dùng sau khi đơn ghi xong.
+
+    def _voucher_query(self, row):
+        """Giả lập `table("vouchers").select(...).eq(...).limit(1).execute()`."""
+        mock_select = MagicMock()
+        mock_eq = MagicMock()
+        mock_limit = MagicMock()
+        mock_select.eq.return_value = mock_eq
+        mock_eq.limit.return_value = mock_limit
+        mock_limit.execute.return_value = MagicMock(data=[row] if row else [])
+        return mock_select
+
+    def test_voucher_hop_le_giam_tien_va_ghi_vao_don(self):
+        order_id = str(uuid4())
+        mock_table = MagicMock()
+        self.mock_supabase.table.return_value = mock_table
+        mock_insert = MagicMock()
+        mock_table.insert.return_value = mock_insert
+        mock_insert.execute.side_effect = [
+            MagicMock(data=[{"id": order_id, "status": "pending"}]),
+            *[MagicMock(data=[{"id": str(uuid4())}]) for _ in range(6)],
+        ]
+        voucher = {
+            "id": "v-1",
+            "code": "BNB-ABCD1234",
+            "user_id": self.customer["id"],
+            "discount_vnd": 5000,
+            "status": "active",
+            "expires_at": None,
+            "used_at": None,
+        }
+        mock_table.select.return_value = self._voucher_query(voucher)
+
+        order_data = {
+            "full_name": "Test",
+            "phone": "0901234567",
+            "email": None,
+            "pickup_date": datetime.now(timezone.utc) + timedelta(hours=25),
+            "items": [
+                {"product_id": NIL_UUID, "size": "20cm", "flavor": None,
+                 "quantity": 1, "unit_price": 1, "customization_json": None},
+            ],
+            "ai_summary": None,
+            "voucher_code": "BNB-ABCD1234",
+        }
+
+        result = self.service.create_order(order_data, self.customer)
+
+        inserted = mock_table.insert.call_args_list[0][0][0]
+        assert inserted["total_price"] == 350000 - 5000
+        assert inserted["voucher_code"] == "BNB-ABCD1234"
+        assert inserted["voucher_discount"] == 5000
+        assert result["discount"] == 5000
+        assert result["subtotal"] == 350000
+
+    def test_don_khong_voucher_thi_ghi_ma_null(self):
+        order_id = str(uuid4())
+        mock_table = MagicMock()
+        self.mock_supabase.table.return_value = mock_table
+        mock_insert = MagicMock()
+        mock_table.insert.return_value = mock_insert
+        mock_insert.execute.side_effect = [
+            MagicMock(data=[{"id": order_id, "status": "pending"}]),
+            *[MagicMock(data=[{"id": str(uuid4())}]) for _ in range(6)],
+        ]
+        order_data = {
+            "full_name": "Test",
+            "phone": "0901234567",
+            "email": None,
+            "pickup_date": datetime.now(timezone.utc) + timedelta(hours=25),
+            "items": [
+                {"product_id": NIL_UUID, "size": "20cm", "flavor": None,
+                 "quantity": 1, "unit_price": 1, "customization_json": None},
+            ],
+            "ai_summary": None,
+        }
+        self.service.create_order(order_data, self.customer)
+        inserted = mock_table.insert.call_args_list[0][0][0]
+        assert inserted["total_price"] == 350000
+        assert inserted["voucher_code"] is None
+        assert inserted["voucher_discount"] == 0
+
+    def test_voucher_cua_khach_khac_bi_tu_choi(self):
+        mock_table = MagicMock()
+        self.mock_supabase.table.return_value = mock_table
+        # Không có dòng nào khớp: mã không thuộc khách này.
+        mock_table.select.return_value = self._voucher_query(None)
+
+        order_data = {
+            "full_name": "Test",
+            "phone": "0901234567",
+            "email": None,
+            "pickup_date": datetime.now(timezone.utc) + timedelta(hours=25),
+            "items": [
+                {"product_id": NIL_UUID, "size": "20cm", "flavor": None,
+                 "quantity": 1, "unit_price": 1, "customization_json": None},
+            ],
+            "ai_summary": None,
+            "voucher_code": "BNB-KHACNGUOI",
+        }
+        with pytest.raises(OrderServiceError) as exc:
+            self.service.create_order(order_data, self.customer)
+        assert exc.value.status_code == 400
     def test_order_item_rows_store_the_server_price(self):
         """order_items.unit_price must hold the resolved price, not the client's."""
         order_id = str(uuid4())
