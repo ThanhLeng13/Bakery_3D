@@ -27,7 +27,7 @@ def list_users(admin: dict = Depends(require_admin)):
     try:
         result = (
             db.table("users")
-            .select("id, email, full_name, phone, role")
+            .select("id, email, full_name, phone, role, branch_id")
             .order("full_name", desc=False)
             .execute()
         )
