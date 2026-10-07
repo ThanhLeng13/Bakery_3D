@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.services.pricing import is_custom_cake, is_two_tier, order_total
+from app.services.orderable_3d import OrderableModelError, ensure_orderable_model
 from app.services.voucher_service import (
     VoucherService,
     VoucherServiceError,
@@ -142,6 +143,9 @@ class OrderService:
         """
         now = datetime.now(timezone.utc)
 
+        if pickup_date is None:
+            raise PickupDateValidationError("Thiếu ngày nhận bánh.")
+
         # Ensure pickup_date is timezone-aware
         if pickup_date.tzinfo is None:
             pickup_date = pickup_date.replace(tzinfo=timezone.utc)
@@ -175,10 +179,19 @@ class OrderService:
                 )
 
     def _catalog_price(self, product_id: str) -> int:
-        """Read the authoritative unit price of a catalogue product."""
+        """Read the authoritative unit price of a catalogue product.
+
+        Also refuses products whose 3D model is preview-only: a model being
+        viewable in the Studio does not mean the bakery has approved its price
+        and lead time for production. Blocking here, in the pricing path, means
+        neither the UI nor a direct API call can create such an order.
+        """
         result = (
             self._supabase.table("products")
-            .select("base_price")
+            .select(
+                "id, base_price, product_3d_models("
+                "is_primary, cake_3d_models(id, slug))"
+            )
             .eq("id", product_id)
             .maybe_single()
             .execute()
@@ -186,7 +199,35 @@ class OrderService:
         # supabase-py >= 2.30 returns None from maybe_single() when no row matched.
         if result is None or not result.data:
             raise OrderServiceError("Sản phẩm không tồn tại.", status_code=400)
-        return int(result.data.get("base_price") or 0)
+
+        product = result.data
+        self._reject_preview_only_model(product)
+
+        return int(product.get("base_price") or 0)
+
+    def _reject_preview_only_model(self, product: dict) -> None:
+        """Raise if the product's primary 3D model is not cleared for sale."""
+        links = product.get("product_3d_models") or []
+        # Fall back to any link when nothing is flagged primary, so a product
+        # cannot slip through by having its primary flag unset.
+        ordered = [lnk for lnk in links if lnk.get("is_primary")] or links
+        for link in ordered:
+            model = link.get("cake_3d_models") or {}
+            # PostgREST returns an embedded many-to-one row as a dict here, but
+            # it can come back as a single-element list depending on how the
+            # relation is inferred. Tolerate both rather than letting the check
+            # silently pass on a shape it did not recognise.
+            if isinstance(model, list):
+                model = model[0] if model else {}
+            if not isinstance(model, dict):
+                model = {}
+            try:
+                ensure_orderable_model(model.get("slug"))
+            except OrderableModelError as exc:
+                raise OrderServiceError(
+                    exc.message,
+                    status_code=exc.status_code,
+                ) from exc
 
     def _resolve_unit_prices(self, items: list[dict]) -> list[int]:
         """Resolve every order item's unit price on the server.

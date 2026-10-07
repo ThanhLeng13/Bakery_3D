@@ -126,6 +126,12 @@ export interface Cake3DModel {
   /** Present when the model is linked through one catalog product. */
   sort_order?: number;
   is_primary?: boolean;
+  /**
+   * False when the model is preview-only: viewable in the Studio, but the
+   * bakery has not approved its price and lead time, so ordering is refused
+   * server-side. Absent on the standalone model list.
+   */
+  is_orderable?: boolean;
 }
 
 export interface Cake3DModelListResponse {

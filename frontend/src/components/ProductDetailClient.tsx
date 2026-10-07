@@ -610,6 +610,12 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
     ?? product.three_d_models?.[0]
     ?? null;
 
+  // Mẫu 3D xem được không đồng nghĩa mẫu đó bán được: `is_orderable` = false
+  // nghĩa là tiệm chưa duyệt giá và thời gian chuẩn bị. Server cũng từ chối,
+  // nên ở đây chỉ là để khách hiểu vì sao không bấm được.
+  const isPreviewOnly = primary3DModel ? primary3DModel.is_orderable === false : false;
+  const cannotOrder = isOutOfStock || isPreviewOnly;
+
   return (
     <main className="min-h-screen bg-cream">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
@@ -952,19 +958,37 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
                     )}
                   </button>
 
+                  {/* Mẫu chỉ xem: nói rõ lý do thay vì chỉ làm nút chết. */}
+                  {isPreviewOnly && (
+                    <p
+                      role="status"
+                      className="mb-3 rounded-xl bg-subtle border border-line px-4 py-3 text-sm text-muted"
+                    >
+                      Mẫu 3D này hiện chỉ xem thử, chưa mở bán vì giá và thời gian
+                      chuẩn bị chưa được duyệt. Bạn có thể xem mẫu, hoặc chọn bánh
+                      tròn 1 tầng / 2 tầng.
+                    </p>
+                  )}
+
                   {/* Thêm vào giỏ */}
                   <button
                     id={`add-to-cart-${product.id}`}
                     onClick={handleAddToCart}
-                    disabled={isOutOfStock}
+                    disabled={cannotOrder}
                     className={`w-full py-2.5 px-6 font-medium rounded-full transition-all min-h-[44px] border ${
-                      isOutOfStock
+                      cannotOrder
                         ? "bg-subtle text-muted border-line cursor-not-allowed"
                         : addedToCart
                           ? "bg-green-50 text-green-600 border-green-200"
                           : "bg-white text-mocha border-mocha/20 hover:border-pink-pastel hover:text-pink-pastel"
                     }`}
-                    aria-label={isOutOfStock ? "Hết hàng" : `Thêm ${product.name} vào giỏ hàng`}
+                    aria-label={
+                      isOutOfStock
+                        ? "Hết hàng"
+                        : isPreviewOnly
+                          ? "Mẫu chỉ xem thử, chưa mở bán"
+                          : `Thêm ${product.name} vào giỏ hàng`
+                    }
                   >
                     {addedToCart ? (
                       <span className="flex items-center justify-center gap-2">

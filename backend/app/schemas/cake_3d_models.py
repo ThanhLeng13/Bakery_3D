@@ -32,3 +32,7 @@ class Product3DModelResponse(Cake3DModelResponse):
 
     sort_order: int = 0
     is_primary: bool = False
+    # False when the model is preview-only: viewable in the Studio, but the
+    # bakery has not approved its price and lead time for production, so the
+    # order is refused server-side.
+    is_orderable: bool = True
