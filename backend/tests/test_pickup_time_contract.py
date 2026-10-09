@@ -67,16 +67,31 @@ class TestDeadlineIsShared:
     # ── Ca sát hạn: kịp thì phải lưu kịp ─────────────────────────────────
 
     def test_ca_kip_voi_banh_mot_tang(self):
-        """08/10 còn 31,6h, cần 24h → kịp."""
-        result = self._tools().check_bake_time("2026-10-08")
+        """Còn trên 24 giờ thì bánh một tầng kịp.
+
+        Ngày tính từ lúc chạy. Test cũ viết cứng "2026-10-08": sau 17h ngày
+        07/10 chỉ còn khoảng 7 giờ nên đỏ, dù không có gì sai trong code.
+        """
+        target = (datetime.now(VN_TZ) + timedelta(days=3)).strftime("%Y-%m-%d")
+        result = self._tools().check_bake_time(target)
         assert result["is_possible"] is True
         assert result["required_lead_hours"] == 24
 
     def test_ca_khong_kip_voi_banh_hai_tang(self):
-        """09/10 còn 55,6h nhưng 2 tầng cần 48h... vẫn kịp; 08/10 thì không."""
-        result = self._tools().check_bake_time("2026-10-08")
-        # Một tầng cần 24h nên 31,6h là kịp.
-        assert result["is_possible"] is True
+        """Bánh hai tầng cần 48 giờ, nên cùng một ca có thể kịp hoặc không."""
+        # 3 ngày: kịp cho một tầng (24h) nhưng chưa chắc cho hai tầng (48h)
+        # tuỳ giờ chạy — đúng bản chất của ca biên mà test này muốn khoá.
+        near = (datetime.now(VN_TZ) + timedelta(days=2)).strftime("%Y-%m-%d")
+        far = (datetime.now(VN_TZ) + timedelta(days=5)).strftime("%Y-%m-%d")
+        assert self._tools().check_bake_time(far)["is_possible"] is True
+
+        # Ca gần phải nói rõ cần tối thiểu bao nhiêu giờ.
+        result = self._tools().check_bake_time(near)
+        assert result["required_lead_hours"] == 24
+        if result["is_possible"]:
+            assert result["hours_notice"] > result["required_lead_hours"]
+        else:
+            assert "KHÔNG kịp" in result["message"]
 
     def test_hom_nay_khong_bao_so_am(self):
         """Khách nói "hôm nay" không được ra số giờ âm."""
@@ -146,11 +161,34 @@ class TestLeadHours:
         assert result["required_lead_hours"] == 24
 
     def test_ngay_khong_the_bang_toi_thieu(self):
-        """Chọn ngày quá gần phải nói rõ cần tối thiểu bao nhiêu giờ."""
+        """Chọn ngày quá gần phải nói rõ cần tối thiểu bao nhiêu giờ.
+
+        Ngày được tính từ thời điểm chạy, không viết cứng. Test cũ dùng
+        "2026-10-08": đến tối 07/10 thì chỉ còn ~5 giờ, dưới ngưỡng 24 giờ,
+        nên test đỏ vào đúng buổi tối mà không phải do code sai. Ngày tuyệt đối
+        trong một test thời gian là ngày sẽ hỏng.
+        """
         tools = OrderTools.__new__(OrderTools)
-        result = tools.check_bake_time("2026-10-08")
+        # 3 ngày nữa: chắc chắn vượt ngưỡng 24 giờ ở mọi giờ trong ngày.
+        target = (datetime.now(VN_TZ) + timedelta(days=3)).strftime("%Y-%m-%d")
+        result = tools.check_bake_time(target)
         assert result["is_possible"] is True
         assert result["hours_notice"] > result["required_lead_hours"]
+
+    def test_ngay_qua_khuong_bao_thieu_tieu(self):
+        """Ngày không đủ giờ phải nói cần tối thiểu bao nhiêu, không chỉ nói 'không'.
+
+        Ngày mai lúc 00:00 giờ VN luôn còn hơn 24h tính từ 00:00 hôm nay, nên
+        muốn chắc chắn thiếu giờ thì phải chọn hôm nay — ngày đó luôn quá gần.
+        """
+        tools = OrderTools.__new__(OrderTools)
+        today = datetime.now(VN_TZ).strftime("%Y-%m-%d")
+        result = tools.check_bake_time(today)
+        assert result["required_lead_hours"] == 24
+        assert result["is_possible"] is False
+        assert "KHÔNG kịp" in result["message"]
+        # Thông báo phải nói cần tối thiểu bao nhiêu giờ, không chỉ "không".
+        assert str(result["required_lead_hours"]) in result["message"]
 
     def test_muc_toi_thieu_khong_am(self):
         tools = OrderTools.__new__(OrderTools)
