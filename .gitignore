@@ -108,6 +108,12 @@ tmp_chrome_cake3d/
 *.tmp
 *.temp
 
+# CLIP model weights (ViT-B-32 ≈ 350 MB). Downloaded on first use, not source.
+# Committing it would bloat every clone for no benefit; the loader fetches it
+# from HuggingFace and works offline afterwards once cached.
+backend/.cache/
+.cache/
+
 # ---- 📄 Local Documents & Reports (not for repo) ----
 *.docx
 *.pdf

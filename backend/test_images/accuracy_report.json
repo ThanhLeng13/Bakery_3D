@@ -1,10 +1,10 @@
 {
-  "top1_accuracy": 22.22222222222222,
-  "top3_accuracy": 55.55555555555556,
+  "top1_accuracy": 16.666666666666664,
+  "top3_accuracy": 27.77777777777778,
   "n_in_catalog": 18,
   "n_out_catalog": 8,
-  "sim_avg_in": 0.5537,
-  "sim_avg_out": 0.45047499999999996,
+  "sim_avg_in": 0.5837111111111111,
+  "sim_avg_out": 0.4993875,
   "details": [
     {
       "file": "trong_kho\\Bánh_tiramisu_truyền_thống__1.jpg",
@@ -13,7 +13,7 @@
       "top3": [
         "Bánh Dark Oreo",
         "Bánh phô mai cháy",
-        "Rau câu flan cheese"
+        "Bánh kem mặt hồng pastel hoa nhỏ"
       ],
       "sim1": 0.6331,
       "correct_top1": false,
@@ -22,27 +22,27 @@
     {
       "file": "trong_kho\\Bánh_tiramisu_truyền_thống__2.jpg",
       "expected": "Bánh tiramisu truyền thống",
-      "top1": "Bánh Dark Oreo",
+      "top1": "Bánh kem socola viên tròn",
       "top3": [
+        "Bánh kem socola viên tròn",
         "Bánh Dark Oreo",
-        "Bánh tart trứng",
-        "Bánh kem trứng dừa nướng"
+        "Bánh kem trái cây dâu kiwi việt quất"
       ],
-      "sim1": 0.5348,
+      "sim1": 0.552,
       "correct_top1": false,
       "correct_top3": false
     },
     {
       "file": "trong_kho\\Bánh_Brownie__1.jpg",
       "expected": "Bánh Brownie",
-      "top1": "Bánh Brownie",
+      "top1": "Bánh kem cuộn socola trắng",
       "top3": [
+        "Bánh kem cuộn socola trắng",
         "Bánh Brownie",
-        "Rau câu flan cheese",
-        "Bánh phô mai cháy"
+        "Bánh kem mặt hồng pastel hoa nhỏ"
       ],
-      "sim1": 0.5418,
-      "correct_top1": true,
+      "sim1": 0.5689,
+      "correct_top1": false,
       "correct_top3": true
     },
     {
@@ -52,7 +52,7 @@
       "top3": [
         "Bánh Brownie",
         "Bánh Dark Oreo",
-        "Bánh phô mai cháy"
+        "Bánh kem socola viên tròn"
       ],
       "sim1": 0.6149,
       "correct_top1": true,
@@ -74,28 +74,28 @@
     {
       "file": "trong_kho\\Cheesecake_Red_Velvet__2.jpg",
       "expected": "Cheesecake Red Velvet",
-      "top1": "Bánh Dark Oreo",
+      "top1": "Bánh kem trái cây dâu việt quất",
       "top3": [
-        "Bánh Dark Oreo",
-        "Cheesecake Red Velvet",
-        "Bánh khoai lang phô mai"
+        "Bánh kem trái cây dâu việt quất",
+        "Bánh kem 2 tầng hoa hồng phấn",
+        "Bánh kem hình con thú màu xám"
       ],
-      "sim1": 0.4642,
+      "sim1": 0.5707,
       "correct_top1": false,
-      "correct_top3": true
+      "correct_top3": false
     },
     {
       "file": "trong_kho\\Bánh_phô_mai_cháy__1.jpg",
       "expected": "Bánh phô mai cháy",
-      "top1": "Bánh Dark Oreo",
+      "top1": "Bánh mousse chanh dây trái cây nền gỗ",
       "top3": [
-        "Bánh Dark Oreo",
-        "Bánh tart trứng",
-        "Bánh phô mai cháy"
+        "Bánh mousse chanh dây trái cây nền gỗ",
+        "Bánh kem cuộn socola trắng",
+        "Bánh kem chanh dây socola dâu"
       ],
-      "sim1": 0.5881,
+      "sim1": 0.7014,
       "correct_top1": false,
-      "correct_top3": true
+      "correct_top3": false
     },
     {
       "file": "trong_kho\\Bánh_phô_mai_cháy__2.jpg",
@@ -103,12 +103,12 @@
       "top1": "Bánh khoai lang phô mai",
       "top3": [
         "Bánh khoai lang phô mai",
-        "Bánh tart trứng",
-        "Bánh phô mai cháy"
+        "Bánh kem cuộn socola trắng",
+        "Bánh tart trứng"
       ],
       "sim1": 0.5371,
       "correct_top1": false,
-      "correct_top3": true
+      "correct_top3": false
     },
     {
       "file": "trong_kho\\Bánh_tart_trứng__1.jpg",
@@ -116,8 +116,8 @@
       "top1": "Bánh tart trứng",
       "top3": [
         "Bánh tart trứng",
-        "Bánh phô mai cháy",
-        "Bánh khoai lang phô mai"
+        "Bánh tart mini kiwi việt quất",
+        "Bánh kem dừa sợi kèm tart mini"
       ],
       "sim1": 0.6375,
       "correct_top1": true,
@@ -129,8 +129,8 @@
       "top1": "Bánh tart trứng",
       "top3": [
         "Bánh tart trứng",
-        "Bánh phô mai cháy",
-        "Bánh khoai lang phô mai"
+        "Bánh tart mini kiwi việt quất",
+        "Bánh phô mai cháy"
       ],
       "sim1": 0.6868,
       "correct_top1": true,
@@ -142,8 +142,8 @@
       "top1": "Bánh tart trứng",
       "top3": [
         "Bánh tart trứng",
-        "Bánh Dark Oreo",
-        "Cheesecake Red Velvet"
+        "Bánh tart mini trái cây dâu xanh",
+        "Bánh tart mini kiwi việt quất"
       ],
       "sim1": 0.5772,
       "correct_top1": false,
@@ -155,8 +155,8 @@
       "top1": "Bánh khoai lang phô mai",
       "top3": [
         "Bánh khoai lang phô mai",
-        "Bánh su kem",
-        "Bánh kem cốm dẻo"
+        "Bánh tart mini kiwi việt quất",
+        "Bánh su kem"
       ],
       "sim1": 0.589,
       "correct_top1": false,
@@ -168,8 +168,8 @@
       "top1": "Bánh phô mai cháy",
       "top3": [
         "Bánh phô mai cháy",
-        "Cheesecake Red Velvet",
-        "Bánh kem cốm dẻo"
+        "Bánh mousse chanh dây trái cây nền trắng",
+        "Bánh kem trái cây tươi nơ trắng"
       ],
       "sim1": 0.3552,
       "correct_top1": false,
@@ -178,65 +178,65 @@
     {
       "file": "trong_kho\\Bánh_kem_trứng_dừa_nướng__2.jpg",
       "expected": "Bánh kem trứng dừa nướng",
-      "top1": "Rau câu flan cheese",
+      "top1": "Bánh kem cuộn socola trắng",
       "top3": [
+        "Bánh kem cuộn socola trắng",
         "Rau câu flan cheese",
-        "Bánh phô mai cháy",
-        "Bánh kem trứng dừa nướng"
+        "Bánh phô mai cháy"
       ],
-      "sim1": 0.5605,
+      "sim1": 0.5928,
       "correct_top1": false,
-      "correct_top3": true
+      "correct_top3": false
     },
     {
       "file": "trong_kho\\Bánh_chuối_nướng_nước_dừa__1.jpg",
       "expected": "Bánh chuối nướng nước dừa",
-      "top1": "Bánh phô mai cháy",
+      "top1": "Bánh mousse chanh dây trái cây nền trắng",
       "top3": [
-        "Bánh phô mai cháy",
-        "Bánh Dark Oreo",
-        "Bánh tart trứng"
+        "Bánh mousse chanh dây trái cây nền trắng",
+        "Bánh mousse chanh dây trái cây nền gỗ",
+        "Bánh phô mai cháy"
       ],
-      "sim1": 0.5507,
+      "sim1": 0.5553,
       "correct_top1": false,
       "correct_top3": false
     },
     {
       "file": "trong_kho\\Bánh_chuối_nướng_nước_dừa__2.jpg",
       "expected": "Bánh chuối nướng nước dừa",
-      "top1": "Bánh Dark Oreo",
+      "top1": "Bánh kem trái cây dâu việt quất",
       "top3": [
-        "Bánh Dark Oreo",
-        "Bánh tart trứng",
-        "Bánh chuối nướng nước dừa"
+        "Bánh kem trái cây dâu việt quất",
+        "Bánh kem cuộn socola trắng",
+        "Bánh mousse chanh dây trái cây nền gỗ"
       ],
-      "sim1": 0.5337,
+      "sim1": 0.6722,
       "correct_top1": false,
-      "correct_top3": true
+      "correct_top3": false
     },
     {
       "file": "trong_kho\\Bánh_crepe_sầu_riêng__1.jpg",
       "expected": "Bánh crepe sầu riêng",
-      "top1": "Rau câu flan cheese",
+      "top1": "Bánh kem cuộn socola trắng",
       "top3": [
+        "Bánh kem cuộn socola trắng",
         "Rau câu flan cheese",
-        "Bánh phô mai cháy",
-        "Bánh tart trứng"
+        "Bánh kem chanh dây hoa quả"
       ],
-      "sim1": 0.5815,
+      "sim1": 0.6336,
       "correct_top1": false,
       "correct_top3": false
     },
     {
       "file": "trong_kho\\Bánh_crepe_sầu_riêng__2.jpg",
       "expected": "Bánh crepe sầu riêng",
-      "top1": "Bánh phomai sợi dẻo",
+      "top1": "Bánh kem cuộn socola trắng",
       "top3": [
-        "Bánh phomai sợi dẻo",
-        "Bánh Dark Oreo",
-        "Rau câu flan cheese"
+        "Bánh kem cuộn socola trắng",
+        "Bánh kem trái cây tươi nơ trắng",
+        "Bánh kem trái cây dâu kiwi việt quất"
       ],
-      "sim1": 0.4682,
+      "sim1": 0.5168,
       "correct_top1": false,
       "correct_top3": false
     }
