@@ -7,10 +7,16 @@ Enforces pickup date validation and role-based status transition rules.
 import logging
 import math
 from uuid import uuid4
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from app.services.pricing import is_custom_cake, is_two_tier, order_total
+from app.services.pricing import (
+    DEFAULT_LEAD_HOURS,
+    lead_hours_for_items,
+    is_custom_cake,
+    is_two_tier,
+    order_total,
+)
 from app.services.orderable_3d import OrderableModelError, ensure_orderable_model
 from app.services.voucher_service import (
     VoucherService,
@@ -19,6 +25,28 @@ from app.services.voucher_service import (
 )
 
 _logger = logging.getLogger(__name__)
+
+# Giờ chuẩn bị tối thiểu. Nguồn duy nhất nằm trong `pricing` để agent và
+# checkout không tự tính riêng rồi lệch nhau; hai hằng số đây chỉ để đọc code
+# của service khỏi phải tra sang module khác.
+MIN_LEAD_HOURS = DEFAULT_LEAD_HOURS
+MIN_LEAD_HOURS_COMPLEX = 48
+
+
+def _lead_time_message(required: int) -> str:
+    """Thông điệp khi khách chọn ngày nhận quá gần.
+
+    Tiếng Việt và nêu rõ số giờ tối thiểu: khách cần biết chờ bao lâu nữa,
+    không chỉ biết "không được". Câu tiếng Anh cũ đi thẳng tới giao diện.
+    """
+    cakes = "bánh hai tầng" if required >= MIN_LEAD_HOURS_COMPLEX else "bánh"
+    earliest = datetime.now(timezone.utc) + timedelta(hours=required)
+    return (
+        f"{cakes} cần đặt trước tối thiểu {required} giờ. "
+        f"Vì giờ hiện tại, bạn chỉ có thể nhận từ "
+        f"{earliest.strftime('%d/%m lúc %H:%M')} giờ trở đi. "
+        "Vui lòng chọn ngày nhận muộn hơn."
+    )
 
 
 class OrderServiceError(Exception):
@@ -159,24 +187,15 @@ class OrderService:
                 "Pickup date must be within 30 days from now."
             )
 
-        # Check if any item is 2-tier
-        has_two_tier = any(
-            is_two_tier(item.get("size"))
-            for item in items
-        )
+        # Một quy tắc duy nhất, dùng chung với agent. Trước đây nơi này tự so
+        # `is_two_tier` trong khi agent so tên sản phẩm, nên hai bên cho khác
+        # nhau; giờ cả hai gọi `lead_hours_for_items`.
+        required = lead_hours_for_items(items)
 
-        if has_two_tier:
-            if hours_until_pickup < 48:
-                raise PickupDateValidationError(
-                    "2-tier cakes require at least 48 hours advance notice. "
-                    "Please select a later pickup date."
-                )
-        else:
-            if hours_until_pickup < 24:
-                raise PickupDateValidationError(
-                    "Standard cakes require at least 24 hours advance notice. "
-                    "Please select a later pickup date."
-                )
+        if hours_until_pickup < required:
+            raise PickupDateValidationError(
+                _lead_time_message(required)
+            )
 
     def _catalog_price(self, product_id: str) -> int:
         """Read the authoritative unit price of a catalogue product.

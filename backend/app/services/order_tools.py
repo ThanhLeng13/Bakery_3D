@@ -24,6 +24,11 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
+from app.services.pricing import (
+    DEFAULT_LEAD_HOURS,
+    lead_hours_for_items,
+)
+
 logger = logging.getLogger(__name__)
 
 # Múi giờ Việt Nam (UTC+7) — mọi mốc thời gian của tiệm đều tính theo giờ này.
@@ -31,10 +36,13 @@ VN_TZ = timezone(timedelta(hours=7))
 
 # Tiệm cần đặt trước bao lâu. Bánh đơn giản 24h, bánh nhiều tầng/figure lâu hơn
 # vì phải đặt nguyên liệu và trang trí thủ công.
-MIN_LEAD_HOURS = 24
+#
+# Số giờ nằm trong `pricing` để agent và checkout dùng chung một quy tắc.
+# Ở đây chỉ giữ tên để các test và nơi gọi cũ vẫn import được.
+MIN_LEAD_HOURS = DEFAULT_LEAD_HOURS
 MIN_LEAD_HOURS_COMPLEX = 48
 
-# Từ khoá nhận biết bánh phức tạp (cần nhiều thời gian chuẩn bị hơn).
+
 COMPLEX_KEYWORDS = ("2 tầng", "3 tầng", "figure", "tạo hình", "cưới")
 
 MAX_RESULTS = 10
@@ -58,14 +66,9 @@ def _vn_now() -> datetime:
     return datetime.now(VN_TZ)
 
 
-def _is_complex(name: str) -> bool:
-    """Bánh phức tạp cần đặt trước lâu hơn."""
-    lowered = (name or "").lower()
-    return any(k in lowered for k in COMPLEX_KEYWORDS)
-
-
-def _lead_hours(name: str) -> int:
-    return MIN_LEAD_HOURS_COMPLEX if _is_complex(name) else MIN_LEAD_HOURS
+# `_is_complex` và `_lead_hours` đã bỏ: chúng đoán độ phức tạp từ *tên* sản
+# phẩm, trong khi checkout đo theo *kích cỡ*, nên hai nơi cho hai đáp án lệch
+# nhau 24 giờ cho cùng một đơn. Dùng `lead_hours_for_items`.
 
 
 # Từ quá chung chung: gần như bánh nào cũng có trong tên, nên nếu tính là "khớp"
@@ -200,7 +203,9 @@ class OrderTools:
                     "description": (p.get("description") or "")[:160],
                     "sizes": p.get("sizes") or [],
                     "flavors": p.get("flavors") or [],
-                    "needs_lead_hours": _lead_hours(p.get("name", "")),
+                    # Chưa có kích cỡ khách chọn nên báo mức nhỏ nhất; đơn
+                    # thật dùng `lead_hours_for_items` theo size khách chọn.
+                    "needs_lead_hours": DEFAULT_LEAD_HOURS,
                 }
                 for p in matched[:limit]
             ],
@@ -231,7 +236,8 @@ class OrderTools:
             "description": found.get("description") or "",
             "sizes": found.get("sizes") or [],
             "flavors": found.get("flavors") or [],
-            "needs_lead_hours": _lead_hours(found["name"]),
+            # Mức nhỏ nhất; đơn thật tính theo size khách chọn.
+            "needs_lead_hours": DEFAULT_LEAD_HOURS,
         }
 
     # ────────────────────────────────────────────────────────────────────────
@@ -332,16 +338,11 @@ class OrderTools:
             )
         parsed = parsed.replace(tzinfo=VN_TZ)
 
-        # Bánh phức tạp cần lâu hơn -> lấy mức cao nhất trong đơn.
-        lead = MIN_LEAD_HOURS
-        if items:
-            products = self._active_cakes()
-            by_id = {p["id"]: p for p in products}
-            by_name = {p["name"].strip().lower(): p for p in products}
-            for it in items:
-                prod = by_id.get(it.get("cake_id")) or by_name.get(str(it.get("name", "")).strip().lower())
-                if prod:
-                    lead = max(lead, _lead_hours(prod["name"]))
+        # Quy tắc đặt trước lấy từ KÍCH CỚ khách chọn, đúng nguồn checkout dùng.
+        # Trước đây nơi này đoán độ phức tạp từ *tên* sản phẩm ("2 tầng",
+        # "figure"...) trong khi `order_service` đo theo size, nên cùng một
+        # đơn cho hai đáp án lệch nhau đúng 24 giờ. Xem `lead_hours_for_items`.
+        lead = lead_hours_for_items(items)
 
         # Ngày chỉ có ngày-tháng (YYYY-MM-DD) được hiểu là 00:00 hôm đó. Nếu khách
         # nói "hôm nay" thì 00:00 đã trôi qua, cho ra số giờ ÂM trông vô lý. Coi

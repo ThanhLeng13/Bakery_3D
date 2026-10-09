@@ -301,11 +301,17 @@ class TestOrderToolsFindCakes:
         # chu khong phai tra ve rac.
         assert result["found"] == 3
 
-    def test_complex_cake_needs_longer_lead(self):
-        """Banh nhieu tang phai can dat truoc lau hon banh thuong."""
+    def test_find_cakes_bao_muc_dat_truoc_mac_dinh(self):
+        """Danh sách gợi ý báo mức nhỏ nhất vì chưa biết khách chọn kích cỡ nào.
+
+        Trước đây `needs_lead_hours` đoán từ tên ("2 tầng" → 48h) trong khi
+        checkout đo theo kích cỡ, nên cùng một đơn cho hai đáp án lệch 24h.
+        Ở bước tìm mẫu chưa có size nên chỉ báo được mức một tầng; mức 48h
+        chốt khi khách chọn 2-tier, qua `lead_hours_for_items`.
+        """
         result = _tools().find_cakes(keyword="2 tầng")
         two_tier = next(c for c in result["cakes"] if "2 tầng" in c["name"])
-        assert two_tier["needs_lead_hours"] == 48
+        assert two_tier["needs_lead_hours"] == 24
 
 
 class TestOrderToolsPriceOrder:
