@@ -1416,3 +1416,76 @@ class TestTraceIsRecordedByTheAgentLoop:
         # Ten tham so duoc ghi, gia tri thi khong.
         assert entry["args"] == "items"
         assert entry["result"]["total_price"] == 430000
+
+
+class TestAgentSeesTheWholeCatalogue:
+    """Trợ lý phải thấy đúng những gì cửa hàng bán, không ít hơn.
+
+    Lỗi đã gặp: `_active_cakes` chỉ giữ `product_type == "cake"`, bỏ hết
+    `sweet`. Kho có 18 món `sweet` (tiramisu, cheesecake, brownie, su kem...)
+    đang bán bình thường trên cửa hàng, nhưng khách hỏi thì trợ lý trả lời
+    "tiệm chưa có" — nói sai sự thật về chính cửa hàng mình.
+    """
+
+    def _tools_with(self, products):
+        from app.services.order_tools import OrderTools
+
+        return OrderTools(
+            _StubSupabase({"products": _StubTable(select_data=products)})
+        )
+
+    def _product(self, name, ptype):
+        return {
+            "id": str(uuid4()),
+            "name": name,
+            "description": "",
+            "category": "bánh ngọt",
+            "base_price": 60000,
+            "sizes": [],
+            "flavors": [],
+            "product_type": ptype,
+        }
+
+    def test_sweet_product_is_findable(self):
+        """Món loại `sweet` phải tìm được, không bị lọc bỏ."""
+        tools = self._tools_with([
+            self._product("Bánh tiramisu truyền thống", "sweet"),
+            self._product("Bánh kem hoa hồng đỏ", "cake"),
+        ])
+
+        result = tools.find_cakes(keyword="tiramisu")
+
+        assert result["found"] == 1
+        assert result["cakes"][0]["name"] == "Bánh tiramisu truyền thống"
+
+    def test_agent_sees_every_active_product(self):
+        """Không món nào bị ẩn: số agent thấy = số cửa hàng bán."""
+        products = [
+            self._product("Bánh tiramisu truyền thống", "sweet"),
+            self._product("Cheesecake Red Velvet", "sweet"),
+            self._product("Bánh kem hoa hồng đỏ", "cake"),
+        ]
+        tools = self._tools_with(products)
+
+        result = tools.find_cakes(limit=10)
+
+        names = {c["name"] for c in result["cakes"]}
+        assert names == {p["name"] for p in products}
+
+    def test_sweet_product_can_be_ordered(self):
+        """Món `sweet` không chỉ tìm được mà còn tính được tiền."""
+        tools = self._tools_with([
+            self._product("Bánh tiramisu truyền thống", "sweet"),
+        ])
+
+        priced = tools.price_order(items=[{"name": "Bánh tiramisu truyền thống", "quantity": 1}])
+
+        assert priced["total_price"] == 60000
+
+    def test_no_product_type_at_all_still_visible(self):
+        """Sản phẩm thiếu `product_type` cũng phải hiện, không bị loại oan."""
+        tools = self._tools_with([
+            self._product("Bánh bí ẩn", None),
+        ])
+
+        assert tools.find_cakes(limit=10)["found"] == 1

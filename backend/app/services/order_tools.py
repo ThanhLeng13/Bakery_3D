@@ -101,7 +101,17 @@ class OrderTools:
     # ────────────────────────────────────────────────────────────────────────
 
     def _active_cakes(self) -> list[dict]:
-        """Lấy bánh đang bán. Chỉ `cake` — trợ lý này tư vấn bánh sinh nhật."""
+        """Lấy mọi sản phẩm đang bán.
+
+        Trước đây chỉ giữ `product_type == "cake"`, bỏ hết `sweet`. Kho có 18
+        món `sweet` đang bán bình thường — tiramisu, cheesecake, brownie, su
+        kem — nên khách hỏi tiramisu thì trợ lý trả lời "tiệm chưa có", tức là
+        nói sai về chính cửa hàng mình. Cửa hàng (`catalog_service`) không lọc
+        theo `product_type`, nên trợ lý phải thấy đúng tập đó.
+
+        Sắp xếp bánh kem lên trước để khi khách hỏi chung chung, gợi ý vẫn
+        nghiêng về mặt hàng chủ đạo — nhưng không ẩn món nào.
+        """
         result = (
             self._supabase.table("products")
             .select("id, name, description, category, base_price, sizes, flavors, product_type")
@@ -109,10 +119,7 @@ class OrderTools:
             .execute()
         )
         rows = result.data or []
-        # Ưu tiên bánh sinh nhật; nếu kho chưa có `cake` nào thì trả tất cả để
-        # trợ lý vẫn tư vấn được thay vì nói "không có gì".
-        cakes = [r for r in rows if r.get("product_type") == "cake"]
-        return cakes or rows
+        return sorted(rows, key=lambda r: 0 if r.get("product_type") == "cake" else 1)
 
     def find_cakes(
         self,
@@ -548,7 +555,10 @@ TOOL_SCHEMAS: list[dict] = [
             "description": (
                 "Tìm bánh trong danh mục theo ngân sách, dịp hoặc từ khoá. "
                 "LUÔN dùng công cụ này trước khi nói tên bánh hay giá với khách — "
-                "không được tự nghĩ ra sản phẩm hoặc giá."
+                "không được tự nghĩ ra sản phẩm hoặc giá. "
+                "Cũng dùng khi khách hỏi tiệm có những loại bánh gì, xem menu, "
+                "hoặc hỏi chung chung về danh mục — gọi không tham số cũng được, "
+                "sẽ trả về danh sách bánh."
             ),
             "parameters": {
                 "type": "object",
@@ -611,7 +621,10 @@ TOOL_SCHEMAS: list[dict] = [
             "name": "check_bake_time",
             "description": (
                 "Kiểm tra ngày nhận bánh có kịp làm không. Phải gọi trước khi hứa "
-                "ngày với khách. Bánh nhiều tầng cần đặt trước lâu hơn."
+                "ngày với khách. Bánh nhiều tầng cần đặt trước lâu hơn. "
+                "Gọi công cụ này NGAY khi khách nhắc tới một ngày nhận cụ thể, kể cả "
+                "khi khách chỉ hỏi 'ngày đó kịp không' — KHÔNG trả lời số giờ đặt "
+                "trước từ trí nhớ, và KHÔNG tự nói một ngày nào đó là sớm nhất."
             ),
             "parameters": {
                 "type": "object",
