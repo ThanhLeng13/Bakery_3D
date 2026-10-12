@@ -1310,3 +1310,109 @@ class TestDiscountRequestOutsideTheRules:
         result = service._execute_tool_call("price_order", args, "khach")
 
         assert result["total_price"] == 430000
+
+
+class TestToolTrace:
+    """Trace du de danh gia, khong luu du lieu rieng cua khach."""
+
+    def test_trace_has_time_and_outcome(self):
+        from app.services.chat_service import _trace_entry
+
+        entry = _trace_entry(
+            "price_order",
+            '{"items": [{"name": "A"}]}',
+            {"total_price": 100},
+            12.34,
+        )
+
+        assert entry["tool"] == "price_order"
+        assert entry["elapsed_ms"] == 12.3
+        assert entry["ok"] is True
+        assert entry["args"] == "items"
+
+    def test_trace_flags_errors(self):
+        from app.services.chat_service import _trace_entry
+
+        entry = _trace_entry("create_draft_order", "{}", {"error": "hỏng"}, 5.0)
+
+        assert entry["ok"] is False
+
+    def test_trace_never_stores_argument_values(self):
+        """Số điện thoại, email, tên khách KHÔNG được vào log.
+
+        Trace chỉ cần biết model truyền tham số nào, không cần giá trị. Ghi giá
+        trị nghĩa là log chứa dữ liệu riêng của khách mà không ai xoá.
+        """
+        from app.services.chat_service import _safe_arg_names
+
+        raw = json.dumps({
+            "customer_name": "Nguyễn Thị Bí Mật",
+            "customer_phone": "0987654321",
+            "customer_email": "bi.mat@example.com",
+            "items": [{"name": "Bánh"}],
+        })
+
+        names = _safe_arg_names(raw)
+
+        for secret in ("Nguyễn Thị Bí Mật", "0987654321", "bi.mat@example.com"):
+            assert secret not in names, f"trace lộ '{secret}'"
+        assert names == "customer_email,customer_name,customer_phone,items"
+
+    def test_trace_survives_broken_json(self):
+        """Tham số hỏng thì ghi '?', không được làm sập trace."""
+        from app.services.chat_service import _safe_arg_names
+
+        assert _safe_arg_names("{khong-phai-json") == "?"
+        assert _safe_arg_names("") == "-"
+        assert _safe_arg_names("[1, 2]") == "?"
+
+
+class TestTraceIsRecordedByTheAgentLoop:
+    """Trace phai duoc ghi boi chinh vong lap agent, khong chi la ham roi."""
+
+    @pytest.mark.asyncio
+    async def test_tool_call_is_traced_with_time_and_name(self):
+        """Mot luot co goi cong cu -> trace co tool, args, elapsed_ms, ok."""
+        from app.services.chat_service import ChatService
+
+        service = ChatService.__new__(ChatService)
+        from app.services.order_tools import OrderTools
+
+        service._order_tools = OrderTools(
+            _StubSupabase({"products": _StubTable(select_data=_fake_products())})
+        )
+
+        call = MagicMock()
+        call.id = "call-1"
+        call.function.name = "price_order"
+        call.function.arguments = json.dumps({
+            "items": [{"name": "Bánh kem hoa hồng đỏ", "quantity": 1}]
+        })
+        call.function.name = "price_order"
+
+        first = MagicMock()
+        first.choices = [MagicMock()]
+        first.choices[0].message.tool_calls = [call]
+        first.choices[0].message.content = ""
+
+        final = MagicMock()
+        final.choices = [MagicMock()]
+        final.choices[0].message.tool_calls = None
+        final.choices[0].message.content = "Dạ bánh 430.000đ ạ."
+
+        client = MagicMock()
+        client.chat.completions.create = AsyncMock(side_effect=[first, final])
+        service._groq_client = client
+
+        content, tool_log = await service._run_agent("prompt", [], "khach-1")
+
+        assert content == "Dạ bánh 430.000đ ạ."
+        assert len(tool_log) == 1
+        entry = tool_log[0]
+        assert entry["tool"] == "price_order"
+        assert entry["ok"] is True
+        assert isinstance(entry["elapsed_ms"], float)
+        assert entry["elapsed_ms"] >= 0
+        # Ten tham so duoc ghi, gia tri thi khong.
+        assert entry["args"] == "items"
+        assert entry["result"]["total_price"] == 430000
