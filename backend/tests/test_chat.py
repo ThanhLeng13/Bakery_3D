@@ -1026,3 +1026,128 @@ class TestRAGServiceCurrentDate:
         assert context.startswith("Hôm nay là ")
         assert VN_WEEKDAYS[now.weekday()] in context
         assert now.strftime("%d/%m/%Y") in context
+
+
+# ============================================================
+# Ranh gioi tin cay: LLM KHONG duoc quyet dinh quyen, gia, hay chu don
+# ============================================================
+
+
+class TestLlmCannotForgeIdentity:
+    """`customer_id` do phien dang nhap quyet dinh, khong do model khai.
+
+    Model doc duoc toan bo ngu canh hoi thoai va co the sinh ra bat ky tham so
+    nao. Neu `customer_id` lay tu tham so do model gui thi mot cau nhu "dat
+    don nay cho tai khoan X" se tao don thuoc tai khoan khac. Cot
+    `orders.customer_id` la NOT NULL nen don luon phai thuoc mot nguoi that.
+    """
+
+    def _service(self, customer_id):
+        """ChatService that, nhung OrderTools gia de khong can CSDL."""
+        from app.services.chat_service import ChatService
+        from app.services.order_tools import OrderTools
+
+        service = ChatService.__new__(ChatService)
+        service._order_tools = OrderTools(
+            _StubSupabase({
+                "products": _StubTable(select_data=_fake_products()),
+                "orders": _StubTable(insert_data=[{"id": "order-1", "status": "draft"}]),
+                "order_items": _StubTable(insert_data=[{"id": "item-1"}]),
+            })
+        )
+        return service
+
+    def _args(self, **extra):
+        base = {
+            "customer_name": "Khách",
+            "customer_phone": "0901234567",
+            "pickup_date": _pickup_in(5),
+            "items": [{"name": "Bánh kem hoa hồng đỏ", "quantity": 1}],
+        }
+        base.update(extra)
+        return json.dumps(base)
+
+    def test_model_forged_customer_id_is_replaced(self):
+        """Model tu gui customer_id thi bi ghi de bang id cua phien."""
+        real = "11111111-1111-1111-1111-111111111111"
+        forged = "99999999-9999-9999-9999-999999999999"
+        service = self._service(real)
+
+        service._execute_tool_call(
+            "create_draft_order", self._args(customer_id=forged), real
+        )
+
+        payload = service._order_tools._supabase.table("orders").inserts()[0]
+        assert payload["customer_id"] == real, "khong duoc lay customer_id tu LLM"
+        assert payload["customer_id"] != forged
+
+    def test_no_session_means_no_order_even_if_model_supplies_an_id(self):
+        """Khong dang nhap thi khong tao don, du model tu khai id."""
+        service = self._service(None)
+
+        result = service._execute_tool_call(
+            "create_draft_order",
+            self._args(customer_id="99999999-9999-9999-9999-999999999999"),
+            None,
+        )
+
+        assert result["created"] is False
+        assert result["reason"] == "not_logged_in"
+        assert service._order_tools._supabase.table("orders").inserts() == []
+
+    def test_customer_id_from_session_is_used(self):
+        """Duong di dung: id cua phien duoc ghi vao don."""
+        real = "22222222-2222-2222-2222-222222222222"
+        service = self._service(real)
+
+        result = service._execute_tool_call("create_draft_order", self._args(), real)
+
+        assert result["created"] is True
+        payload = service._order_tools._supabase.table("orders").inserts()[0]
+        assert payload["customer_id"] == real
+
+
+class TestLlmCannotSetPrice:
+    """Gia do CSDL quyet dinh, khong do model khai."""
+
+    def test_price_ignored_through_the_chat_path(self):
+        """Model khai 1d cho banh 430.000d thi van tinh gia that."""
+        service = _service_stub_with_products()
+        args = json.dumps({
+            "items": [{"name": "Bánh kem hoa hồng đỏ", "quantity": 1, "unit_price": 1}]
+        })
+
+        result = service._execute_tool_call("price_order", args, "any-customer")
+
+        assert result["items"][0]["unit_price"] == 430000
+        assert result["total_price"] == 430000
+
+    def test_total_ignored_through_the_chat_path(self):
+        """Model tu khai 'total_price' thi bi tu choi, khong duoc dung.
+
+        `price_order` chi nhan `items` va `budget`, nen tham so la bi TypeError
+        bat va tra ve loi kem danh sach tham so dung. Do la hanh vi tot hon viec
+        am tham bo qua: model biet ngay no goi sai.
+        """
+        service = _service_stub_with_products()
+        args = json.dumps({
+            "items": [{"name": "Bánh kem hoa hồng đỏ", "quantity": 1}],
+            "total_price": 1000,
+        })
+
+        result = service._execute_tool_call("price_order", args, "any-customer")
+
+        assert "error" in result
+        assert "total_price" not in result.get("expected_parameters", [])
+        assert "items" in result["expected_parameters"]
+
+
+def _service_stub_with_products():
+    from app.services.chat_service import ChatService
+    from app.services.order_tools import OrderTools
+
+    service = ChatService.__new__(ChatService)
+    service._order_tools = OrderTools(
+        _StubSupabase({"products": _StubTable(select_data=_fake_products())})
+    )
+    return service
