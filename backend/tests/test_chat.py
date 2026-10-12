@@ -1151,3 +1151,162 @@ def _service_stub_with_products():
         _StubSupabase({"products": _StubTable(select_data=_fake_products())})
     )
     return service
+
+
+class TestContactDetailsRequired:
+    """Thiếu số liên hệ thì không tạo đơn, và phải nói rõ thiếu gì."""
+
+    def _tools_stub(self):
+        from app.services.order_tools import OrderTools
+
+        return OrderTools(
+            _StubSupabase({
+                "products": _StubTable(select_data=_fake_products()),
+                "orders": _StubTable(insert_data=[{"id": "order-1", "status": "draft"}]),
+                "order_items": _StubTable(insert_data=[{"id": "item-1"}]),
+            })
+        )
+
+    def _args(self, **over):
+        base = dict(_draft_args())
+        base.update(over)
+        return base
+
+    def test_missing_phone_is_refused(self):
+        """Không có số điện thoại thì tiệm không gọi xác nhận được."""
+        from app.services.order_tools import ToolError
+
+        with pytest.raises(ToolError) as exc:
+            self._tools_stub().create_draft_order(**self._args(customer_phone=""))
+        assert "điện thoại" in str(exc.value.message).lower()
+
+    def test_short_phone_is_refused(self):
+        """Số quá ngắn không phải số thật."""
+        from app.services.order_tools import ToolError
+
+        with pytest.raises(ToolError):
+            self._tools_stub().create_draft_order(**self._args(customer_phone="090"))
+
+    def test_blank_name_is_refused(self):
+        """Không có tên thì thợ không biết giao cho ai."""
+        from app.services.order_tools import ToolError
+
+        with pytest.raises(ToolError) as exc:
+            self._tools_stub().create_draft_order(**self._args(customer_name="   "))
+        assert "tên" in str(exc.value.message).lower()
+
+    def test_refusal_reaches_the_model_as_a_soft_error(self):
+        """Lỗi này phải về tới model dạng dict, không làm sập lượt chat."""
+        result = dispatch(self._tools_stub(), "create_draft_order",
+                          self._args(customer_phone=""))
+
+        assert "error" in result
+        assert "điện thoại" in result["error"].lower()
+
+
+class TestChangedMindBeforeConfirm:
+    """Khách đổi ý trước khi xác nhận: không tạo gì, hoặc không tạo thêm."""
+
+    def test_no_order_created_when_tool_never_called(self):
+        """Đổi ý nghĩa là không gọi công cụ — kiểm tra không có đơn rác."""
+        orders = _StubTable()
+        items = _StubTable()
+        tools = _draft_tools(orders, items)
+
+        # Khách chỉ hỏi giá rồi thôi: chỉ price_order chạy.
+        dispatch(tools, "price_order", {"items": [{"name": "Bánh kem hoa hồng đỏ", "quantity": 1}]})
+
+        assert orders.inserts() == []
+        assert items.inserts() == []
+
+    def test_changing_the_cake_creates_a_different_draft(self):
+        """Đổi bánh thì nội dung khác -> là đơn khác, không bị coi là trùng.
+
+        Bộ chống trùng so cả `ai_summary`, nên đổi món phải cho ra đơn mới.
+        Nếu so thiếu trường này thì khách đổi bánh xong lại nhận đơn cũ.
+        """
+        orders = _StubTable(insert_data=[{"id": "order-moi", "status": "draft"}])
+        items = _StubTable(insert_data=[{"id": "item-1"}])
+        tools = _draft_tools(orders, items)
+
+        first = dict(_draft_args())
+        first["items"] = [{"name": "Bánh kem hoa hồng đỏ", "quantity": 1}]
+        tools.create_draft_order(**first)
+
+        second = dict(_draft_args())
+        second["items"] = [{"name": "Bánh kem chữ Happy Birthday", "quantity": 1}]
+        tools.create_draft_order(**second)
+
+        summaries = [row["ai_summary"] for row in orders.inserts()]
+        assert len(summaries) == 2
+        assert summaries[0] != summaries[1], "đổi bánh phải ra nội dung khác"
+
+
+class TestToolTimeoutAndFailure:
+    """Dịch vụ lỗi hoặc quá hạn thì báo được cho khách, không tạo đơn nửa vời."""
+
+    def test_db_failure_on_order_write_is_a_soft_error(self):
+        from app.services.order_tools import dispatch
+
+        orders = _StubTable(insert_error=RuntimeError("connection reset"))
+        items = _StubTable()
+
+        result = dispatch(_draft_tools(orders, items), "create_draft_order", _draft_args())
+
+        assert "error" in result
+        assert items.inserts() == [], "không ghi món khi đơn chưa tạo được"
+
+    def test_lookup_failure_still_allows_the_order(self):
+        """Truy vấn chống trùng lỗi thì vẫn cho đặt.
+
+        Thà có rủi ro một đơn trùng còn hơn chặn khách mua bánh chỉ vì một
+        truy vấn phụ hỏng.
+        """
+
+        class _FailingSelect(_StubTable):
+            def execute(self):
+                if self._op == "select":
+                    raise RuntimeError("timeout")
+                return super().execute()
+
+        orders = _FailingSelect(insert_data=[{"id": "order-1", "status": "draft"}])
+        items = _StubTable(insert_data=[{"id": "item-1"}])
+
+        result = _draft_tools(orders, items).create_draft_order(**_draft_args())
+
+        assert result["created"] is True
+        assert orders.inserts(), "vẫn phải tạo đơn"
+
+    def test_unknown_tool_name_does_not_crash(self):
+        assert "error" in dispatch(_tools(), "xoa_toan_bo_don", {})
+
+
+class TestDiscountRequestOutsideTheRules:
+    """Khách xin giảm giá trái quy tắc: model không có công cụ nào để hứa."""
+
+    def test_no_tool_accepts_a_discount(self):
+        """Không công cụ nào cho model tự đặt giảm giá.
+
+        Nếu có tham số `discount` thì model bị thuyết phục là hứa được, rồi
+        khách tới lấy bánh và tranh cãi. Giảm giá chỉ đến từ voucher trong CSDL.
+        """
+        from app.services.order_tools import TOOL_SCHEMAS
+
+        for spec in TOOL_SCHEMAS:
+            params = spec.get("function", {}).get("parameters", {})
+            props = params.get("properties", {})
+            for banned in ("discount", "giam_gia", "voucher_discount", "sale"):
+                assert banned not in props, (
+                    f"công cụ {spec['function']['name']} cho model tự đặt {banned}"
+                )
+
+    def test_total_comes_from_the_catalogue_not_the_model(self):
+        """Giá không thể bị hạ qua đường chat."""
+        service = _service_stub_with_products()
+        args = json.dumps({
+            "items": [{"name": "Bánh kem hoa hồng đỏ", "quantity": 1, "unit_price": 1000}]
+        })
+
+        result = service._execute_tool_call("price_order", args, "khach")
+
+        assert result["total_price"] == 430000
