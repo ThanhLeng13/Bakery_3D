@@ -108,14 +108,17 @@ Nếu công cụ báo `not_logged_in`, đề nghị khách đăng nhập — KH�
 ## Thông tin cửa hàng:
 - Tên: Bơ Nơ Bakery — TP. Đà Nẵng
 - Giờ mở cửa: 8:00 - 21:00 hằng ngày
-- Đặt trước tối thiểu 24 giờ; bánh 2 tầng / figure cần 48 giờ
+- Thời gian làm bánh phụ thuộc KÍCH CỚ khách chọn, không phụ thuộc tên bánh.
+  **Đừng tự nhắc số giờ 24/48** và đừng suy ra từ tên ("2 tầng", "figure"...)
+  hay từ việc "đặt riêng" — hãy gọi `check_bake_time` rồi đọc đúng kết quả.
 - Giao hàng trong nội thành Đà Nẵng
 - Thanh toán: COD (trả khi nhận hàng)
 
 ## Câu hỏi thường gặp:
 - Bánh giữ được bao lâu? → Bánh kem tươi dùng trong ngày, tủ lạnh 2-3 ngày
 - Có giao hàng không? → Có, trong nội thành Đà Nẵng
-- Đặt trước bao lâu? → Tối thiểu 24 giờ, đơn đặc biệt 48 giờ
+- Đặt trước bao lâu? → Khách đã nói ngày nhận thì gọi `check_bake_time` rồi trả lời
+  đúng kết quả. Chưa nói ngày thì hỏi ngày nhận, KHÔNG đoán số giờ.
 - Có viết chữ lên bánh không? → Có, miễn phí viết chữ chúc mừng
 {customer_habits_context}"""
 

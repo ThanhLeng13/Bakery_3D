@@ -26,6 +26,10 @@ from app.services.voucher_service import (
 
 _logger = logging.getLogger(__name__)
 
+# Giờ Việt Nam. Thông điệp cho khách phải nói giờ ở Đà Nẵng, không phải giờ
+# UTC — lệch 7 giờ là nói sớm hơn thực tế. `order_tools` dùng cùng hằng số.
+VN_TZ = timezone(timedelta(hours=7))
+
 # Giờ chuẩn bị tối thiểu. Nguồn duy nhất nằm trong `pricing` để agent và
 # checkout không tự tính riêng rồi lệch nhau; hai hằng số đây chỉ để đọc code
 # của service khỏi phải tra sang module khác.
@@ -38,13 +42,17 @@ def _lead_time_message(required: int) -> str:
 
     Tiếng Việt và nêu rõ số giờ tối thiểu: khách cần biết chờ bao lâu nữa,
     không chỉ biết "không được". Câu tiếng Anh cũ đi thẳng tới giao diện.
+
+    Mốc phải là giờ VIỆT NAM. Nếu dùng UTC như trước, khách thấy "từ 08:17" trong
+    khi giờ ở Đà Nẵng là 15:17 — tức nói sớm hơn thực tế 7 giờ, khách tới nơi
+    mà chưa có bánh. `order_tools` vốn đã dùng UTC+7 nên hai bên lệch nhau.
     """
     cakes = "bánh hai tầng" if required >= MIN_LEAD_HOURS_COMPLEX else "bánh"
-    earliest = datetime.now(timezone.utc) + timedelta(hours=required)
+    earliest = datetime.now(VN_TZ) + timedelta(hours=required)
     return (
         f"{cakes} cần đặt trước tối thiểu {required} giờ. "
         f"Vì giờ hiện tại, bạn chỉ có thể nhận từ "
-        f"{earliest.strftime('%d/%m lúc %H:%M')} giờ trở đi. "
+        f"{earliest.strftime('%d/%m lúc %H:%M')} trở đi. "
         "Vui lòng chọn ngày nhận muộn hơn."
     )
 

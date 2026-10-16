@@ -516,6 +516,19 @@ async def main() -> int:
     service._groq_client = None
 
     scenarios = [s for s in SCENARIOS if not args.only or s["name"] == args.only]
+
+    # Không có kịch bản nào khớp thì báo tên sai và thoát, thay vì đi tới
+    # `100*passed/total` với total = 0 — ZeroDivisionError, và người chạy tưởng
+    # hỏng script chứ không phải tự gõ sai tên.
+    if not scenarios:
+        if args.only:
+            print(f"Không có kịch bản nào tên '{args.only}'.")
+            print("Các tên hiện có:")
+            for s in SCENARIOS:
+                print(f"  - {s['name']}")
+        else:
+            print("Danh sách kịch bản trống — SCENARIOS chưa được nạp.")
+        return 2
     print(f"Chạy {len(scenarios)} kịch bản qua model {settings.GROQ_MODEL}\n")
 
     report = []

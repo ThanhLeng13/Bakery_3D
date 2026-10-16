@@ -149,11 +149,27 @@ def _client_as(role: str | None) -> TestClient:
     return TestClient(app, raise_server_exceptions=False)
 
 
-def _call(client: TestClient, method: str, path: str):
+def _anonymous_client() -> TestClient:
+    """Client KHÔNG override gì cả — `get_current_user` chạy thật.
+
+    Dùng cho ca "chưa đăng nhập". Nếu dùng `_client_as(None)` thì hàm bị thay bằng
+    một hàm luôn ném 401, nên test xanh dù ứng dụng thật có mở route ra hay
+    không — tức là test đo cái nó cài đặt chứ không đo cái cần đo.
+    """
+    from fastapi import FastAPI
+
+    app = FastAPI()
+    app.include_router(router, prefix="/api/v1")
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def _call(client: TestClient, method: str, path: str, *, authenticated: bool = True):
     key = (method, path)
     body = BODIES.get(key)
     concrete = _concrete(path)
-    headers = {"Authorization": "Bearer test-token"}
+    # Không gửi header khi `authenticated=False`: muốn kiểm chính hàm thật
+    # `get_current_user` từ chối, chứ không phải một override trả sẵn 401.
+    headers = {"Authorization": "Bearer test-token"} if authenticated else {}
     return client.request(method, concrete, json=body, headers=headers)
 
 
@@ -192,13 +208,17 @@ class TestPermissionMatrix:
 
 
 class TestNoTokenAlwaysRejected:
-    """Route trong ma trận đều phải chặn khách chưa đăng nhập."""
+    """Route trong ma trận đều phải chặn khách chưa đăng nhập.
+
+    Chạy trên app KHÔNG override `get_current_user`, và gửi request không kèm
+    header Authorization, nên 401/403 do chính hàm thật trả về.
+    """
 
     @pytest.mark.parametrize("route", _ids())
     def test_anonymous_is_401_or_403(self, route):
         method, path = route.split(" ", 1)
-        with _client_as(None) as client:
-            resp = _call(client, method, path)
+        with _anonymous_client() as client:
+            resp = _call(client, method, path, authenticated=False)
 
         assert resp.status_code in (401, 403), (
             f"{route} mở cho khách chưa đăng nhập (mã {resp.status_code})."
@@ -210,20 +230,42 @@ class TestPublicRoutesNeedNoLogin:
 
     Nếu sau này ai đó gắn `require_customer` vào `/products`, khách vẫn xem cửa
     hàng được nhưng test này đỏ, báo đúng việc vừa thay đổi.
+
+    Trước khi kiểm mã trả về, khẳng định route thật sự tồn tại. Không có bước
+    này thì một route bị đổi tên sẽ trả 404 — mã "đạt" vì 404 không thuộc
+    (401, 403) — và test xanh trong khi không còn kiểm tra gì cả. Đây đúng là
+    cái bẫy đã gặp một lần: `GET /api/v1/chat/sessions` không tồn tại, trả 405,
+    suýt bị báo là lỗ hổng phân quyền.
     """
 
-    @pytest.mark.parametrize(
-        "path",
-        [
-            "/api/v1/products",
-            "/api/v1/products/{product_id}",
-            "/api/v1/cake-3d-models",
-            "/api/v1/branches",
-            "/api/v1/options",
-        ],
-    )
+    PUBLIC_PATHS = [
+        "/api/v1/products",
+        "/api/v1/products/{product_id}",
+        "/api/v1/cake-3d-models",
+        "/api/v1/branches",
+        "/api/v1/options",
+    ]
+
+    @pytest.mark.parametrize("path", PUBLIC_PATHS)
+    def test_public_route_is_registered_for_get(self, path):
+        # So trên `app` đã include, vì `router` của v1 lưu đường dẫn KHÔNG kèm
+        # tiền tố `/api/v1` (tiền tố do `include_router` gắn vào). So trực tiếp
+        # trên `router` sẽ không khớp dù route có tồn tại.
+        from fastapi import FastAPI
+
+        app = FastAPI()
+        app.include_router(router, prefix="/api/v1")
+
+        registered = {
+            r.path
+            for r in app.routes
+            if "GET" in getattr(r, "methods", set())
+        }
+        assert path in registered, f"{path} không còn được đăng ký với GET."
+
+    @pytest.mark.parametrize("path", PUBLIC_PATHS)
     def test_public_route_reaches_handler_without_token(self, path):
-        with _client_as(None) as client:
+        with _anonymous_client() as client:
             resp = client.get(_concrete(path))
 
         # 404 (id giả) / 422 = đã tới tầng nghiệp vụ. 401/403 = bị chặn oan.

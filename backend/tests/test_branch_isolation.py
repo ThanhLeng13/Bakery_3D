@@ -58,8 +58,13 @@ class TestBranchIsolationIsCurrentlyInert:
         """Hai thợ khác chi nhánh vẫn thấy nhau — vì không có dữ liệu chi nhánh.
 
         Test này KHÔNG khẳng định đây là điều mong muốn. Nó ghi lại hành vi hiện
-        tại để không ai tưởng đã có chốt chi nhánh. Khi thêm cột `branch_id` vào
-        CSDL, test này sẽ đỏ — và lúc đó phải quyết định có lọc hay không.
+        tại để không ai tưởng đã có chốt chi nhánh.
+
+        Cần nói rõ: thêm cột `branch_id` vào CSDL sẽ **không** làm test này đỏ.
+        Ở đây `order` là dict dựng trong test, không đọc từ CSDL, nên nó sẽ vẫn
+        không có khoá `branch_id` và nhánh kiểm tra vẫn không chạy. Muốn chặt được
+        thì phải là một ca khác — `TestBranchIsolationWouldWorkWithData` bên dưới,
+        truyền `branch_id` vào thật.
         """
         order = {"id": ORDER_ID, "status": "in_production", "customer_id": "c1"}
 
@@ -82,6 +87,58 @@ class TestBranchIsolationIsCurrentlyInert:
 
         # Không ném ra: tức nhánh chi nhánh không chạy.
         service._check_baker_authorization(ORDER_ID, order, BAKER_B, read_only=True)
+
+
+class TestBranchIsolationWouldWorkWithData:
+    """Logic nhánh chi nhánh ĐÚNG — chỉ là chưa có dữ liệu để chạy.
+
+    Khác với lớp trên: ở đây `branch_id` được truyền vào thật. Nếu nhánh kiểm tra
+    viết sai (ví dụ so sánh sai biến, hoặc dùng `==` chỗ phải `!=`) thì lớp này
+    đỏ, còn lớp trên vẫn xanh — nên cần cả hai.
+    """
+
+    def test_baker_from_another_branch_is_blocked(self):
+        order = {
+            "id": ORDER_ID,
+            "status": "in_production",
+            "customer_id": "c1",
+            "branch_id": "chi-nhanh-ha-noi",
+        }
+        baker = {"id": "baker-c", "role": "baker", "branch_id": "chi-nhanh-da-nang"}
+        service = _service(order, history_rows=[])
+
+        with pytest.raises(InsufficientPermissionError):
+            service._check_baker_authorization(ORDER_ID, order, baker)
+
+    def test_baker_from_same_branch_passes(self):
+        order = {
+            "id": ORDER_ID,
+            "status": "in_production",
+            "customer_id": "c1",
+            "branch_id": "chi-nhanh-da-nang",
+        }
+        baker = {"id": "baker-c", "role": "baker", "branch_id": "chi-nhanh-da-nang"}
+        service = _service(order, history_rows=[{"changed_by": baker["id"]}])
+
+        service._check_baker_authorization(ORDER_ID, order, baker)
+
+    def test_branch_from_user_metadata_is_also_read(self):
+        """`branch_id` có thể nằm trong metadata; cả hai đều phải được đọc."""
+        order = {
+            "id": ORDER_ID,
+            "status": "in_production",
+            "customer_id": "c1",
+            "branch_id": "chi-nhanh-ha-noi",
+        }
+        baker = {
+            "id": "baker-c",
+            "role": "baker",
+            "user_metadata": {"branch_id": "chi-nhanh-da-nang"},
+        }
+        service = _service(order, history_rows=[])
+
+        with pytest.raises(InsufficientPermissionError):
+            service._check_baker_authorization(ORDER_ID, order, baker)
 
 
 class TestBakerOwnershipIsEnforced:

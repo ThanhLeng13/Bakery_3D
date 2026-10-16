@@ -651,8 +651,22 @@ TOOL_SCHEMAS: list[dict] = [
                     "pickup_date": {"type": "string", "description": "Ngày khách muốn nhận, định dạng YYYY-MM-DD."},
                     "items": _nullable({
                         "type": "array",
-                        "description": "Các món trong đơn, để biết bánh có phức tạp không.",
-                        "items": {"type": "object", "properties": {"name": {"type": "string"}}},
+                        "description": (
+                            "Các món trong đơn. PHẢI kèm `size` là kích cỡ khách "
+                            "chọn (16cm, 20cm, 24cm, 2-tier) vì thời gian chuẩn bị "
+                            "tính theo kích cỡ, KHÔNG theo tên bánh. Khách chưa nói "
+                            "kích cỡ thì hỏi, hoặc bỏ trống để lấy mức mặc định."
+                        ),
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "size": {
+                                    "type": "string",
+                                    "description": "Kích cỡ khách chọn: 16cm, 20cm, 24cm hoặc 2-tier.",
+                                },
+                            },
+                        },
                     }),
                 },
                 "required": ["pickup_date"],
@@ -675,11 +689,19 @@ TOOL_SCHEMAS: list[dict] = [
                     "pickup_date": {"type": "string", "description": "Ngày nhận, YYYY-MM-DD."},
                     "items": {
                         "type": "array",
+                        "description": (
+                            "Các món trong đơn. Nên kèm `size` là kích cỡ khách chọn "
+                            "(16cm, 20cm, 24cm, 2-tier) để kiểm tra thời gian làm đúng."
+                        ),
                         "items": {
                             "type": "object",
                             "properties": {
                                 "cake_id": {"type": "string"},
                                 "name": {"type": "string"},
+                                "size": {
+                                    "type": "string",
+                                    "description": "Kích cỡ khách chọn: 16cm, 20cm, 24cm hoặc 2-tier.",
+                                },
                                 "quantity": {"type": "integer"},
                             },
                             "required": ["quantity"],
