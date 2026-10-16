@@ -90,6 +90,25 @@ def _words(text: str) -> list[str]:
     return [w for w in cleaned.split() if len(w) > 1]
 
 
+def _nullable(schema: dict) -> dict:
+    """Cho một tham số tuỳ chọn nhận thêm `null`.
+
+    Model hay gửi `null` cho tham số không dùng thay vì bỏ hẳn khoá. Groq kiểm
+    tra tool call theo schema và TỪ CHỐI THẲNG nếu không khớp — đo được thật:
+
+        "parameters for tool find_cakes did not match schema:
+         `/budget`: expected integer, but got null"  (HTTP 400)
+
+    Lỗi này ném ra từ tầng gọi API, `_run_agent` bắt mọi lỗi rồi ném
+    `AIServiceUnavailableError`, nên CẢ LƯỢT CHAT SẬP: khách hỏi "tiệm có bánh
+    gì" và nhận câu xin lỗi thay vì danh mục. Cho nhận `null` là đúng vì các hàm
+    đã coi `None` như "khách không nêu".
+    """
+    t = schema.get("type")
+    if isinstance(t, str):
+        return {**schema, "type": [t, "null"]}
+    return schema
+
 class OrderTools:
     """Bộ công cụ thao tác trên CSDL cho trợ lý đặt bánh."""
 
@@ -563,10 +582,10 @@ TOOL_SCHEMAS: list[dict] = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "budget": {"type": "integer", "description": "Ngân sách tối đa, đơn vị VNĐ. Ví dụ 400000."},
-                    "occasion": {"type": "string", "description": "Dịp: sinh nhật, kỷ niệm, cưới, thôi nôi..."},
-                    "keyword": {"type": "string", "description": "Từ khoá mô tả bánh khách muốn, ví dụ 'hoa hồng', '2 tầng'."},
-                    "limit": {"type": "integer", "description": "Số kết quả tối đa (1-10). Mặc định 5."},
+                    "budget": _nullable({"type": "integer", "description": "Ngân sách tối đa, đơn vị VNĐ. Ví dụ 400000."}),
+                    "occasion": _nullable({"type": "string", "description": "Dịp: sinh nhật, kỷ niệm, cưới, thôi nôi..."}),
+                    "keyword": _nullable({"type": "string", "description": "Từ khoá mô tả bánh khách muốn, ví dụ 'hoa hồng', '2 tầng'."}),
+                    "limit": _nullable({"type": "integer", "description": "Số kết quả tối đa (1-10). Mặc định 5."}),
                 },
             },
         },
@@ -579,8 +598,8 @@ TOOL_SCHEMAS: list[dict] = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "cake_id": {"type": "string", "description": "ID bánh lấy từ find_cakes."},
-                    "name": {"type": "string", "description": "Tên bánh, dùng khi chưa có ID."},
+                    "cake_id": _nullable({"type": "string", "description": "ID bánh lấy từ find_cakes."}),
+                    "name": _nullable({"type": "string", "description": "Tên bánh, dùng khi chưa có ID."}),
                 },
             },
         },
@@ -609,7 +628,7 @@ TOOL_SCHEMAS: list[dict] = [
                             "required": ["quantity"],
                         },
                     },
-                    "budget": {"type": "integer", "description": "Ngân sách khách đưa, nếu có."},
+                    "budget": _nullable({"type": "integer", "description": "Ngân sách khách đưa, nếu có."}),
                 },
                 "required": ["items"],
             },
@@ -630,11 +649,11 @@ TOOL_SCHEMAS: list[dict] = [
                 "type": "object",
                 "properties": {
                     "pickup_date": {"type": "string", "description": "Ngày khách muốn nhận, định dạng YYYY-MM-DD."},
-                    "items": {
+                    "items": _nullable({
                         "type": "array",
                         "description": "Các món trong đơn, để biết bánh có phức tạp không.",
                         "items": {"type": "object", "properties": {"name": {"type": "string"}}},
-                    },
+                    }),
                 },
                 "required": ["pickup_date"],
             },
@@ -666,8 +685,8 @@ TOOL_SCHEMAS: list[dict] = [
                             "required": ["quantity"],
                         },
                     },
-                    "customer_email": {"type": "string"},
-                    "notes": {"type": "string", "description": "Ghi chú: chữ trên bánh, dị ứng, giờ nhận."},
+                    "customer_email": _nullable({"type": "string"}),
+                    "notes": _nullable({"type": "string", "description": "Ghi chú: chữ trên bánh, dị ứng, giờ nhận."}),
                 },
                 "required": ["customer_name", "customer_phone", "pickup_date", "items"],
             },

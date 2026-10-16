@@ -23,7 +23,7 @@ from app.services.chat_service import (
     SessionLimitReachedError,
     SessionNotFoundError,
 )
-from app.services.order_tools import dispatch
+from app.services.order_tools import TOOL_SCHEMAS, dispatch
 from app.services.rag_service import RAGService, SYSTEM_PROMPT_TEMPLATE
 
 
@@ -916,7 +916,7 @@ class TestCreateDraftOrderIntegrity:
         assert ("eq", "id", "order-9") in orders.ops
 
     def test_item_failure_is_reported_as_soft_error_to_llm(self):
-        from app.services.order_tools import dispatch
+        from app.services.order_tools import TOOL_SCHEMAS, dispatch
 
         orders = _StubTable(insert_data=[{"id": "order-9", "status": "pending"}])
         items = _StubTable(insert_error=RuntimeError("DB down"))
@@ -1246,7 +1246,7 @@ class TestToolTimeoutAndFailure:
     """Dịch vụ lỗi hoặc quá hạn thì báo được cho khách, không tạo đơn nửa vời."""
 
     def test_db_failure_on_order_write_is_a_soft_error(self):
-        from app.services.order_tools import dispatch
+        from app.services.order_tools import TOOL_SCHEMAS, dispatch
 
         orders = _StubTable(insert_error=RuntimeError("connection reset"))
         items = _StubTable()
@@ -1489,3 +1489,79 @@ class TestAgentSeesTheWholeCatalogue:
         ])
 
         assert tools.find_cakes(limit=10)["found"] == 1
+
+
+class TestToolSchemasAcceptNullForOptionalParameters:
+    """Model hay gui `null` cho tham so tuy chon; schema phai chap nhan.
+
+    Loi da gap that: model goi `find_cakes` voi `{"budget": null, "keyword": null,
+    "occasion": null, "limit": 5}`. Groq kiem tra theo schema va tu choi thang:
+    "expected integer, but got null" — HTTP 400. `_run_agent` bat moi loi roi nem
+    `AIServiceUnavailableError`, nen CA LUOT CHAT SAP: khach hoi "tiem co banh gi"
+    va nhan cau xin loi thay vi danh muc. Do tren 20 kich ban that: 1/20 trượt
+    vi ly do nay.
+
+    Cho phep `null` o tang schema la dung: cac ham da coi `None` la "khach khong
+    neu", nen `null` va thieu tham so phai hanh xu nhu nhau.
+    """
+
+    def _optional_params(self):
+        """Moi tham so KHONG nam trong `required` cua moi cong cu."""
+        out = []
+        for spec in TOOL_SCHEMAS:
+            fn = spec["function"]
+            params = fn.get("parameters", {})
+            required = set(params.get("required", []))
+            for name, schema in params.get("properties", {}).items():
+                if name not in required:
+                    out.append((fn["name"], name, schema))
+        return out
+
+    def test_every_optional_param_allows_null(self):
+        """Tham so tuy chon phai nhan ca kieu that lan null."""
+        offenders = []
+        for tool, name, schema in self._optional_params():
+            t = schema.get("type")
+            if isinstance(t, str) and t != "null":
+                offenders.append(f"{tool}.{name}: type={t}")
+            elif isinstance(t, list) and "null" not in t:
+                offenders.append(f"{tool}.{name}: type={t}")
+
+        assert not offenders, (
+            "tham so tuy chon khong nhan null se lam Groq tu choi tool call "
+            "va sap ca luot chat:\n  " + "\n  ".join(offenders)
+        )
+
+    def test_required_params_do_not_advertise_null(self):
+        """Tham so bat buoc khong duoc noi la chap nhan null."""
+        for spec in TOOL_SCHEMAS:
+            fn = spec["function"]
+            params = fn.get("parameters", {})
+            for name in params.get("required", []):
+                schema = params["properties"][name]
+                t = schema.get("type")
+                assert t != "null", f"{fn['name']}.{name} bat buoc nhung cho null"
+                if isinstance(t, list):
+                    assert "null" not in t, f"{fn['name']}.{name} bat buoc nhung cho null"
+
+    def test_null_optional_params_behave_like_missing(self):
+        """Gui null phai giong het khong gui gi — khong duoc loi."""
+        tools = _tools()
+
+        with_nulls = tools.find_cakes(budget=None, keyword=None, occasion=None, limit=5)
+        without = tools.find_cakes(limit=5)
+
+        assert with_nulls["found"] == without["found"]
+        assert [c["name"] for c in with_nulls["cakes"]] == [
+            c["name"] for c in without["cakes"]
+        ]
+
+    def test_agent_recovers_when_model_sends_nulls(self):
+        """Loi 400 vi null phai khong con xay ra voi schema da sua."""
+        # Kiem tra tinh chat: schema gui len Groq chinh la TOOL_SCHEMAS.
+        for spec in TOOL_SCHEMAS:
+            for name, schema in spec["function"].get("parameters", {}).get("properties", {}).items():
+                t = schema.get("type")
+                nullable = (t == "null") or (isinstance(t, list) and "null" in t)
+                required = name in spec["function"]["parameters"].get("required", [])
+                assert nullable or required, f"{spec['function']['name']}.{name} thieu null"
