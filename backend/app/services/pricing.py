@@ -86,6 +86,29 @@ def is_two_tier(size) -> bool:
     return normalize_size(size) in TWO_TIER_SIZES
 
 
+def lead_hours_for_items(items) -> int:
+    """Giờ chuẩn bị tối thiểu của một đơn, theo kích cỡ khách chọn.
+
+    Nguồn duy nhất cho cả hai nơi kiểm tra: agent (`order_tools`) và checkout
+    (`order_service._validate_pickup_date`). Trước đây agent suy ra từ *tên*
+    sản phẩm ("2 tầng", "figure"...) còn checkout suy ra từ *kích cỡ*, nên
+    cùng một đơn cho hai đáp án lệch nhau 24 giờ — bánh tên "2 tầng" nhưng
+    khách chọn 20cm thì agent báo 48h trong khi chốt đơn chỉ cần 24h.
+
+    Nhiều dòng trong `items` thì lấy mức cao nhất: một đơn có bánh hai tầng vẫn
+    cần 48h dù các dòng khác là bánh một tầng.
+    """
+    longest = DEFAULT_LEAD_HOURS
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+        size = item.get("size")
+        # Bánh tùy chỉnh không có size: dùng mức mặc định.
+        hours = SIZE_LEAD_HOURS.get(normalize_size(size), DEFAULT_LEAD_HOURS)
+        longest = max(longest, hours)
+    return longest
+
+
 def cake_price(size) -> int:
     """Giá của một chiếc bánh tùy chỉnh theo kích cỡ.
 

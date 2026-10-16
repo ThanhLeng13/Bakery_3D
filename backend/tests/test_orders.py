@@ -99,7 +99,8 @@ class TestPickupDateValidation:
 
         with pytest.raises(PickupDateValidationError) as exc_info:
             self.service._validate_pickup_date(pickup, items)
-        assert "24 hours" in exc_info.value.message
+        # Thông điệp tiếng Việt cho khách, nêu rõ số giờ tối thiểu.
+        assert "24" in exc_info.value.message
 
     def test_standard_cake_24h_passes(self):
         """Standard cakes with 24h+ advance should pass."""
@@ -116,7 +117,7 @@ class TestPickupDateValidation:
 
         with pytest.raises(PickupDateValidationError) as exc_info:
             self.service._validate_pickup_date(pickup, items)
-        assert "48 hours" in exc_info.value.message
+        assert "48" in exc_info.value.message
 
     def test_two_tier_cake_48h_passes(self):
         """2-tier cakes with 48h+ advance should pass."""

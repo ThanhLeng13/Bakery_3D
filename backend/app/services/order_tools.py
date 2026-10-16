@@ -24,6 +24,11 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
+from app.services.pricing import (
+    DEFAULT_LEAD_HOURS,
+    lead_hours_for_items,
+)
+
 logger = logging.getLogger(__name__)
 
 # Múi giờ Việt Nam (UTC+7) — mọi mốc thời gian của tiệm đều tính theo giờ này.
@@ -31,10 +36,13 @@ VN_TZ = timezone(timedelta(hours=7))
 
 # Tiệm cần đặt trước bao lâu. Bánh đơn giản 24h, bánh nhiều tầng/figure lâu hơn
 # vì phải đặt nguyên liệu và trang trí thủ công.
-MIN_LEAD_HOURS = 24
+#
+# Số giờ nằm trong `pricing` để agent và checkout dùng chung một quy tắc.
+# Ở đây chỉ giữ tên để các test và nơi gọi cũ vẫn import được.
+MIN_LEAD_HOURS = DEFAULT_LEAD_HOURS
 MIN_LEAD_HOURS_COMPLEX = 48
 
-# Từ khoá nhận biết bánh phức tạp (cần nhiều thời gian chuẩn bị hơn).
+
 COMPLEX_KEYWORDS = ("2 tầng", "3 tầng", "figure", "tạo hình", "cưới")
 
 MAX_RESULTS = 10
@@ -58,14 +66,9 @@ def _vn_now() -> datetime:
     return datetime.now(VN_TZ)
 
 
-def _is_complex(name: str) -> bool:
-    """Bánh phức tạp cần đặt trước lâu hơn."""
-    lowered = (name or "").lower()
-    return any(k in lowered for k in COMPLEX_KEYWORDS)
-
-
-def _lead_hours(name: str) -> int:
-    return MIN_LEAD_HOURS_COMPLEX if _is_complex(name) else MIN_LEAD_HOURS
+# `_is_complex` và `_lead_hours` đã bỏ: chúng đoán độ phức tạp từ *tên* sản
+# phẩm, trong khi checkout đo theo *kích cỡ*, nên hai nơi cho hai đáp án lệch
+# nhau 24 giờ cho cùng một đơn. Dùng `lead_hours_for_items`.
 
 
 # Từ quá chung chung: gần như bánh nào cũng có trong tên, nên nếu tính là "khớp"
@@ -87,6 +90,25 @@ def _words(text: str) -> list[str]:
     return [w for w in cleaned.split() if len(w) > 1]
 
 
+def _nullable(schema: dict) -> dict:
+    """Cho một tham số tuỳ chọn nhận thêm `null`.
+
+    Model hay gửi `null` cho tham số không dùng thay vì bỏ hẳn khoá. Groq kiểm
+    tra tool call theo schema và TỪ CHỐI THẲNG nếu không khớp — đo được thật:
+
+        "parameters for tool find_cakes did not match schema:
+         `/budget`: expected integer, but got null"  (HTTP 400)
+
+    Lỗi này ném ra từ tầng gọi API, `_run_agent` bắt mọi lỗi rồi ném
+    `AIServiceUnavailableError`, nên CẢ LƯỢT CHAT SẬP: khách hỏi "tiệm có bánh
+    gì" và nhận câu xin lỗi thay vì danh mục. Cho nhận `null` là đúng vì các hàm
+    đã coi `None` như "khách không nêu".
+    """
+    t = schema.get("type")
+    if isinstance(t, str):
+        return {**schema, "type": [t, "null"]}
+    return schema
+
 class OrderTools:
     """Bộ công cụ thao tác trên CSDL cho trợ lý đặt bánh."""
 
@@ -98,7 +120,17 @@ class OrderTools:
     # ────────────────────────────────────────────────────────────────────────
 
     def _active_cakes(self) -> list[dict]:
-        """Lấy bánh đang bán. Chỉ `cake` — trợ lý này tư vấn bánh sinh nhật."""
+        """Lấy mọi sản phẩm đang bán.
+
+        Trước đây chỉ giữ `product_type == "cake"`, bỏ hết `sweet`. Kho có 18
+        món `sweet` đang bán bình thường — tiramisu, cheesecake, brownie, su
+        kem — nên khách hỏi tiramisu thì trợ lý trả lời "tiệm chưa có", tức là
+        nói sai về chính cửa hàng mình. Cửa hàng (`catalog_service`) không lọc
+        theo `product_type`, nên trợ lý phải thấy đúng tập đó.
+
+        Sắp xếp bánh kem lên trước để khi khách hỏi chung chung, gợi ý vẫn
+        nghiêng về mặt hàng chủ đạo — nhưng không ẩn món nào.
+        """
         result = (
             self._supabase.table("products")
             .select("id, name, description, category, base_price, sizes, flavors, product_type")
@@ -106,10 +138,7 @@ class OrderTools:
             .execute()
         )
         rows = result.data or []
-        # Ưu tiên bánh sinh nhật; nếu kho chưa có `cake` nào thì trả tất cả để
-        # trợ lý vẫn tư vấn được thay vì nói "không có gì".
-        cakes = [r for r in rows if r.get("product_type") == "cake"]
-        return cakes or rows
+        return sorted(rows, key=lambda r: 0 if r.get("product_type") == "cake" else 1)
 
     def find_cakes(
         self,
@@ -200,7 +229,9 @@ class OrderTools:
                     "description": (p.get("description") or "")[:160],
                     "sizes": p.get("sizes") or [],
                     "flavors": p.get("flavors") or [],
-                    "needs_lead_hours": _lead_hours(p.get("name", "")),
+                    # Chưa có kích cỡ khách chọn nên báo mức nhỏ nhất; đơn
+                    # thật dùng `lead_hours_for_items` theo size khách chọn.
+                    "needs_lead_hours": DEFAULT_LEAD_HOURS,
                 }
                 for p in matched[:limit]
             ],
@@ -231,7 +262,8 @@ class OrderTools:
             "description": found.get("description") or "",
             "sizes": found.get("sizes") or [],
             "flavors": found.get("flavors") or [],
-            "needs_lead_hours": _lead_hours(found["name"]),
+            # Mức nhỏ nhất; đơn thật tính theo size khách chọn.
+            "needs_lead_hours": DEFAULT_LEAD_HOURS,
         }
 
     # ────────────────────────────────────────────────────────────────────────
@@ -332,16 +364,11 @@ class OrderTools:
             )
         parsed = parsed.replace(tzinfo=VN_TZ)
 
-        # Bánh phức tạp cần lâu hơn -> lấy mức cao nhất trong đơn.
-        lead = MIN_LEAD_HOURS
-        if items:
-            products = self._active_cakes()
-            by_id = {p["id"]: p for p in products}
-            by_name = {p["name"].strip().lower(): p for p in products}
-            for it in items:
-                prod = by_id.get(it.get("cake_id")) or by_name.get(str(it.get("name", "")).strip().lower())
-                if prod:
-                    lead = max(lead, _lead_hours(prod["name"]))
+        # Quy tắc đặt trước lấy từ KÍCH CỚ khách chọn, đúng nguồn checkout dùng.
+        # Trước đây nơi này đoán độ phức tạp từ *tên* sản phẩm ("2 tầng",
+        # "figure"...) trong khi `order_service` đo theo size, nên cùng một
+        # đơn cho hai đáp án lệch nhau đúng 24 giờ. Xem `lead_hours_for_items`.
+        lead = lead_hours_for_items(items)
 
         # Ngày chỉ có ngày-tháng (YYYY-MM-DD) được hiểu là 00:00 hôm đó. Nếu khách
         # nói "hôm nay" thì 00:00 đã trôi qua, cho ra số giờ ÂM trông vô lý. Coi
@@ -547,15 +574,18 @@ TOOL_SCHEMAS: list[dict] = [
             "description": (
                 "Tìm bánh trong danh mục theo ngân sách, dịp hoặc từ khoá. "
                 "LUÔN dùng công cụ này trước khi nói tên bánh hay giá với khách — "
-                "không được tự nghĩ ra sản phẩm hoặc giá."
+                "không được tự nghĩ ra sản phẩm hoặc giá. "
+                "Cũng dùng khi khách hỏi tiệm có những loại bánh gì, xem menu, "
+                "hoặc hỏi chung chung về danh mục — gọi không tham số cũng được, "
+                "sẽ trả về danh sách bánh."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "budget": {"type": "integer", "description": "Ngân sách tối đa, đơn vị VNĐ. Ví dụ 400000."},
-                    "occasion": {"type": "string", "description": "Dịp: sinh nhật, kỷ niệm, cưới, thôi nôi..."},
-                    "keyword": {"type": "string", "description": "Từ khoá mô tả bánh khách muốn, ví dụ 'hoa hồng', '2 tầng'."},
-                    "limit": {"type": "integer", "description": "Số kết quả tối đa (1-10). Mặc định 5."},
+                    "budget": _nullable({"type": "integer", "description": "Ngân sách tối đa, đơn vị VNĐ. Ví dụ 400000."}),
+                    "occasion": _nullable({"type": "string", "description": "Dịp: sinh nhật, kỷ niệm, cưới, thôi nôi..."}),
+                    "keyword": _nullable({"type": "string", "description": "Từ khoá mô tả bánh khách muốn, ví dụ 'hoa hồng', '2 tầng'."}),
+                    "limit": _nullable({"type": "integer", "description": "Số kết quả tối đa (1-10). Mặc định 5."}),
                 },
             },
         },
@@ -568,8 +598,8 @@ TOOL_SCHEMAS: list[dict] = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "cake_id": {"type": "string", "description": "ID bánh lấy từ find_cakes."},
-                    "name": {"type": "string", "description": "Tên bánh, dùng khi chưa có ID."},
+                    "cake_id": _nullable({"type": "string", "description": "ID bánh lấy từ find_cakes."}),
+                    "name": _nullable({"type": "string", "description": "Tên bánh, dùng khi chưa có ID."}),
                 },
             },
         },
@@ -598,7 +628,7 @@ TOOL_SCHEMAS: list[dict] = [
                             "required": ["quantity"],
                         },
                     },
-                    "budget": {"type": "integer", "description": "Ngân sách khách đưa, nếu có."},
+                    "budget": _nullable({"type": "integer", "description": "Ngân sách khách đưa, nếu có."}),
                 },
                 "required": ["items"],
             },
@@ -610,17 +640,34 @@ TOOL_SCHEMAS: list[dict] = [
             "name": "check_bake_time",
             "description": (
                 "Kiểm tra ngày nhận bánh có kịp làm không. Phải gọi trước khi hứa "
-                "ngày với khách. Bánh nhiều tầng cần đặt trước lâu hơn."
+                "ngày với khách. Bánh nhiều tầng cần đặt trước lâu hơn. "
+                "Gọi công cụ này NGAY khi khách nhắc tới một ngày nhận cụ thể, kể cả "
+                "khi khách chỉ hỏi 'ngày đó kịp không' — KHÔNG trả lời số giờ đặt "
+                "trước từ trí nhớ, và KHÔNG tự nói một ngày nào đó là sớm nhất."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "pickup_date": {"type": "string", "description": "Ngày khách muốn nhận, định dạng YYYY-MM-DD."},
-                    "items": {
+                    "items": _nullable({
                         "type": "array",
-                        "description": "Các món trong đơn, để biết bánh có phức tạp không.",
-                        "items": {"type": "object", "properties": {"name": {"type": "string"}}},
-                    },
+                        "description": (
+                            "Các món trong đơn. PHẢI kèm `size` là kích cỡ khách "
+                            "chọn (16cm, 20cm, 24cm, 2-tier) vì thời gian chuẩn bị "
+                            "tính theo kích cỡ, KHÔNG theo tên bánh. Khách chưa nói "
+                            "kích cỡ thì hỏi, hoặc bỏ trống để lấy mức mặc định."
+                        ),
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "size": {
+                                    "type": "string",
+                                    "description": "Kích cỡ khách chọn: 16cm, 20cm, 24cm hoặc 2-tier.",
+                                },
+                            },
+                        },
+                    }),
                 },
                 "required": ["pickup_date"],
             },
@@ -642,18 +689,26 @@ TOOL_SCHEMAS: list[dict] = [
                     "pickup_date": {"type": "string", "description": "Ngày nhận, YYYY-MM-DD."},
                     "items": {
                         "type": "array",
+                        "description": (
+                            "Các món trong đơn. Nên kèm `size` là kích cỡ khách chọn "
+                            "(16cm, 20cm, 24cm, 2-tier) để kiểm tra thời gian làm đúng."
+                        ),
                         "items": {
                             "type": "object",
                             "properties": {
                                 "cake_id": {"type": "string"},
                                 "name": {"type": "string"},
+                                "size": {
+                                    "type": "string",
+                                    "description": "Kích cỡ khách chọn: 16cm, 20cm, 24cm hoặc 2-tier.",
+                                },
                                 "quantity": {"type": "integer"},
                             },
                             "required": ["quantity"],
                         },
                     },
-                    "customer_email": {"type": "string"},
-                    "notes": {"type": "string", "description": "Ghi chú: chữ trên bánh, dị ứng, giờ nhận."},
+                    "customer_email": _nullable({"type": "string"}),
+                    "notes": _nullable({"type": "string", "description": "Ghi chú: chữ trên bánh, dị ứng, giờ nhận."}),
                 },
                 "required": ["customer_name", "customer_phone", "pickup_date", "items"],
             },

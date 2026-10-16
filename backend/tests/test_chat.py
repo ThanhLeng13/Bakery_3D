@@ -23,7 +23,7 @@ from app.services.chat_service import (
     SessionLimitReachedError,
     SessionNotFoundError,
 )
-from app.services.order_tools import dispatch
+from app.services.order_tools import TOOL_SCHEMAS, dispatch
 from app.services.rag_service import RAGService, SYSTEM_PROMPT_TEMPLATE
 
 
@@ -301,11 +301,17 @@ class TestOrderToolsFindCakes:
         # chu khong phai tra ve rac.
         assert result["found"] == 3
 
-    def test_complex_cake_needs_longer_lead(self):
-        """Banh nhieu tang phai can dat truoc lau hon banh thuong."""
+    def test_find_cakes_bao_muc_dat_truoc_mac_dinh(self):
+        """Danh sách gợi ý báo mức nhỏ nhất vì chưa biết khách chọn kích cỡ nào.
+
+        Trước đây `needs_lead_hours` đoán từ tên ("2 tầng" → 48h) trong khi
+        checkout đo theo kích cỡ, nên cùng một đơn cho hai đáp án lệch 24h.
+        Ở bước tìm mẫu chưa có size nên chỉ báo được mức một tầng; mức 48h
+        chốt khi khách chọn 2-tier, qua `lead_hours_for_items`.
+        """
         result = _tools().find_cakes(keyword="2 tầng")
         two_tier = next(c for c in result["cakes"] if "2 tầng" in c["name"])
-        assert two_tier["needs_lead_hours"] == 48
+        assert two_tier["needs_lead_hours"] == 24
 
 
 class TestOrderToolsPriceOrder:
@@ -910,7 +916,7 @@ class TestCreateDraftOrderIntegrity:
         assert ("eq", "id", "order-9") in orders.ops
 
     def test_item_failure_is_reported_as_soft_error_to_llm(self):
-        from app.services.order_tools import dispatch
+        from app.services.order_tools import TOOL_SCHEMAS, dispatch
 
         orders = _StubTable(insert_data=[{"id": "order-9", "status": "pending"}])
         items = _StubTable(insert_error=RuntimeError("DB down"))
@@ -1020,3 +1026,542 @@ class TestRAGServiceCurrentDate:
         assert context.startswith("Hôm nay là ")
         assert VN_WEEKDAYS[now.weekday()] in context
         assert now.strftime("%d/%m/%Y") in context
+
+
+# ============================================================
+# Ranh gioi tin cay: LLM KHONG duoc quyet dinh quyen, gia, hay chu don
+# ============================================================
+
+
+class TestLlmCannotForgeIdentity:
+    """`customer_id` do phien dang nhap quyet dinh, khong do model khai.
+
+    Model doc duoc toan bo ngu canh hoi thoai va co the sinh ra bat ky tham so
+    nao. Neu `customer_id` lay tu tham so do model gui thi mot cau nhu "dat
+    don nay cho tai khoan X" se tao don thuoc tai khoan khac. Cot
+    `orders.customer_id` la NOT NULL nen don luon phai thuoc mot nguoi that.
+    """
+
+    def _service(self, customer_id):
+        """ChatService that, nhung OrderTools gia de khong can CSDL."""
+        from app.services.chat_service import ChatService
+        from app.services.order_tools import OrderTools
+
+        service = ChatService.__new__(ChatService)
+        service._order_tools = OrderTools(
+            _StubSupabase({
+                "products": _StubTable(select_data=_fake_products()),
+                "orders": _StubTable(insert_data=[{"id": "order-1", "status": "draft"}]),
+                "order_items": _StubTable(insert_data=[{"id": "item-1"}]),
+            })
+        )
+        return service
+
+    def _args(self, **extra):
+        base = {
+            "customer_name": "Khách",
+            "customer_phone": "0901234567",
+            "pickup_date": _pickup_in(5),
+            "items": [{"name": "Bánh kem hoa hồng đỏ", "quantity": 1}],
+        }
+        base.update(extra)
+        return json.dumps(base)
+
+    def test_model_forged_customer_id_is_replaced(self):
+        """Model tu gui customer_id thi bi ghi de bang id cua phien."""
+        real = "11111111-1111-1111-1111-111111111111"
+        forged = "99999999-9999-9999-9999-999999999999"
+        service = self._service(real)
+
+        service._execute_tool_call(
+            "create_draft_order", self._args(customer_id=forged), real
+        )
+
+        payload = service._order_tools._supabase.table("orders").inserts()[0]
+        assert payload["customer_id"] == real, "khong duoc lay customer_id tu LLM"
+        assert payload["customer_id"] != forged
+
+    def test_no_session_means_no_order_even_if_model_supplies_an_id(self):
+        """Khong dang nhap thi khong tao don, du model tu khai id."""
+        service = self._service(None)
+
+        result = service._execute_tool_call(
+            "create_draft_order",
+            self._args(customer_id="99999999-9999-9999-9999-999999999999"),
+            None,
+        )
+
+        assert result["created"] is False
+        assert result["reason"] == "not_logged_in"
+        assert service._order_tools._supabase.table("orders").inserts() == []
+
+    def test_customer_id_from_session_is_used(self):
+        """Duong di dung: id cua phien duoc ghi vao don."""
+        real = "22222222-2222-2222-2222-222222222222"
+        service = self._service(real)
+
+        result = service._execute_tool_call("create_draft_order", self._args(), real)
+
+        assert result["created"] is True
+        payload = service._order_tools._supabase.table("orders").inserts()[0]
+        assert payload["customer_id"] == real
+
+
+class TestLlmCannotSetPrice:
+    """Gia do CSDL quyet dinh, khong do model khai."""
+
+    def test_price_ignored_through_the_chat_path(self):
+        """Model khai 1d cho banh 430.000d thi van tinh gia that."""
+        service = _service_stub_with_products()
+        args = json.dumps({
+            "items": [{"name": "Bánh kem hoa hồng đỏ", "quantity": 1, "unit_price": 1}]
+        })
+
+        result = service._execute_tool_call("price_order", args, "any-customer")
+
+        assert result["items"][0]["unit_price"] == 430000
+        assert result["total_price"] == 430000
+
+    def test_total_ignored_through_the_chat_path(self):
+        """Model tu khai 'total_price' thi bi tu choi, khong duoc dung.
+
+        `price_order` chi nhan `items` va `budget`, nen tham so la bi TypeError
+        bat va tra ve loi kem danh sach tham so dung. Do la hanh vi tot hon viec
+        am tham bo qua: model biet ngay no goi sai.
+        """
+        service = _service_stub_with_products()
+        args = json.dumps({
+            "items": [{"name": "Bánh kem hoa hồng đỏ", "quantity": 1}],
+            "total_price": 1000,
+        })
+
+        result = service._execute_tool_call("price_order", args, "any-customer")
+
+        assert "error" in result
+        assert "total_price" not in result.get("expected_parameters", [])
+        assert "items" in result["expected_parameters"]
+
+
+def _service_stub_with_products():
+    from app.services.chat_service import ChatService
+    from app.services.order_tools import OrderTools
+
+    service = ChatService.__new__(ChatService)
+    service._order_tools = OrderTools(
+        _StubSupabase({"products": _StubTable(select_data=_fake_products())})
+    )
+    return service
+
+
+class TestContactDetailsRequired:
+    """Thiếu số liên hệ thì không tạo đơn, và phải nói rõ thiếu gì."""
+
+    def _tools_stub(self):
+        from app.services.order_tools import OrderTools
+
+        return OrderTools(
+            _StubSupabase({
+                "products": _StubTable(select_data=_fake_products()),
+                "orders": _StubTable(insert_data=[{"id": "order-1", "status": "draft"}]),
+                "order_items": _StubTable(insert_data=[{"id": "item-1"}]),
+            })
+        )
+
+    def _args(self, **over):
+        base = dict(_draft_args())
+        base.update(over)
+        return base
+
+    def test_missing_phone_is_refused(self):
+        """Không có số điện thoại thì tiệm không gọi xác nhận được."""
+        from app.services.order_tools import ToolError
+
+        with pytest.raises(ToolError) as exc:
+            self._tools_stub().create_draft_order(**self._args(customer_phone=""))
+        assert "điện thoại" in str(exc.value.message).lower()
+
+    def test_short_phone_is_refused(self):
+        """Số quá ngắn không phải số thật."""
+        from app.services.order_tools import ToolError
+
+        with pytest.raises(ToolError):
+            self._tools_stub().create_draft_order(**self._args(customer_phone="090"))
+
+    def test_blank_name_is_refused(self):
+        """Không có tên thì thợ không biết giao cho ai."""
+        from app.services.order_tools import ToolError
+
+        with pytest.raises(ToolError) as exc:
+            self._tools_stub().create_draft_order(**self._args(customer_name="   "))
+        assert "tên" in str(exc.value.message).lower()
+
+    def test_refusal_reaches_the_model_as_a_soft_error(self):
+        """Lỗi này phải về tới model dạng dict, không làm sập lượt chat."""
+        result = dispatch(self._tools_stub(), "create_draft_order",
+                          self._args(customer_phone=""))
+
+        assert "error" in result
+        assert "điện thoại" in result["error"].lower()
+
+
+class TestChangedMindBeforeConfirm:
+    """Khách đổi ý trước khi xác nhận: không tạo gì, hoặc không tạo thêm."""
+
+    def test_no_order_created_when_tool_never_called(self):
+        """Đổi ý nghĩa là không gọi công cụ — kiểm tra không có đơn rác."""
+        orders = _StubTable()
+        items = _StubTable()
+        tools = _draft_tools(orders, items)
+
+        # Khách chỉ hỏi giá rồi thôi: chỉ price_order chạy.
+        dispatch(tools, "price_order", {"items": [{"name": "Bánh kem hoa hồng đỏ", "quantity": 1}]})
+
+        assert orders.inserts() == []
+        assert items.inserts() == []
+
+    def test_changing_the_cake_creates_a_different_draft(self):
+        """Đổi bánh thì nội dung khác -> là đơn khác, không bị coi là trùng.
+
+        Bộ chống trùng so cả `ai_summary`, nên đổi món phải cho ra đơn mới.
+        Nếu so thiếu trường này thì khách đổi bánh xong lại nhận đơn cũ.
+        """
+        orders = _StubTable(insert_data=[{"id": "order-moi", "status": "draft"}])
+        items = _StubTable(insert_data=[{"id": "item-1"}])
+        tools = _draft_tools(orders, items)
+
+        first = dict(_draft_args())
+        first["items"] = [{"name": "Bánh kem hoa hồng đỏ", "quantity": 1}]
+        tools.create_draft_order(**first)
+
+        second = dict(_draft_args())
+        second["items"] = [{"name": "Bánh kem chữ Happy Birthday", "quantity": 1}]
+        tools.create_draft_order(**second)
+
+        summaries = [row["ai_summary"] for row in orders.inserts()]
+        assert len(summaries) == 2
+        assert summaries[0] != summaries[1], "đổi bánh phải ra nội dung khác"
+
+
+class TestToolTimeoutAndFailure:
+    """Dịch vụ lỗi hoặc quá hạn thì báo được cho khách, không tạo đơn nửa vời."""
+
+    def test_db_failure_on_order_write_is_a_soft_error(self):
+        from app.services.order_tools import TOOL_SCHEMAS, dispatch
+
+        orders = _StubTable(insert_error=RuntimeError("connection reset"))
+        items = _StubTable()
+
+        result = dispatch(_draft_tools(orders, items), "create_draft_order", _draft_args())
+
+        assert "error" in result
+        assert items.inserts() == [], "không ghi món khi đơn chưa tạo được"
+
+    def test_lookup_failure_still_allows_the_order(self):
+        """Truy vấn chống trùng lỗi thì vẫn cho đặt.
+
+        Thà có rủi ro một đơn trùng còn hơn chặn khách mua bánh chỉ vì một
+        truy vấn phụ hỏng.
+        """
+
+        class _FailingSelect(_StubTable):
+            def execute(self):
+                if self._op == "select":
+                    raise RuntimeError("timeout")
+                return super().execute()
+
+        orders = _FailingSelect(insert_data=[{"id": "order-1", "status": "draft"}])
+        items = _StubTable(insert_data=[{"id": "item-1"}])
+
+        result = _draft_tools(orders, items).create_draft_order(**_draft_args())
+
+        assert result["created"] is True
+        assert orders.inserts(), "vẫn phải tạo đơn"
+
+    def test_unknown_tool_name_does_not_crash(self):
+        assert "error" in dispatch(_tools(), "xoa_toan_bo_don", {})
+
+
+class TestDiscountRequestOutsideTheRules:
+    """Khách xin giảm giá trái quy tắc: model không có công cụ nào để hứa."""
+
+    def test_no_tool_accepts_a_discount(self):
+        """Không công cụ nào cho model tự đặt giảm giá.
+
+        Nếu có tham số `discount` thì model bị thuyết phục là hứa được, rồi
+        khách tới lấy bánh và tranh cãi. Giảm giá chỉ đến từ voucher trong CSDL.
+        """
+        from app.services.order_tools import TOOL_SCHEMAS
+
+        for spec in TOOL_SCHEMAS:
+            params = spec.get("function", {}).get("parameters", {})
+            props = params.get("properties", {})
+            for banned in ("discount", "giam_gia", "voucher_discount", "sale"):
+                assert banned not in props, (
+                    f"công cụ {spec['function']['name']} cho model tự đặt {banned}"
+                )
+
+    def test_total_comes_from_the_catalogue_not_the_model(self):
+        """Giá không thể bị hạ qua đường chat."""
+        service = _service_stub_with_products()
+        args = json.dumps({
+            "items": [{"name": "Bánh kem hoa hồng đỏ", "quantity": 1, "unit_price": 1000}]
+        })
+
+        result = service._execute_tool_call("price_order", args, "khach")
+
+        assert result["total_price"] == 430000
+
+
+class TestToolTrace:
+    """Trace du de danh gia, khong luu du lieu rieng cua khach."""
+
+    def test_trace_has_time_and_outcome(self):
+        from app.services.chat_service import _trace_entry
+
+        entry = _trace_entry(
+            "price_order",
+            '{"items": [{"name": "A"}]}',
+            {"total_price": 100},
+            12.34,
+        )
+
+        assert entry["tool"] == "price_order"
+        assert entry["elapsed_ms"] == 12.3
+        assert entry["ok"] is True
+        assert entry["args"] == "items"
+
+    def test_trace_flags_errors(self):
+        from app.services.chat_service import _trace_entry
+
+        entry = _trace_entry("create_draft_order", "{}", {"error": "hỏng"}, 5.0)
+
+        assert entry["ok"] is False
+
+    def test_trace_never_stores_argument_values(self):
+        """Số điện thoại, email, tên khách KHÔNG được vào log.
+
+        Trace chỉ cần biết model truyền tham số nào, không cần giá trị. Ghi giá
+        trị nghĩa là log chứa dữ liệu riêng của khách mà không ai xoá.
+        """
+        from app.services.chat_service import _safe_arg_names
+
+        raw = json.dumps({
+            "customer_name": "Nguyễn Thị Bí Mật",
+            "customer_phone": "0987654321",
+            "customer_email": "bi.mat@example.com",
+            "items": [{"name": "Bánh"}],
+        })
+
+        names = _safe_arg_names(raw)
+
+        for secret in ("Nguyễn Thị Bí Mật", "0987654321", "bi.mat@example.com"):
+            assert secret not in names, f"trace lộ '{secret}'"
+        assert names == "customer_email,customer_name,customer_phone,items"
+
+    def test_trace_survives_broken_json(self):
+        """Tham số hỏng thì ghi '?', không được làm sập trace."""
+        from app.services.chat_service import _safe_arg_names
+
+        assert _safe_arg_names("{khong-phai-json") == "?"
+        assert _safe_arg_names("") == "-"
+        assert _safe_arg_names("[1, 2]") == "?"
+
+
+class TestTraceIsRecordedByTheAgentLoop:
+    """Trace phai duoc ghi boi chinh vong lap agent, khong chi la ham roi."""
+
+    @pytest.mark.asyncio
+    async def test_tool_call_is_traced_with_time_and_name(self):
+        """Mot luot co goi cong cu -> trace co tool, args, elapsed_ms, ok."""
+        from app.services.chat_service import ChatService
+
+        service = ChatService.__new__(ChatService)
+        from app.services.order_tools import OrderTools
+
+        service._order_tools = OrderTools(
+            _StubSupabase({"products": _StubTable(select_data=_fake_products())})
+        )
+
+        call = MagicMock()
+        call.id = "call-1"
+        call.function.name = "price_order"
+        call.function.arguments = json.dumps({
+            "items": [{"name": "Bánh kem hoa hồng đỏ", "quantity": 1}]
+        })
+        call.function.name = "price_order"
+
+        first = MagicMock()
+        first.choices = [MagicMock()]
+        first.choices[0].message.tool_calls = [call]
+        first.choices[0].message.content = ""
+
+        final = MagicMock()
+        final.choices = [MagicMock()]
+        final.choices[0].message.tool_calls = None
+        final.choices[0].message.content = "Dạ bánh 430.000đ ạ."
+
+        client = MagicMock()
+        client.chat.completions.create = AsyncMock(side_effect=[first, final])
+        service._groq_client = client
+
+        content, tool_log = await service._run_agent("prompt", [], "khach-1")
+
+        assert content == "Dạ bánh 430.000đ ạ."
+        assert len(tool_log) == 1
+        entry = tool_log[0]
+        assert entry["tool"] == "price_order"
+        assert entry["ok"] is True
+        assert isinstance(entry["elapsed_ms"], float)
+        assert entry["elapsed_ms"] >= 0
+        # Ten tham so duoc ghi, gia tri thi khong.
+        assert entry["args"] == "items"
+        assert entry["result"]["total_price"] == 430000
+
+
+class TestAgentSeesTheWholeCatalogue:
+    """Trợ lý phải thấy đúng những gì cửa hàng bán, không ít hơn.
+
+    Lỗi đã gặp: `_active_cakes` chỉ giữ `product_type == "cake"`, bỏ hết
+    `sweet`. Kho có 18 món `sweet` (tiramisu, cheesecake, brownie, su kem...)
+    đang bán bình thường trên cửa hàng, nhưng khách hỏi thì trợ lý trả lời
+    "tiệm chưa có" — nói sai sự thật về chính cửa hàng mình.
+    """
+
+    def _tools_with(self, products):
+        from app.services.order_tools import OrderTools
+
+        return OrderTools(
+            _StubSupabase({"products": _StubTable(select_data=products)})
+        )
+
+    def _product(self, name, ptype):
+        return {
+            "id": str(uuid4()),
+            "name": name,
+            "description": "",
+            "category": "bánh ngọt",
+            "base_price": 60000,
+            "sizes": [],
+            "flavors": [],
+            "product_type": ptype,
+        }
+
+    def test_sweet_product_is_findable(self):
+        """Món loại `sweet` phải tìm được, không bị lọc bỏ."""
+        tools = self._tools_with([
+            self._product("Bánh tiramisu truyền thống", "sweet"),
+            self._product("Bánh kem hoa hồng đỏ", "cake"),
+        ])
+
+        result = tools.find_cakes(keyword="tiramisu")
+
+        assert result["found"] == 1
+        assert result["cakes"][0]["name"] == "Bánh tiramisu truyền thống"
+
+    def test_agent_sees_every_active_product(self):
+        """Không món nào bị ẩn: số agent thấy = số cửa hàng bán."""
+        products = [
+            self._product("Bánh tiramisu truyền thống", "sweet"),
+            self._product("Cheesecake Red Velvet", "sweet"),
+            self._product("Bánh kem hoa hồng đỏ", "cake"),
+        ]
+        tools = self._tools_with(products)
+
+        result = tools.find_cakes(limit=10)
+
+        names = {c["name"] for c in result["cakes"]}
+        assert names == {p["name"] for p in products}
+
+    def test_sweet_product_can_be_ordered(self):
+        """Món `sweet` không chỉ tìm được mà còn tính được tiền."""
+        tools = self._tools_with([
+            self._product("Bánh tiramisu truyền thống", "sweet"),
+        ])
+
+        priced = tools.price_order(items=[{"name": "Bánh tiramisu truyền thống", "quantity": 1}])
+
+        assert priced["total_price"] == 60000
+
+    def test_no_product_type_at_all_still_visible(self):
+        """Sản phẩm thiếu `product_type` cũng phải hiện, không bị loại oan."""
+        tools = self._tools_with([
+            self._product("Bánh bí ẩn", None),
+        ])
+
+        assert tools.find_cakes(limit=10)["found"] == 1
+
+
+class TestToolSchemasAcceptNullForOptionalParameters:
+    """Model hay gui `null` cho tham so tuy chon; schema phai chap nhan.
+
+    Loi da gap that: model goi `find_cakes` voi `{"budget": null, "keyword": null,
+    "occasion": null, "limit": 5}`. Groq kiem tra theo schema va tu choi thang:
+    "expected integer, but got null" — HTTP 400. `_run_agent` bat moi loi roi nem
+    `AIServiceUnavailableError`, nen CA LUOT CHAT SAP: khach hoi "tiem co banh gi"
+    va nhan cau xin loi thay vi danh muc. Do tren 20 kich ban that: 1/20 trượt
+    vi ly do nay.
+
+    Cho phep `null` o tang schema la dung: cac ham da coi `None` la "khach khong
+    neu", nen `null` va thieu tham so phai hanh xu nhu nhau.
+    """
+
+    def _optional_params(self):
+        """Moi tham so KHONG nam trong `required` cua moi cong cu."""
+        out = []
+        for spec in TOOL_SCHEMAS:
+            fn = spec["function"]
+            params = fn.get("parameters", {})
+            required = set(params.get("required", []))
+            for name, schema in params.get("properties", {}).items():
+                if name not in required:
+                    out.append((fn["name"], name, schema))
+        return out
+
+    def test_every_optional_param_allows_null(self):
+        """Tham so tuy chon phai nhan ca kieu that lan null."""
+        offenders = []
+        for tool, name, schema in self._optional_params():
+            t = schema.get("type")
+            if isinstance(t, str) and t != "null":
+                offenders.append(f"{tool}.{name}: type={t}")
+            elif isinstance(t, list) and "null" not in t:
+                offenders.append(f"{tool}.{name}: type={t}")
+
+        assert not offenders, (
+            "tham so tuy chon khong nhan null se lam Groq tu choi tool call "
+            "va sap ca luot chat:\n  " + "\n  ".join(offenders)
+        )
+
+    def test_required_params_do_not_advertise_null(self):
+        """Tham so bat buoc khong duoc noi la chap nhan null."""
+        for spec in TOOL_SCHEMAS:
+            fn = spec["function"]
+            params = fn.get("parameters", {})
+            for name in params.get("required", []):
+                schema = params["properties"][name]
+                t = schema.get("type")
+                assert t != "null", f"{fn['name']}.{name} bat buoc nhung cho null"
+                if isinstance(t, list):
+                    assert "null" not in t, f"{fn['name']}.{name} bat buoc nhung cho null"
+
+    def test_null_optional_params_behave_like_missing(self):
+        """Gui null phai giong het khong gui gi — khong duoc loi."""
+        tools = _tools()
+
+        with_nulls = tools.find_cakes(budget=None, keyword=None, occasion=None, limit=5)
+        without = tools.find_cakes(limit=5)
+
+        assert with_nulls["found"] == without["found"]
+        assert [c["name"] for c in with_nulls["cakes"]] == [
+            c["name"] for c in without["cakes"]
+        ]
+
+    def test_agent_recovers_when_model_sends_nulls(self):
+        """Loi 400 vi null phai khong con xay ra voi schema da sua."""
+        # Kiem tra tinh chat: schema gui len Groq chinh la TOOL_SCHEMAS.
+        for spec in TOOL_SCHEMAS:
+            for name, schema in spec["function"].get("parameters", {}).get("properties", {}).items():
+                t = schema.get("type")
+                nullable = (t == "null") or (isinstance(t, list) and "null" in t)
+                required = name in spec["function"]["parameters"].get("required", [])
+                assert nullable or required, f"{spec['function']['name']}.{name} thieu null"

@@ -19,6 +19,7 @@ Về trợ lý đặt bánh (ordering agent):
 """
 
 import json
+import time
 import logging
 from datetime import datetime, timezone
 from typing import Any, AsyncGenerator, List, Optional
@@ -88,9 +89,39 @@ class AIServiceUnavailableError(ChatServiceError):
         )
 
 
+def _safe_arg_names(raw_args: str) -> str:
+    """Tên các tham số model đã truyền, KHÔNG kèm giá trị.
+
+    Trace dùng để biết model gọi công cụ nào với tham số gì, nhưng giá trị có
+    thể chứa số điện thoại, email, tên khách. Chỉ ghi tên tham số là đủ để đọc
+    luồng gọi mà không lưu dữ liệu riêng của khách vào log.
+    """
+    try:
+        parsed = json.loads(raw_args) if raw_args else {}
+    except (json.JSONDecodeError, TypeError):
+        return "?"
+    if not isinstance(parsed, dict):
+        return "?"
+    return ",".join(sorted(parsed.keys())) or "-"
+
+
+def _trace_entry(tool: str, raw_args: str, result: dict, elapsed_ms: float) -> dict:
+    """Một dòng trace cho lần gọi công cụ.
+
+    Ghi đủ để đánh giá: công cụ nào, tham số nào, mất bao lâu, thành công hay
+    không. Không ghi giá trị tham số (xem `_safe_arg_names`).
+    """
+    return {
+        "tool": tool,
+        "args": _safe_arg_names(raw_args),
+        "elapsed_ms": round(elapsed_ms, 1),
+        "ok": "error" not in (result or {}),
+        "result": result,
+    }
+
+
 class ChatService:
     """Chat service for managing AI chatbot sessions and messages."""
-
     def __init__(self, supabase_client: Any):
         """Initialize with a Supabase client instance."""
         self._supabase = supabase_client
@@ -457,13 +488,20 @@ class ChatService:
             })
 
             for call in calls:
+                started = time.perf_counter()
                 result = self._execute_tool_call(
                     call.function.name, call.function.arguments, customer_id
                 )
-                tool_log.append({"tool": call.function.name, "result": result})
+                elapsed_ms = (time.perf_counter() - started) * 1000
+                tool_log.append(
+                    _trace_entry(call.function.name, call.function.arguments,
+                                 result, elapsed_ms)
+                )
                 logger.info(
-                    "Tool %s -> %s",
+                    "Tool %s (%s) %.0fms -> %s",
                     call.function.name,
+                    _safe_arg_names(call.function.arguments),
+                    elapsed_ms,
                     json.dumps(result, ensure_ascii=False)[:200],
                 )
                 messages.append({
@@ -604,13 +642,20 @@ class ChatService:
                     ],
                 })
                 for call in calls:
+                    started = time.perf_counter()
                     result = self._execute_tool_call(
                         call.function.name, call.function.arguments, customer_id
                     )
-                    tool_log.append({"tool": call.function.name, "result": result})
+                    elapsed_ms = (time.perf_counter() - started) * 1000
+                    tool_log.append(
+                        _trace_entry(call.function.name, call.function.arguments,
+                                     result, elapsed_ms)
+                    )
                     logger.info(
-                        "Tool %s -> %s",
+                        "Tool %s (%s) %.0fms -> %s",
                         call.function.name,
+                        _safe_arg_names(call.function.arguments),
+                        elapsed_ms,
                         json.dumps(result, ensure_ascii=False)[:200],
                     )
                     messages.append({

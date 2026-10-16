@@ -114,6 +114,10 @@ tmp_chrome_cake3d/
 backend/.cache/
 .cache/
 
+# Output của scripts/run_agent_scenarios.py — ghi đè mỗi lần chạy, và bản
+# cuối có thể chỉ chứa một kịch bản do chạy `--only`. Không phải nguồn.
+backend/test_images/agent_scenarios_report.json
+
 # ---- 📄 Local Documents & Reports (not for repo) ----
 *.docx
 *.pdf
