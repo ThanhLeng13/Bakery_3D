@@ -248,20 +248,20 @@ class TestPublicRoutesNeedNoLogin:
 
     @pytest.mark.parametrize("path", PUBLIC_PATHS)
     def test_public_route_is_registered_for_get(self, path):
-        # So trên `app` đã include, vì `router` của v1 lưu đường dẫn KHÔNG kèm
-        # tiền tố `/api/v1` (tiền tố do `include_router` gắn vào). So trực tiếp
-        # trên `router` sẽ không khớp dù route có tồn tại.
-        from fastapi import FastAPI
+        # Đọc danh sách route từ OpenAPI schema, KHÔNG đọc `app.routes`.
+        #
+        # Lý do: FastAPI đổi cách lưu route giữa các bản. Ở 0.136,
+        # `include_router` rải route phẳng vào `app.routes` nên `r.path` có
+        # giá trị; ở 0.143 (bản CI cài từ `requirements.txt` không pin) nó gom
+        # vào một `_IncludedRouter` — đối tượng không có thuộc tính `path`, và
+        # test đỏ vì lý do cài đặt chứ không phải vì route mất. CI đã bắt đúng
+        # lỗi này. Schema OpenAPI là hợp đồng công khai của FastAPI, ổn định hơn
+        # cấu trúc nội bộ.
+        with _anonymous_client() as client:
+            registered = client.get("/openapi.json").json()["paths"]
 
-        app = FastAPI()
-        app.include_router(router, prefix="/api/v1")
-
-        registered = {
-            r.path
-            for r in app.routes
-            if "GET" in getattr(r, "methods", set())
-        }
-        assert path in registered, f"{path} không còn được đăng ký với GET."
+        assert path in registered, f"{path} không còn được đăng ký."
+        assert "get" in registered[path], f"{path} không nhận GET."
 
     @pytest.mark.parametrize("path", PUBLIC_PATHS)
     def test_public_route_reaches_handler_without_token(self, path):
