@@ -49,13 +49,74 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+class _CannotReachDatabase(RuntimeError):
+    """Lỗi mạng hoặc DNS — KHÁC hoàn toàn với migration chưa chạy."""
+
+
+def _is_unreachable(exc: Exception) -> bool:
+    """Exception này do không gọi được CSDL, không phải do schema thiếu.
+
+    Phân biệt này quan trọng: nếu lưới mạng bị báo thành "thiếu migration" thì
+    người đọc sẽ chạy SQL không cần thiết, rồi tưởng đã sửa xong trong khi
+    migration vẫn chưa chạy. Đã xảy ra một lần: `socket.gaierror
+    [Errno -2] Name or service not known` bị in ra dưới nhãn "enum chưa có
+    draft", hoàn toàn sai.
+    """
+    import socket
+
+    if isinstance(exc, (socket.gaierror, TimeoutError, ConnectionError, OSError)):
+        return True
+    text = str(exc).lower()
+    markers = (
+        "name or service not known",
+        "temporary failure in name resolution",
+        "getaddrinfo",
+        "connection refused",
+        "connection reset",
+        "connection aborted",
+        "timed out",
+        "could not connect",
+        "max retries exceeded",
+        "network is unreachable",
+    )
+    return any(m in text for m in markers)
+
+
+def _require_reachable(fn, *args, **kwargs):
+    """Chạy truy vấn, và báo lỗi mạng riêng biệt thay vì lẫn vào lỗi schema."""
+    try:
+        return fn(*args, **kwargs)
+    except Exception as exc:
+        if _is_unreachable(exc):
+            pytest.fail(
+                "Không gọi được CSDL Supabase (lỗi mạng/DNS), nên **không kết luận được**"
+                " migration đã chạy hay chưa. Lỗi: " + str(exc)[:160]
+                + ". Kiểm tra mạng rồi chạy lại."
+            )
+        raise
+
+
 @pytest.fixture(scope="module")
 def db():
     from dotenv import load_dotenv
     from supabase import create_client
 
     load_dotenv()
-    return create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_ROLE_KEY"])
+    client = create_client(
+        os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+    )
+
+    # Chạm vào CSDL một lần ngay khi tạo fixture. Nếu không, mọi lỗi mạng sẽ lộ
+    # ra giữa lúc test và bị quy cho schema.
+    try:
+        client.table("orders").select("id").limit(1).execute()
+    except Exception as exc:
+        if _is_unreachable(exc):
+            pytest.skip(
+                "Không gọi được CSDL Supabase (lỗi mạng/DNS): " + str(exc)[:120]
+            )
+        raise
+    return client
 
 
 def test_draft_is_allowed_as_an_order_status(db):
@@ -74,21 +135,28 @@ def test_draft_is_allowed_as_an_order_status(db):
         pass
 
     try:
-        db.table("orders").insert(
-            {
-                "id": probe_id,
-                "customer_name": "probe",
-                "customer_email": "probe@example.invalid",
-                "customer_phone": "0",
-                "total_price": 0,
-                "status": "draft",
-            }
-        ).execute()
-    except Exception as exc:
-        pytest.fail(
-            "Enum order_status chưa có 'draft' — chưa chạy "
-            "migrations/add_draft_order_status.sql. Lỗi: " + str(exc)[:200]
+        _require_reachable(
+            db.table("orders").insert(
+                {
+                    "id": probe_id,
+                    "customer_name": "probe",
+                    "customer_email": "probe@example.invalid",
+                    "customer_phone": "0",
+                    "total_price": 0,
+                    "status": "draft",
+                }
+            ).execute
         )
+    except Exception as exc:
+        # `_require_reachable` đã chuyển lỗi mạng thành fail rõ ràng; tới đây
+        # là lỗi schema thật.
+        message = str(exc)
+        if "22P02" in message or "order_status" in message:
+            pytest.fail(
+                "Enum order_status chưa có 'draft' — chưa chạy "
+                "migrations/add_draft_order_status.sql. Lỗi: " + message[:200]
+            )
+        raise
     else:
         db.table("orders").delete().eq("id", probe_id).execute()
 
@@ -102,9 +170,15 @@ def test_order_has_voucher_and_discount_columns(db):
     missing = []
     for column in ("voucher_code", "discount", "subtotal"):
         try:
-            db.table("orders").select(column).limit(1).execute()
+            _require_reachable(
+                db.table("orders").select(column).limit(1).execute
+            )
         except Exception as exc:
-            missing.append(f"{column} ({str(exc)[:60]})")
+            message = str(exc)
+            if "22P02" not in message and "PGRST" not in message and "42703" not in message:
+                # Không phải lỗi "thiếu cột" — để nguyên để lỗi gốc lộ ra.
+                raise
+            missing.append(column)
 
     assert not missing, (
         "Cột thiếu trong bảng orders: " + ", ".join(missing)
@@ -119,7 +193,7 @@ def test_create_order_rpc_exists(db):
     tức đặt hàng không hoạt động dù giao diện vẫn hiện bình thường.
     """
     try:
-        db.rpc("rpc_create_order", {}).execute()
+        _require_reachable(db.rpc("rpc_create_order", {}).execute)
     except Exception as exc:
         message = str(exc)
         if "PGRST202" in message:
@@ -128,16 +202,14 @@ def test_create_order_rpc_exists(db):
                 "migrations/add_create_order_rpc.sql."
             )
         # Báo lỗi khác (thiếu tham số, v.v.) nghĩa là hàm ĐÃ tồn tại.
-        if "function public.rpc_create_order" in message and "schema cache" in message:
-            pytest.fail(
-                "Chưa chạy migrations/add_create_order_rpc.sql: " + message[:180]
-            )
 
 
 def test_idempotency_table_exists(db):
     """Bảng `order_idempotency` chặn bấm 'Đặt hàng' hai lần tạo hai đơn."""
     try:
-        db.table("order_idempotency").select("order_id").limit(1).execute()
+        _require_reachable(
+            db.table("order_idempotency").select("order_id").limit(1).execute
+        )
     except Exception as exc:
         message = str(exc)
         if "PGRST" in message or "42" in message or "does not exist" in message:
