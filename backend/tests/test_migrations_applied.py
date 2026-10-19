@@ -164,11 +164,15 @@ def test_draft_is_allowed_as_an_order_status(db):
 def test_order_has_voucher_and_discount_columns(db):
     """`add_order_voucher_columns.sql` — bảng `orders` phải có đủ cột.
 
+    Hai cột mà migration thực sự thêm là `voucher_code` và `voucher_discount`.
+    Không phải `discount`/`subtotal`: tên đó chỉ là khoá trong JSON mà RPC trả về,
+    và service trong Python dựng lại từ khoá đó — không có cột nào tên vậy.
+
     Hỏi từng cột riêng: `select *` không trả tên cột khi bảng rỗng, và cột thiếu
     thì PostgREST báo lỗi `42703`, tức là chính câu hỏi là cách kiểm.
     """
     missing = []
-    for column in ("voucher_code", "discount", "subtotal"):
+    for column in ("voucher_code", "voucher_discount"):
         try:
             _require_reachable(
                 db.table("orders").select(column).limit(1).execute
@@ -186,22 +190,95 @@ def test_order_has_voucher_and_discount_columns(db):
     )
 
 
+def _rest_rpc_paths() -> list[str]:
+    """Danh sách hàm RPC mà PostgREST phục vụ, đọc từ OpenAPI — chỉ đọc.
+
+    Gọi `db.rpc(name, {})` để dò sự tồn tại thì **không phải** kiểm tra: với một
+    hàm tồn tại, lời gọi thiếu tham số vẫn là `APIError`, dễ bị đọc nhầm thành
+    "hàm không có". Ngược lại, khi hàm thiếu, thông báo cũng chỉ khác ở câu chữ
+    — phải so khớp thủ công mỗi lần.
+
+    OpenAPI của PostgREST liệt kê chính xác các hàm được expose, nên vắng mặt
+    ở đây là bằng chứng thiếu chứ không phải giả định.
+    """
+    import json
+    import urllib.request
+
+    url = os.environ["SUPABASE_URL"].rstrip("/") + "/rest/v1/"
+    key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+    request = urllib.request.Request(
+        url,
+        headers={
+            "apikey": key,
+            "Authorization": "Bearer " + key,
+            "Accept": "application/openapi+json",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        spec = json.load(response)
+    return sorted(p for p in spec.get("paths", {}) if p.startswith("/rpc/"))
+
+
 def test_create_order_rpc_exists(db):
-    """`add_create_order_rpc.sql` — hàm `rpc_create_order` phải tồn tại.
+    """`add_create_order_rpc.sql` — hàm `rpc_create_order` phải được expose.
 
     Thiếu hàm thì `OrderService.create_order` gọi vào sẽ nhận `PGRST202`,
     tức đặt hàng không hoạt động dù giao diện vẫn hiện bình thường.
     """
-    try:
-        _require_reachable(db.rpc("rpc_create_order", {}).execute)
-    except Exception as exc:
-        message = str(exc)
-        if "PGRST202" in message:
-            pytest.fail(
-                "Chưa có hàm rpc_create_order — chưa chạy "
-                "migrations/add_create_order_rpc.sql."
-            )
-        # Báo lỗi khác (thiếu tham số, v.v.) nghĩa là hàm ĐÃ tồn tại.
+    paths = _require_reachable(_rest_rpc_paths)
+    assert "/rpc/rpc_create_order" in paths, (
+        "PostgREST không phục vụ hàm rpc_create_order — chưa chạy "
+        "migrations/add_create_order_rpc.sql. Các RPC đang có: "
+        + ", ".join(p.removeprefix("/rpc/") for p in paths)
+    )
+
+
+def test_create_order_rpc_has_the_expected_signature(db):
+    """Hàm phải nhận đúng 12 tham số, kể cả hai tham số voucher.
+
+    Đây là lý do `add_create_order_rpc.sql` phải chạy **sau**
+    `add_order_voucher_columns.sql`: chữ ký có `p_voucher_code` và
+    `p_voucher_discount`. Hàm cũ thiếu hai tham số này vẫn gọi được nhưng sẽ
+    âm thầm bỏ qua voucher, nên chỉ kiểm "hàm có tồn tại" là chưa đủ.
+    """
+    import json
+    import urllib.request
+
+    base = os.environ["SUPABASE_URL"].rstrip("/") + "/rest/v1/"
+    key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+    request = urllib.request.Request(
+        base,
+        headers={
+            "apikey": key,
+            "Authorization": "Bearer " + key,
+            "Accept": "application/openapi+json",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        spec = json.load(response)
+
+    operation = spec.get("paths", {}).get("/rpc/rpc_create_order", {}).get("post")
+    if operation is None:
+        pytest.fail(
+            "Chưa chạy migrations/add_create_order_rpc.sql — không thấy"
+            " /rpc/rpc_create_order trong OpenAPI của PostgREST."
+        )
+
+    names = {
+        p.get("name")
+        for p in operation.get("parameters", [])
+        if p.get("in") == "query"
+    }
+    expected = {
+        "p_customer_id", "p_full_name", "p_phone", "p_email", "p_pickup_date",
+        "p_total_price", "p_ai_summary", "p_voucher_code", "p_voucher_discount",
+        "p_items", "p_customizations", "p_idempotency_key",
+    }
+    missing = expected - names
+    assert not missing, (
+        "rpc_create_order thiếu tham số: " + ", ".join(sorted(missing))
+        + ". Có thể migration đã chạy phiên bản cũ, thiếu phần voucher."
+    )
 
 
 def test_idempotency_table_exists(db):

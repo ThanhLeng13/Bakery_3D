@@ -52,6 +52,15 @@ def _cors_kwargs() -> dict:
                 found[kw.arg] = kw.value.value
             elif isinstance(kw.value, ast.Name):
                 found[kw.arg] = kw.value.id
+            elif isinstance(kw.value, ast.Attribute):
+                # `settings.CORS_ORIGINS` — dạng dùng thật trong `main.py`.
+                found[kw.arg] = f"{kw.value.value.id}.{kw.value.attr}"
+            elif isinstance(kw.value, ast.List):
+                found[kw.arg] = [
+                    e.value
+                    for e in kw.value.elts
+                    if isinstance(e, ast.Constant) and isinstance(e.value, str)
+                ]
         return found
 
     raise AssertionError("Không tìm thấy add_middleware(CORSMiddleware, ...) trong main.py")
@@ -121,6 +130,27 @@ class TestCorsIsNotWildcard:
             assert "*" not in origin, f"Origin chứa ký tự đại diện: {origin}"
             assert origin.startswith(("http://", "https://")), origin
 
+    def test_middleware_takes_its_origins_from_the_checked_config(self):
+        """Middleware phải lấy danh sách đã kiểm, không tự khai một danh sách khác.
+
+        Đây là lỗ hổng thật trong cách test: nếu chỉ đọc `CORS_ORIGINS` trong
+        `config.py` thì ai đó sửa `app.main` thành
+        `allow_origins=["*"]` — bỏ qua cấu hình hoàn toàn — thì test vẫn xanh
+        trong khi ứng dụng đang mở toàn bộ internet kèm cookie.
+        """
+        origins = _cors_kwargs().get("allow_origins")
+        assert origins == "settings.CORS_ORIGINS", (
+            "CORSMiddleware phải lấy allow_origins từ settings.CORS_ORIGINS, "
+            f"khai báo thật là: {origins!r}"
+        )
+
+    def test_middleware_does_not_pass_a_literal_origin_list(self):
+        """Chặn trường hợp `allow_origins=[...]` viết thẳng trong `main.py`."""
+        origins = _cors_kwargs().get("allow_origins")
+        assert isinstance(origins, str), (
+            f"allow_origins không lấy từ settings mà là giá trị literal: {origins!r}"
+        )
+
 
 class TestClientBundleHasNoServiceRoleKey:
     """Không được đẩy service-role key xuống trình duyệt.
@@ -168,13 +198,40 @@ class TestClientBundleHasNoServiceRoleKey:
         sẽ là `undefined` lúc chạy, dễ bị hiểu nhầm là "thiếu cấu hình" thay vì
         là "sai tên".
         """
-        env_local = self.CLIENT_DIR / ".env.local"
-        if not env_local.exists():
-            pytest.skip("Không có .env.local trên máy này (CI cũng vậy)")
-        text = env_local.read_text(encoding="utf-8")
-        supabase_vars = re.findall(r"^([A-Z0-9_]*SUPABASE[A-Z0-9_]*)=", text, re.MULTILINE)
-        for name in supabase_vars:
+        for name, _value in self._local_supabase_vars():
             assert name.startswith("NEXT_PUBLIC_"), (
                 f"{name} không có tiền tố NEXT_PUBLIC_ nên sẽ không tới được"
                 " trình duyệt."
             )
+
+    def test_no_public_variable_holds_a_secret_key_value(self):
+        """Tên đúng chưa đủ: biến `NEXT_PUBLIC_` vẫn có thể mang key thật.
+
+        `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=...` là một cách đặt tên trông
+        rất vô hại, và mọi test ở trên vẫn xanh. Chỉ kiểm tên biến không bắt
+        được điều đó — phải nhìn cả giá trị.
+        """
+        offenders = [
+            f"{name} (bắt đầu bằng sb_secret_)"
+            for name, value in self._local_supabase_vars()
+            if value.startswith("sb_secret_")
+        ]
+        assert not offenders, (
+            "Biến NEXT_PUBLIC_ đang chứa service-role key: " + ", ".join(offenders)
+        )
+
+    def _local_supabase_vars(self) -> list[tuple[str, str]]:
+        """Cặp (tên, giá trị) của biến Supabase trong `frontend/.env.local`."""
+        env_local = self.CLIENT_DIR / ".env.local"
+        if not env_local.exists():
+            pytest.skip("Không có .env.local trên máy này (CI cũng vậy)")
+        text = env_local.read_text(encoding="utf-8")
+        pairs = []
+        for line in text.splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            name, value = line.split("=", 1)
+            if "SUPABASE" in name:
+                pairs.append((name.strip(), value.strip().strip('"').strip("'")))
+        return pairs
