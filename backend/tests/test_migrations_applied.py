@@ -233,6 +233,29 @@ def test_create_order_rpc_exists(db):
     )
 
 
+def _rpc_argument_names(operation: dict) -> set[str]:
+    """Tên tham số của một hàm RPC, đọc từ OpenAPI của PostgREST.
+
+    PostgREST không liệt kê tham số hàm ở `parameters` kiểu `query`. Nó gom tất
+    cả vào **một** tham số `in: "body"` tên `args`, và danh sách thật nằm ở
+    `parameters[0].schema.properties`. Đã kiểm trên CSDL thật: `/rpc/match_cakes`
+    có đúng 1 tham số body với `schema.properties` = `match_count`,
+    `match_threshold`, `query_embedding`, và **0** tham số query.
+
+    Vì vậy bản đầu của test này lấy `in == "query"` sẽ luôn ra tập rỗng — tức
+    báo thiếu cả 12 tham số kể cả khi migration đã chạy đúng.
+
+    Cố ý KHÔNG fallback sang tham số `query`. Đã thử: fallback đó cho ra kết quả
+    hợp lý giả khi `schema.properties` rỗng, che mất đúng thứ cần phát hiện. Ở
+    `rpc_create_order`, `p_voucher_code` và `p_voucher_discount` chính là hai
+    tham số dễ mất, nên đọc thiếu rồi báo xanh là nguy hiểm hơn báo lỗi cấu trúc.
+    """
+    for param in operation.get("parameters", []):
+        if param.get("in") == "body":
+            return set((param.get("schema") or {}).get("properties") or {})
+    return set()
+
+
 def test_create_order_rpc_has_the_expected_signature(db):
     """Hàm phải nhận đúng 12 tham số, kể cả hai tham số voucher.
 
@@ -264,16 +287,16 @@ def test_create_order_rpc_has_the_expected_signature(db):
             " /rpc/rpc_create_order trong OpenAPI của PostgREST."
         )
 
-    names = {
-        p.get("name")
-        for p in operation.get("parameters", [])
-        if p.get("in") == "query"
-    }
+    names = _rpc_argument_names(operation)
     expected = {
         "p_customer_id", "p_full_name", "p_phone", "p_email", "p_pickup_date",
         "p_total_price", "p_ai_summary", "p_voucher_code", "p_voucher_discount",
         "p_items", "p_customizations", "p_idempotency_key",
     }
+    assert names, (
+        "Đọc được vị trí /rpc/rpc_create_order nhưng không lấy được tên tham số"
+        " nào — cấu trúc OpenAPI của PostgREST đã đổi, cần cập nhật test."
+    )
     missing = expected - names
     assert not missing, (
         "rpc_create_order thiếu tham số: " + ", ".join(sorted(missing))
