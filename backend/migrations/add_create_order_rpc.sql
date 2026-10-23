@@ -205,14 +205,17 @@ BEGIN
     )
     VALUES (v_order_id, NULL, 'pending', p_customer_id);
 
-    -- Ledger last: if anything above raised, this row is gone too, so a retry
-    -- after a failure creates a fresh order rather than resolving to one that
-    -- was rolled back.
+    -- Ledger last: fill in the order id on the row claimed at the top. This is
+    -- an UPDATE, not a second INSERT — the row was already written to claim the
+    -- key, and inserting again violates order_idempotency_pkey. That was a real
+    -- bug: the first call with a brand-new key returned
+    --   23505 duplicate key value violates unique constraint "order_idempotency_pkey"
+    -- and left the table empty, so no order could be created at all.
     IF p_idempotency_key IS NOT NULL THEN
-        INSERT INTO public.order_idempotency (
-            customer_id, idempotency_key, order_id
-        )
-        VALUES (p_customer_id, p_idempotency_key, v_order_id);
+        UPDATE public.order_idempotency
+        SET order_id = v_order_id
+        WHERE customer_id = p_customer_id
+          AND idempotency_key = p_idempotency_key;
     END IF;
 
     v_subtotal := p_total_price + COALESCE(p_voucher_discount, 0);

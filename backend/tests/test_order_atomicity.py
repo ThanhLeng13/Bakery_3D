@@ -253,3 +253,30 @@ class TestIdempotencyClaimIsCodedCorrectly:
         assert "v_claimed IS DISTINCT FROM TRUE" in sql, (
             "Thiếu mệnh đề so NULL với TRUE đúng nghĩa."
         )
+
+    def test_ledger_row_is_updated_not_inserted_again(self):
+        """Dòng ledger phải được `UPDATE`, không được `INSERT` lần nữa.
+
+        Đây là lỗi đã xảy ra thật trên CSDL. Hàm ghi `order_idempotency` **hai
+        lần**: một lần ở đầu để chiếm khoá (chỉ có `customer_id` + `key`), một
+        lần ở cuối để điền `order_id`. Lần hai là `INSERT` thuần nên đâm vào PK
+        đã có:
+
+            23505 duplicate key value violates unique constraint
+                 "order_idempotency_pkey"
+
+        Đo được: khoá hoàn toàn mới cũng lỗi, và bảng `order_idempotency` vẫn 0
+        dòng — tức đơn đầu tiên của khách không tạo được. Đã thử chạy lại file
+        sau khi sửa biến `v_claimed` nhưng vẫn lỗi, vì nguyên nhân nằm ở lần ghi
+        thứ hai chứ không phải lần kiểm tra.
+        """
+        sql = self._sql()
+        # Phần sau của hàm (sau khi tạo xong đơn) phải UPDATE.
+        tail = sql[sql.rindex("order_status_history") :]
+        assert "UPDATE public.order_idempotency" in tail, (
+            "Phần điền order_id phải là UPDATE, vì dòng đã được ghi lúc chiếm"
+            " khoá. INSERT lần nữa sẽ vi phạm order_idempotency_pkey."
+        )
+        assert "INSERT INTO public.order_idempotency" not in tail, (
+            "Không được INSERT lại dòng ledger đã tồn tại."
+        )
