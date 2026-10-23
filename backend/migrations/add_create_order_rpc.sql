@@ -68,7 +68,15 @@ DECLARE
     v_subtotal INTEGER;
     v_discount INTEGER;
     v_total INTEGER;
-    v_claimed BOOLEAN;
+    -- MUST start as FALSE, not NULL. `INSERT ... ON CONFLICT DO NOTHING
+    -- RETURNING TRUE INTO v_claimed` leaves the variable UNCHANGED when the
+    -- key is already taken, so it keeps whatever it held before the statement.
+    -- Left as NULL, the first successful claim reads as "not claimed" and the
+    -- caller gets 'Đơn hàng trùng đang được tạo' on a brand-new key.
+    -- Measured on the live database: a never-used key returned
+    -- 23505 duplicate key, because the branch below treated the insert as a
+    -- conflict and re-selected the same row it had just written.
+    v_claimed BOOLEAN := FALSE;
     v_status TEXT;
     v_voucher_code TEXT;
     v_voucher_id UUID;
@@ -86,7 +94,10 @@ BEGIN
         ON CONFLICT (customer_id, idempotency_key) DO NOTHING
         RETURNING TRUE INTO v_claimed;
 
-        IF NOT COALESCE(v_claimed, FALSE) THEN
+        -- `v_claimed` is TRUE only when this INSERT actually wrote the row.
+        -- Anything else (NULL after a conflict) means another request holds
+        -- the key.
+        IF v_claimed IS DISTINCT FROM TRUE THEN
             -- Someone else holds this key. Wait for their order to appear: the
             -- row is written before the order, so in a concurrent retry it may
             -- not be there yet on this snapshot.

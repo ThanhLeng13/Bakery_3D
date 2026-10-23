@@ -193,3 +193,63 @@ class TestOrderStillValidatesBeforeWriting:
         assert not client.calls, (
             "voucher sai phải báo lỗi trước, không ghi đơn rồi mới báo"
         )
+
+
+class TestIdempotencyClaimIsCodedCorrectly:
+    """Kiểm **text SQL** của RPC, vì test Python không chạy được PL/pgSQL.
+
+    Mọi test ở trên đều giả lập ở tầng Python (`_ClientStub`), nên một lỗi
+    bên trong hàm SQL — kiểu biến không khởi tạo — chạy vẫn xanh trong khi
+    đặt hàng thật đã hỏng. Đúng lỗi đó đã xảy ra: `v_claimed` để NULL, nên
+    `NOT COALESCE(v_claimed, FALSE)` đọc là "chưa chiếm được khoá" ngay ở lần
+    gọi đầu tiên với khoá chưa từng dùng. Đo trên CSDL thật: khoá hoàn toàn mới
+    trả về `23505 duplicate key`, và bảng `order_idempotency` vẫn 0 dòng —
+    tức đơn đầu tiên của khách cũng không tạo được.
+
+    Vì CI không có Postgres để chạy `CREATE FUNCTION`, cách duy nhất bắt được
+    là đọc chính file migration.
+    """
+
+    def _sql(self) -> str:
+        from pathlib import Path
+
+        source = (
+            Path(__file__).resolve().parents[1]
+            / "migrations"
+            / "add_create_order_rpc.sql"
+        ).read_text(encoding="utf-8")
+        return "\n".join(
+            line for line in source.splitlines() if not line.lstrip().startswith("--")
+        )
+
+    def test_claimed_flag_starts_false(self):
+        """`v_claimed` phải khởi tạo FALSE, không được để NULL.
+
+        `INSERT ... ON CONFLICT DO NOTHING RETURNING ... INTO` KHÔNG gán gì khi
+        có xung đột, nên biến giữ nguyên giá trị trước đó. Để NULL thì lần gọi
+        đầu cũng bị đọc thành xung đột.
+        """
+        import re
+
+        sql = self._sql()
+        match = re.search(r"v_claimed\s+BOOLEAN\s*:?=\s*([A-Za-z]+)", sql)
+        assert match, "Không thấy chỗ khai báo v_claimed trong SQL."
+        assert match.group(1) == "FALSE", (
+            f"v_claimed khởi tạo là {match.group(1)}, phải là FALSE — để NULL sẽ"
+            " làm lần tạo đơn đầu tiên bị đọc thành trùng khoá."
+        )
+
+    def test_claim_check_distinguishes_null_from_true(self):
+        """Kiểm tra phải tách NULL ra khỏi TRUE.
+
+        `NOT COALESCE(x, FALSE)` biến NULL thành TRUE — đúng ngược ý muốn. Phải
+        dùng `IS DISTINCT FROM TRUE`.
+        """
+        sql = self._sql()
+        assert "NOT COALESCE(v_claimed" not in sql, (
+            "Dùng NOT COALESCE(v_claimed, ...) sẽ đọc NULL là 'chưa chiếm được'."
+            " Dùng v_claimed IS DISTINCT FROM TRUE."
+        )
+        assert "v_claimed IS DISTINCT FROM TRUE" in sql, (
+            "Thiếu mệnh đề so NULL với TRUE đúng nghĩa."
+        )
