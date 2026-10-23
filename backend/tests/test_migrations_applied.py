@@ -16,8 +16,11 @@ Chạy tay:
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pytest
+
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _has_credentials() -> bool:
@@ -125,28 +128,44 @@ def test_draft_is_allowed_as_an_order_status(db):
     Không chạy migration này thì `create_draft_order` của agent lỗi ngay:
     Postgres trả `22P02 invalid input value for enum order_status: "draft"`.
 
-    Cách kiểm: ghi thật một dòng rồi xoá. Không có cách nào hỏi kiểu enum mà
-    không cần quyền đọc `pg_type`, và service-role key không đảm bảo có.
+    Cách kiểm: chèn một dòng **sao chép** đơn có sẵn rồi xoá. Không có cách nào
+    hỏi kiểu enum mà không cần quyền đọc `pg_type`, và service-role key không
+    đảm bảo có.
+
+    Sao chép cả đơn thay vì tự dựng payload: `orders` có nhiều cột NOT NULL
+    (`customer_id`, `pickup_date`, ...) và `customer_id` còn có khoá ngoại về
+    `users`, nên không thể bịa UUID. Bản đầu của test tự dựng payload và đã đổ
+    lỗi cho migration hai lần vì hai cột này, dù enum lúc đó đã đúng.
     """
+    # Một đơn có sẵn để làm khuôn. Nếu bảng rỗng thì bỏ qua.
+    # `_require_reachable` trả về `APIResponse`; danh sách dòng nằm ở `.data`.
+    template = _require_reachable(
+        db.table("orders").select("*").limit(1).execute
+    ).data
+    if not template:
+        pytest.skip("Bảng orders rỗng nên không có đơn nào để sao chép.")
+    template = template[0]
+
     probe_id = "00000000-0000-0000-0000-0000000000d1"
+    # Không đem `id` cũ sang, và bỏ mấy cột Postgres tự sinh.
+    probe = {
+        k: v
+        for k, v in template.items()
+        if k not in ("id", "created_at", "updated_at")
+    }
+    probe["id"] = probe_id
+    probe["status"] = "draft"
+    probe["customer_name"] = "probe"
+    probe["customer_email"] = "probe@example.invalid"
+
+    # Xoá rác của lần chạy trước nếu có.
     try:
         db.table("orders").delete().eq("id", probe_id).execute()
     except Exception:
         pass
 
     try:
-        _require_reachable(
-            db.table("orders").insert(
-                {
-                    "id": probe_id,
-                    "customer_name": "probe",
-                    "customer_email": "probe@example.invalid",
-                    "customer_phone": "0",
-                    "total_price": 0,
-                    "status": "draft",
-                }
-            ).execute
-        )
+        _require_reachable(db.table("orders").insert(probe).execute)
     except Exception as exc:
         # `_require_reachable` đã chuyển lỗi mạng thành fail rõ ràng; tới đây
         # là lỗi schema thật.
@@ -157,8 +176,13 @@ def test_draft_is_allowed_as_an_order_status(db):
                 "migrations/add_draft_order_status.sql. Lỗi: " + message[:200]
             )
         raise
-    else:
-        db.table("orders").delete().eq("id", probe_id).execute()
+    finally:
+        # Xoá probe dù chạy được hay không, để không để lại đơn rác.
+        # Đặt trong `finally` vì lần trước một lần chạy lỗi đã để rác lại.
+        try:
+            db.table("orders").delete().eq("id", probe_id).execute()
+        except Exception:
+            pass
 
 
 def test_order_has_voucher_and_discount_columns(db):
@@ -317,3 +341,66 @@ def test_idempotency_table_exists(db):
                 "Chưa có bảng order_idempotency — chưa chạy "
                 "migrations/add_create_order_rpc.sql. Lỗi: " + message[:160]
             )
+
+
+def _sql_without_comments(source: str) -> str:
+    """Bỏ comment `--` khỏi SQL, chỉ giữ phần thực sự được thực thi.
+
+    Cần bước này vì file migration **giải thích lỗi bằng chính tên lỗi**: comment
+    viết `pg_type.typkind` để nói rõ "đừng dùng cột này". Test đọc cả comment sẽ
+    đỏ oan vĩnh viễn. Đã dính đúng lỗi đó ở bản đầu của test này.
+    """
+    return "\n".join(
+        line for line in source.splitlines() if not line.lstrip().startswith("--")
+    )
+
+
+def test_draft_status_migration_references_real_catalog_columns():
+    """`add_draft_order_status.sql` phải đọc đúng cột trong catalog.
+
+    Kiểm tĩnh, không cần CSDL. Bản đầu của migration hỏi `pg_type.typkind` — cột
+    **không tồn tại** — nên chạy trên Supabase SQL Editor báo
+
+        ERROR: 42703: column typ.typkind does not exist
+        HINT: Perhaps you meant to reference the column "typ.typsend".
+
+    và migration không áp dụng được. Người dùng đã dính đúng lỗi này, nên test
+    này nhằm ngăn nó quay lại.
+
+    Tên cột đúng là `typtype` (`typsend`, `typreceive`, ... là các cột khác).
+    `add_staff_role.sql` — file đã chạy thành công trên cùng CSDL — dùng đúng
+    tên đó.
+    """
+    source = (
+        BACKEND_ROOT / "migrations" / "add_draft_order_status.sql"
+    ).read_text(encoding="utf-8")
+
+    executable = _sql_without_comments(source)
+
+    assert "typkind" not in executable, (
+        "add_draft_order_status.sql hỏi cột pg_type.typkind, cột không tồn tại."
+        " Dùng typtype."
+    )
+    assert "typtype" in executable, (
+        "add_draft_order_status.sql không hỏi typtype nên không kiểm được enum."
+    )
+    # Câu hỏi catalog phải thật sự đi tìm đúng type.
+    assert "typname = 'order_status'" in executable, (
+        "Câu hỏi catalog không giới hạn ở typname = 'order_status'."
+    )
+
+
+def test_migration_order_is_documented():
+    """Thứ tự chạy 3 migration phải được ghi rõ trong chính file.
+
+    `add_create_order_rpc.sql` có chữ ký chứa `p_voucher_code`/`p_voucher_discount`,
+    nên nó cần hai file trước đã chạy. Chạy trước sẽ báo lỗi thiếu cột/cột enum,
+    và lỗi lúc đó khó đọc ra nguyên nhân thật.
+    """
+    source = (
+        BACKEND_ROOT / "migrations" / "add_create_order_rpc.sql"
+    ).read_text(encoding="utf-8")
+
+    assert "add_order_voucher_columns.sql" in source, (
+        "add_create_order_rpc.sql không ghi là cần file cột voucher chạy trước."
+    )
