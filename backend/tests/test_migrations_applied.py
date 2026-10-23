@@ -16,8 +16,11 @@ Chạy tay:
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pytest
+
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _has_credentials() -> bool:
@@ -317,3 +320,66 @@ def test_idempotency_table_exists(db):
                 "Chưa có bảng order_idempotency — chưa chạy "
                 "migrations/add_create_order_rpc.sql. Lỗi: " + message[:160]
             )
+
+
+def _sql_without_comments(source: str) -> str:
+    """Bỏ comment `--` khỏi SQL, chỉ giữ phần thực sự được thực thi.
+
+    Cần bước này vì file migration **giải thích lỗi bằng chính tên lỗi**: comment
+    viết `pg_type.typkind` để nói rõ "đừng dùng cột này". Test đọc cả comment sẽ
+    đỏ oan vĩnh viễn. Đã dính đúng lỗi đó ở bản đầu của test này.
+    """
+    return "\n".join(
+        line for line in source.splitlines() if not line.lstrip().startswith("--")
+    )
+
+
+def test_draft_status_migration_references_real_catalog_columns():
+    """`add_draft_order_status.sql` phải đọc đúng cột trong catalog.
+
+    Kiểm tĩnh, không cần CSDL. Bản đầu của migration hỏi `pg_type.typkind` — cột
+    **không tồn tại** — nên chạy trên Supabase SQL Editor báo
+
+        ERROR: 42703: column typ.typkind does not exist
+        HINT: Perhaps you meant to reference the column "typ.typsend".
+
+    và migration không áp dụng được. Người dùng đã dính đúng lỗi này, nên test
+    này nhằm ngăn nó quay lại.
+
+    Tên cột đúng là `typtype` (`typsend`, `typreceive`, ... là các cột khác).
+    `add_staff_role.sql` — file đã chạy thành công trên cùng CSDL — dùng đúng
+    tên đó.
+    """
+    source = (
+        BACKEND_ROOT / "migrations" / "add_draft_order_status.sql"
+    ).read_text(encoding="utf-8")
+
+    executable = _sql_without_comments(source)
+
+    assert "typkind" not in executable, (
+        "add_draft_order_status.sql hỏi cột pg_type.typkind, cột không tồn tại."
+        " Dùng typtype."
+    )
+    assert "typtype" in executable, (
+        "add_draft_order_status.sql không hỏi typtype nên không kiểm được enum."
+    )
+    # Câu hỏi catalog phải thật sự đi tìm đúng type.
+    assert "typname = 'order_status'" in executable, (
+        "Câu hỏi catalog không giới hạn ở typname = 'order_status'."
+    )
+
+
+def test_migration_order_is_documented():
+    """Thứ tự chạy 3 migration phải được ghi rõ trong chính file.
+
+    `add_create_order_rpc.sql` có chữ ký chứa `p_voucher_code`/`p_voucher_discount`,
+    nên nó cần hai file trước đã chạy. Chạy trước sẽ báo lỗi thiếu cột/cột enum,
+    và lỗi lúc đó khó đọc ra nguyên nhân thật.
+    """
+    source = (
+        BACKEND_ROOT / "migrations" / "add_create_order_rpc.sql"
+    ).read_text(encoding="utf-8")
+
+    assert "add_order_voucher_columns.sql" in source, (
+        "add_create_order_rpc.sql không ghi là cần file cột voucher chạy trước."
+    )
