@@ -23,12 +23,21 @@
 -- error is raised. Executing ALTER TYPE through EXECUTE as dynamic SQL keeps
 -- it out of a transaction block, which is required on older PostgreSQL where
 -- ADD VALUE cannot be rolled back.
+--
+-- NOTE: the kind column on `pg_type` is `typtype`, NOT `typkind`. A first draft
+-- of this migration used `typkind`, which does not exist — running it produced
+--
+--     ERROR: 42703: column typ.typkind does not exist
+--     HINT:  Perhaps you meant to reference the column "typ.typsend".
+--
+-- on Supabase's SQL Editor, so the migration never applied. `add_staff_role.sql`
+-- already used `typtype` correctly; that is the spelling to copy.
 
 DO $$
 DECLARE
     order_status_kind "char";
 BEGIN
-    SELECT typ.typkind
+    SELECT typ.typtype
     INTO order_status_kind
     FROM pg_type typ
     JOIN pg_namespace nsp ON nsp.oid = typ.typnamespace
