@@ -98,6 +98,16 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "line" : "list",
+  // CI chỉ có 2 vCPU, máy dev thường 8+. Các trang này render 3D qua WebGL
+  // và SSR gọi xuống backend, nên thời gian khởi động chiếm phần lớn thời
+  // gian test. Đã đo trên máy 8 core: cả file `cake-builder` 31.7s, riêng test
+  // topping 12.6s. Khi tạo tải CPU để mô phỏng 2 vCPU thì cả file lên 44.8s và
+  // test topping 15.8s — vượt ngưỡng mặc định 30s của Playwright. Vì vậy CI
+  // được cho 60s mỗi test.
+  //
+  // Lỗi thật đã gặp: CI báo `Test timeout of 30000ms exceeded` ở đúng test
+  // topping, retry một lần vẫn hết hạn, trong khi trên máy dev pass liên tục.
+  timeout: process.env.CI ? 60_000 : 30_000,
 
   use: {
     baseURL: "http://localhost:3100",
