@@ -42,6 +42,18 @@ VN_TZ = timezone(timedelta(hours=7))
 MIN_LEAD_HOURS = DEFAULT_LEAD_HOURS
 MIN_LEAD_HOURS_COMPLEX = 48
 
+# Ngưỡng "đặt trong ngày": còn ít hơn mấy giờ thì KHÔNG nhận đặt mẫu riêng.
+#
+# Quyết định của tiệm: khách cần gấp (trong ngày) thì chỉ bán được bánh sẵn có
+# sẵn trong danh mục; từ 24 giờ trở lên mới nhận đặt theo mẫu khách chọn.
+#
+# Cố ý KHÔNG đặt là 48 giờ dù bánh 2 tầng cần 48 giờ để làm: hai mốc này trả
+# lời hai câu hỏi khác nhau. 48 giờ là "lành kịp không", 24 giờ là "có nhận
+# thiết kế mới không". Khách đặt trước 30 giờ mà chọn mẫu có sẵn thì vẫn bán
+# được — chỉ là không nhận làm mẫu mới. Trộn hai mốc này sẽ từ chối oan những
+# đơn thật bán được.
+SAME_DAY_NOTICE_HOURS = 24
+
 
 COMPLEX_KEYWORDS = ("2 tầng", "3 tầng", "figure", "tạo hình", "cưới")
 
@@ -388,6 +400,17 @@ class OrderTools:
             "hours_notice": round(hours_notice, 1),
             "required_lead_hours": lead,
             "is_possible": hours_notice >= lead,
+            # Có được phép đặt mẫu riêng / tự thiết kế không.
+            #
+            # Quy tắc của tiệm: đặt trong ngày (dưới 24 giờ) thì chỉ bán được
+            # bánh sẵn có trong danh mục, vì làm mẫu mới không kịp. Từ 24 giờ
+            # trở lên mới nhận đặt theo mẫu khách chọn.
+            #
+            # Mốc này LÀ mốc của nghiệp vụ, không phải mốc làm bánh: một bánh
+            # 2 tầng cần 48 giờ để làm, nhưng nếu khách đặt trước 30 giờ và
+            # chọn mẫu có sẵn thì vẫn bán được — chỉ là không nhận thiết kế
+            # mới. Vì vậy KHÔNG lấy `lead` làm ngưỡng ở đây.
+            "custom_design_allowed": hours_notice >= SAME_DAY_NOTICE_HOURS,
             "message": (
                 f"Kịp. Còn {hours_notice:.0f} giờ, cần tối thiểu {lead} giờ."
                 if hours_notice >= lead
@@ -643,7 +666,9 @@ TOOL_SCHEMAS: list[dict] = [
                 "ngày với khách. Bánh nhiều tầng cần đặt trước lâu hơn. "
                 "Gọi công cụ này NGAY khi khách nhắc tới một ngày nhận cụ thể, kể cả "
                 "khi khách chỉ hỏi 'ngày đó kịp không' — KHÔNG trả lời số giờ đặt "
-                "trước từ trí nhớ, và KHÔNG tự nói một ngày nào đó là sớm nhất."
+                "trước từ trí nhớ, và KHÔNG tự nói một ngày nào đó là sớm nhất. "
+                "Kết quả có `custom_design_allowed`: false nghĩa là chỉ được bán "
+                "bánh sẵn trong danh mục, không nhận đặt mẫu riêng."
             ),
             "parameters": {
                 "type": "object",
