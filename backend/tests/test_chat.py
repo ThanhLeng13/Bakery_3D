@@ -301,19 +301,30 @@ class TestOrderToolsFindCakes:
         # chu khong phai tra ve rac.
         assert result["found"] == 3
 
-    def test_find_cakes_bao_muc_dat_truoc_mac_dinh(self):
-        """Danh sách gợi ý báo mức nhỏ nhất vì chưa biết khách chọn kích cỡ nào.
+    def test_find_cakes_bao_mau_lam_san_ban_ngay(self):
+        """Mẫu trong danh mục là hàng đã có sẵn nên mốc chờ là 0.
 
-        Trước đây `needs_lead_hours` đoán từ tên ("2 tầng" → 48h) trong khi
-        checkout đo theo kích cỡ, nên cùng một đơn cho hai đáp án lệch 24h.
-        Ở bước tìm mẫu chưa có size nên chỉ báo được mức một tầng; mức 48h
-        chốt khi khách chọn 2-tier, qua `lead_hours_for_items`.
+        Trước đây `needs_lead_hours` báo 24 giờ cho MỌI mẫu trong danh mục.
+        Sai với mẫu đã có sẵn: khách nhìn thẻ gợi ý thấy "cần đặt trước 24 giờ"
+        trong khi mẫu đó nằm sẵn trong tiệm và bán được ngay. Sai cả với bánh
+        hai tầng làm sẵn.
+
+        Trước đó còn một đời khác: đoán độ phức tạp từ *tên* ("2 tầng" → 48h)
+        trong khi checkout đo theo kích cước, nên cùng một đơn cho hai đáp án
+        lệch 24h. Nay cả hai đều không đoán: mẫu danh mục thì 0.
         """
         result = _tools().find_cakes(keyword="2 tầng")
         two_tier = next(c for c in result["cakes"] if "2 tầng" in c["name"])
-        assert two_tier["needs_lead_hours"] == 24
+        assert two_tier["needs_lead_hours"] == 0, (
+            "mẫu trong danh mục là hàng có sẵn, phải báo 0 giờ chờ"
+        )
 
-
+    def test_get_cake_detail_bao_mau_lam_san_ban_ngay(self):
+        """Chi tiết một mẫu cũng phải báo 0, không phải 24."""
+        found = _tools().find_cakes(keyword="2 tầng")
+        cake = next(c for c in found["cakes"] if "2 tầng" in c["name"])
+        detail = _tools().get_cake_detail(cake_id=cake["id"])
+        assert detail["needs_lead_hours"] == 0
 class TestOrderToolsPriceOrder:
     """Gia LUON lay tu CSDL — diem quan trong nhat cua lop cong cu."""
 

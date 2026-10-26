@@ -26,6 +26,7 @@ from typing import Any, Optional
 
 from app.services.pricing import (
     DEFAULT_LEAD_HOURS,
+    custom_design_lead_hours,
     lead_hours_for_items,
 )
 
@@ -41,6 +42,25 @@ VN_TZ = timezone(timedelta(hours=7))
 # Ở đây chỉ giữ tên để các test và nơi gọi cũ vẫn import được.
 MIN_LEAD_HOURS = DEFAULT_LEAD_HOURS
 MIN_LEAD_HOURS_COMPLEX = 48
+
+# Mau lam san trong danh muc: hang da co san de ban, khong phai cho lam.
+#
+# Can de ra khoi doi de gioi thieu mau tu danh muc. Truoc day moi mau deu bao
+# "can dat truoc 24 gio" - sai voi mau da co san, va sai ca voi banh hai
+# tang lam san. So 0 nay khop voi `lead_hours_for_items` khi don chi gom mau lam san.
+READY_MADE_LEAD_HOURS = 0
+
+# Ngưỡng "đặt mẫu riêng" KHÔNG có hằng số riêng: nó CHÍNH LÀ
+# `lead_hours_for_items(items)` — cùng số với `required_lead_hours`.
+#
+# Quy tắc của tiệm: bánh đơn giản cần 24 giờ, bánh phức tạp (hai tầng, hình
+# dáng) cần 48 giờ. Dưới mốc đó chỉ bán được bánh sẵn có trong danh mục.
+#
+# Trước đây tách hai mốc (24 cho đặt mẫu, 48 cho làm bánh) là SAI. Lý do đã
+# đo: một bánh hai tầng đặt trước 30 giờ sẽ bị chấp nhận đặt mẫu trong khi
+# 48 giờ mới kịp làm — nhận đơn rồi không làm kịp. Một mốc duy nhất theo độ
+# phức tạp loại bỏ hẳn lớp lỗi đó, và agent lẽ ra phải nói với khách đúng
+# như checkout nói.
 
 
 COMPLEX_KEYWORDS = ("2 tầng", "3 tầng", "figure", "tạo hình", "cưới")
@@ -230,8 +250,8 @@ class OrderTools:
                     "sizes": p.get("sizes") or [],
                     "flavors": p.get("flavors") or [],
                     # Chưa có kích cỡ khách chọn nên báo mức nhỏ nhất; đơn
-                    # thật dùng `lead_hours_for_items` theo size khách chọn.
-                    "needs_lead_hours": DEFAULT_LEAD_HOURS,
+                    # Mau trong danh muc la hang da co san: ban ngay, khong cho lam gi.
+                    "needs_lead_hours": READY_MADE_LEAD_HOURS,
                 }
                 for p in matched[:limit]
             ],
@@ -262,8 +282,8 @@ class OrderTools:
             "description": found.get("description") or "",
             "sizes": found.get("sizes") or [],
             "flavors": found.get("flavors") or [],
-            # Mức nhỏ nhất; đơn thật tính theo size khách chọn.
-            "needs_lead_hours": DEFAULT_LEAD_HOURS,
+            # Mau trong danh muc la hang da co san: ban ngay, khong cho lam gi.
+            "needs_lead_hours": READY_MADE_LEAD_HOURS,
         }
 
     # ────────────────────────────────────────────────────────────────────────
@@ -364,11 +384,16 @@ class OrderTools:
             )
         parsed = parsed.replace(tzinfo=VN_TZ)
 
-        # Quy tắc đặt trước lấy từ KÍCH CỚ khách chọn, đúng nguồn checkout dùng.
-        # Trước đây nơi này đoán độ phức tạp từ *tên* sản phẩm ("2 tầng",
-        # "figure"...) trong khi `order_service` đo theo size, nên cùng một
-        # đơn cho hai đáp án lệch nhau đúng 24 giờ. Xem `lead_hours_for_items`.
+        # Hai mốc khác nhau, không được gộp:
+        #
+        # `lead` — mốc chờ của đơn ĐANG CÓ. Mẫu làm sẵn thì 0 giờ (bán ngay),
+        # mẫu đặt thì 24 hay 48 giờ theo kích cước.
+        # `design_lead` — mốc mà khách phải đạt để tiệm nhận LÀM mẫu mới.
+        #
+        # Trước đây cả hai mốc này là một: cả mẫu làm sẵn của bánh
+        # hai tầng đẳng bị bắt phải đặt trước 48 giờ — sai, vì nó đã có sẵn.
         lead = lead_hours_for_items(items)
+        design_lead = custom_design_lead_hours(items)
 
         # Ngày chỉ có ngày-tháng (YYYY-MM-DD) được hiểu là 00:00 hôm đó. Nếu khách
         # nói "hôm nay" thì 00:00 đã trôi qua, cho ra số giờ ÂM trông vô lý. Coi
@@ -388,6 +413,19 @@ class OrderTools:
             "hours_notice": round(hours_notice, 1),
             "required_lead_hours": lead,
             "is_possible": hours_notice >= lead,
+            # Có được phép đặt mẫu riêng / tự thiết kế không.
+            #
+            # Quy tắc của tiệm: bánh ĐƠN GIẢN cần 24 giờ, bánh PHỨC TẠP (hai
+            # tầng, hình dáng, trang trí thủ công nhiều) cần 48 giờ. Còn ít hơn
+            # mốc đó thì chỉ bán được bánh sẵn có trong danh mục, vì làm mẫu mới
+            # không kịp.
+            #
+            # Ngưỡng đặt mẫu là `design_lead`, KHÔNG phải `lead`.
+            # `lead` là mốc của đơn đang có (0 giờ nếu toàn mẫu làm sẵn).
+            # Trước đây tách ra hai mốc (24 cho đặt mẫu, 48 cho làm bánh) là sai:
+            # bánh hai tầng phải cần 48 giờ ở CẢ HAI chỗ, nếu không sẽ nhận đơn
+            # hai tầng mà không kịp làm.
+            "custom_design_allowed": hours_notice >= design_lead,
             "message": (
                 f"Kịp. Còn {hours_notice:.0f} giờ, cần tối thiểu {lead} giờ."
                 if hours_notice >= lead
@@ -643,7 +681,9 @@ TOOL_SCHEMAS: list[dict] = [
                 "ngày với khách. Bánh nhiều tầng cần đặt trước lâu hơn. "
                 "Gọi công cụ này NGAY khi khách nhắc tới một ngày nhận cụ thể, kể cả "
                 "khi khách chỉ hỏi 'ngày đó kịp không' — KHÔNG trả lời số giờ đặt "
-                "trước từ trí nhớ, và KHÔNG tự nói một ngày nào đó là sớm nhất."
+                "trước từ trí nhớ, và KHÔNG tự nói một ngày nào đó là sớm nhất. "
+                "Kết quả có `custom_design_allowed`: false nghĩa là chỉ được bán "
+                "bánh sẵn trong danh mục, không nhận đặt mẫu riêng."
             ),
             "parameters": {
                 "type": "object",
