@@ -43,6 +43,13 @@ VN_TZ = timezone(timedelta(hours=7))
 MIN_LEAD_HOURS = DEFAULT_LEAD_HOURS
 MIN_LEAD_HOURS_COMPLEX = 48
 
+# Mau lam san trong danh muc: hang da co san de ban, khong phai cho lam.
+#
+# Can de ra khoi doi de gioi thieu mau tu danh muc. Truoc day moi mau deu bao
+# "can dat truoc 24 gio" - sai voi mau da co san, va sai ca voi banh hai
+# tang lam san. So 0 nay khop voi `lead_hours_for_items` khi don chi gom mau lam san.
+READY_MADE_LEAD_HOURS = 0
+
 # Ngưỡng "đặt mẫu riêng" KHÔNG có hằng số riêng: nó CHÍNH LÀ
 # `lead_hours_for_items(items)` — cùng số với `required_lead_hours`.
 #
@@ -243,8 +250,8 @@ class OrderTools:
                     "sizes": p.get("sizes") or [],
                     "flavors": p.get("flavors") or [],
                     # Chưa có kích cỡ khách chọn nên báo mức nhỏ nhất; đơn
-                    # thật dùng `lead_hours_for_items` theo size khách chọn.
-                    "needs_lead_hours": DEFAULT_LEAD_HOURS,
+                    # Mau trong danh muc la hang da co san: ban ngay, khong cho lam gi.
+                    "needs_lead_hours": READY_MADE_LEAD_HOURS,
                 }
                 for p in matched[:limit]
             ],
@@ -275,8 +282,8 @@ class OrderTools:
             "description": found.get("description") or "",
             "sizes": found.get("sizes") or [],
             "flavors": found.get("flavors") or [],
-            # Mức nhỏ nhất; đơn thật tính theo size khách chọn.
-            "needs_lead_hours": DEFAULT_LEAD_HOURS,
+            # Mau trong danh muc la hang da co san: ban ngay, khong cho lam gi.
+            "needs_lead_hours": READY_MADE_LEAD_HOURS,
         }
 
     # ────────────────────────────────────────────────────────────────────────

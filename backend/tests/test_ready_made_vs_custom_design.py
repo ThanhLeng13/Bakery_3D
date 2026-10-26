@@ -239,3 +239,102 @@ class TestPromptNoiHaiLuong:
     def test_prompt_khong_bat_doan(self):
         """Trợ lý phải gọi công cụ, không được tự kết luận gấp hay không."""
         assert "check_bake_time" in rag_service.SYSTEM_PROMPT_TEMPLATE
+
+class TestThoiGianChoMauTrongDanhMuc:
+    """Công cụ giới thiệu mẫu phải báo 0 giờ cho mẫu làm sẵn.
+
+    Trước đây `find_cakes` và `get_cake_detail` báo 24 giờ cho MỌI mẫu trong
+    danh mục. Con số đó hiện ra trên thẻ gợi ý cho khách — "cần đặt trước 24
+    giờ" — trong khi mẫu đó đã có sẵn trong tiệm và bán được ngay.
+
+    Nhận xét review nói: báo mốc chờ 0 cho sản phẩm danh mục, khớp với quy tắc
+    "mẫu làm sẵn bán ngay", và giữ `DEFAULT_LEAD_HOURS` cho sản phẩm vẫn cần
+    thời gian làm.
+    """
+
+    def _tools(self):
+        """OrderTools với kho giả: mọi mẫu trả về đều là hàng danh mục."""
+        from unittest.mock import MagicMock
+
+        from app.services.order_tools import OrderTools
+
+        products = [
+            {
+                "id": "11111111-1111-1111-1111-111111111111",
+                "name": "Bánh kem dâu tây",
+                "base_price": 300000,
+                "category": "sinh nhat",
+                "description": "",
+                "sizes": [],
+                "flavors": [],
+                "product_type": "cake",
+            },
+            {
+                "id": "22222222-2222-2222-2222-222222222222",
+                "name": "Bánh kem 2 tầng hoa hồng",
+                "base_price": 650000,
+                "category": "sinh nhat",
+                "description": "",
+                "sizes": [{"name": "2-tier", "price": 650000}],
+                "flavors": [],
+                "product_type": "cake",
+            },
+        ]
+        client = MagicMock()
+        client.table.return_value.select.return_value.eq.return_value.execute.return_value = (
+            MagicMock(data=products)
+        )
+        return OrderTools(client)
+
+    def test_hang_so_bang_0(self):
+        from app.services.order_tools import READY_MADE_LEAD_HOURS
+
+        assert READY_MADE_LEAD_HOURS == 0
+
+    def test_find_cakes_tra_0_cho_mau_danh_muc(self):
+        """Mọi mẫu trả về đều là hàng danh mục, nên đều là 0 giờ."""
+        result = self._tools().find_cakes(keyword="bánh")
+        assert result["cakes"], "cần có mẫu để kiểm"
+        for cake in result["cakes"]:
+            assert cake["needs_lead_hours"] == 0, (
+                f"{cake['name']} là mẫu trong danh mục, phải báo 0 giờ"
+            )
+
+    def test_mau_hai_tang_lam_san_van_bang_0(self):
+        """Bánh hai tầng có sẵn cũng bán ngay — không phải 48 giờ."""
+        result = self._tools().find_cakes(keyword="2 tầng")
+        two_tier = next(c for c in result["cakes"] if "2 tầng" in c["name"])
+        assert two_tier["needs_lead_hours"] == 0
+
+    def test_get_cake_detail_bao_0(self):
+        found = self._tools().find_cakes(keyword="2 tầng")
+        cake = next(c for c in found["cakes"] if "2 tầng" in c["name"])
+        detail = self._tools().get_cake_detail(cake_id=cake["id"])
+        assert detail["needs_lead_hours"] == 0
+
+    def test_the_goi_y_khong_noi_can_dat_truoc_0_gio(self):
+        """Câu trên thẻ gợi ý không được nói "cần đặt trước 0 giờ"."""
+        from app.services.chat_service import ChatService
+
+        tool_log = [
+            {
+                "tool": "find_cakes",
+                "result": {
+                    "cakes": [
+                        {
+                            "id": "abc",
+                            "name": "Bánh kem dâu",
+                            "price": 300000,
+                            "needs_lead_hours": 0,
+                        }
+                    ]
+                },
+            }
+        ]
+        cards = ChatService._recommendations_from(tool_log)
+        assert cards, "phải tạo được thẻ gợi ý"
+        reasoning = cards[0]["reasoning"]
+        assert "0 giờ" not in reasoning, (
+            f"không nên nói 'cần đặt trước 0 giờ' với khách: {reasoning}"
+        )
+        assert "có sẵn" in reasoning

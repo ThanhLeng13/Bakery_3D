@@ -160,7 +160,14 @@ class ChatService:
                     {
                         "product_name": c["name"],
                         "price": c["price"],
-                        "reasoning": f"Phù hợp yêu cầu, cần đặt trước {c['needs_lead_hours']} giờ",
+                        # Mẫu trong danh mục là hàng đã có sẵn nên mốc chờ là 0.
+                        # Không nói "cần đặt trước 0 giờ" với khách — câu đó vô
+                        # nghĩa và làm thẻ gợi ý trông như máy móc.
+                        "reasoning": (
+                            f"Phù hợp yêu cầu, cần đặt trước {c['needs_lead_hours']} giờ"
+                            if c["needs_lead_hours"]
+                            else "Phù hợp yêu cầu, mẫu đang có sẵn tại tiệm"
+                        ),
                         "product_id": c.get("id"),
                     }
                     for c in cakes[:5]
