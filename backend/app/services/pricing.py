@@ -87,26 +87,70 @@ def is_two_tier(size) -> bool:
 
 
 def lead_hours_for_items(items) -> int:
-    """Giờ chuẩn bị tối thiểu của một đơn, theo kích cỡ khách chọn.
+    """Giờ chuấn bề tối thiểu của một đơn, theo kích cỡc khách chọn.
 
     Nguồn duy nhất cho cả hai nơi kiểm tra: agent (`order_tools`) và checkout
     (`order_service._validate_pickup_date`). Trước đây agent suy ra từ *tên*
-    sản phẩm ("2 tầng", "figure"...) còn checkout suy ra từ *kích cỡ*, nên
-    cùng một đơn cho hai đáp án lệch nhau 24 giờ — bánh tên "2 tầng" nhưng
+    sản phẩm ("2 tḟng", "figure"...) còn checkout suy ra từ *kích cỡc*, nên
+    cùng một đơn cho hai đáp án lệch nhau đúng 24 giờ — bánh tên "2 tḟng" nhưng
     khách chọn 20cm thì agent báo 48h trong khi chốt đơn chỉ cần 24h.
 
-    Nhiều dòng trong `items` thì lấy mức cao nhất: một đơn có bánh hai tầng vẫn
-    cần 48h dù các dòng khác là bánh một tầng.
+    Nhiều dòng trong `items` thì lấy mức cao nhất: một đơn có bánh hai tḟng vẫn
+    cần 48h dù các dòng khác là bánh một tḟng.
+
+    **Chỉ mẫu ĐẶT mới cần chờ.** Mẫu làm sẵn (có `product_id` thật trong
+    danh mục) là hàng tiệm đã làm sẵn để bán cho khách chọn, nên bán liền được
+    giống bán bất kỳ món nào khác — kể cả mẫu hai tḟng đã làm sẵn. Vì vậy dòng
+    có `product_id` thật không tính vào mốc chờ.
+
+    Trước đây mọi dòng đều bị tính, nên một chiếc bánh hai tḟng đã làm sẵn bị bắt
+    phải đặt trước 48 giờ — sai, vì nó không cần làm gì cả.
+
+    Trả về 0 nghĩa là "bán ngay": đơn chỉ gồm mẫu làm sẵn.
     """
-    longest = DEFAULT_LEAD_HOURS
+    if not items:
+        # Chưa biết khách chọn gì: dùng mức mặc định, thẬn trọng hơn.
+        return DEFAULT_LEAD_HOURS
+
+    longest = 0
+    has_custom = False
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        # Mẫu làm sẵn trong danh mục: có sẵn, không cần chờ làm.
+        if not is_custom_cake(item.get("product_id")):
+            continue
+        has_custom = True
+        size = item.get("size")
+        # Mẫu đặt không có size: dùng mức mặc định.
+        hours = SIZE_LEAD_HOURS.get(normalize_size(size), DEFAULT_LEAD_HOURS)
+        longest = max(longest, hours)
+    if has_custom:
+        return longest
+    # Toàn mẫu làm sẵn: bán ngay, không cần chờ.
+    return 0
+
+
+def custom_design_lead_hours(items) -> int:
+    """Mốc chờ để được NHậN một mẫu ĐẶT (bánh tùy chỉnh).
+
+    Khác `lead_hours_for_items`: hàm đó trả mốc chờ của đơn ĐANG CÓ — mẫu làm sẵn thì 0 giờ.
+    Hàm này trả mốc mà khách phải đạt để tiệm nhận làm mẫu mới.
+
+    Nếu đơn đang có chỉ mẫu làm sẵn thì chưa biết khách định đặt mẫu gì, nên
+    lấy mức mặc định (24 giờ cho bánh đơn giản) — mức nhẹ nhất mà vẫn kệp.
+    """
+    longest = 0
     for item in items or []:
         if not isinstance(item, dict):
             continue
-        size = item.get("size")
-        # Bánh tùy chỉnh không có size: dùng mức mặc định.
-        hours = SIZE_LEAD_HOURS.get(normalize_size(size), DEFAULT_LEAD_HOURS)
+        if not is_custom_cake(item.get("product_id")):
+            continue
+        hours = SIZE_LEAD_HOURS.get(
+            normalize_size(item.get("size")), DEFAULT_LEAD_HOURS
+        )
         longest = max(longest, hours)
-    return longest
+    return longest or DEFAULT_LEAD_HOURS
 
 
 def cake_price(size) -> int:

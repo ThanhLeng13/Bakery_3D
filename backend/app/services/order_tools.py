@@ -26,6 +26,7 @@ from typing import Any, Optional
 
 from app.services.pricing import (
     DEFAULT_LEAD_HOURS,
+    custom_design_lead_hours,
     lead_hours_for_items,
 )
 
@@ -376,11 +377,16 @@ class OrderTools:
             )
         parsed = parsed.replace(tzinfo=VN_TZ)
 
-        # Quy tắc đặt trước lấy từ KÍCH CỚ khách chọn, đúng nguồn checkout dùng.
-        # Trước đây nơi này đoán độ phức tạp từ *tên* sản phẩm ("2 tầng",
-        # "figure"...) trong khi `order_service` đo theo size, nên cùng một
-        # đơn cho hai đáp án lệch nhau đúng 24 giờ. Xem `lead_hours_for_items`.
+        # Hai mốc khác nhau, không được gộp:
+        #
+        # `lead` — mốc chờ của đơn ĐANG CÓ. Mẫu làm sẵn thì 0 giờ (bán ngay),
+        # mẫu đặt thì 24 hay 48 giờ theo kích cước.
+        # `design_lead` — mốc mà khách phải đạt để tiệm nhận LÀM mẫu mới.
+        #
+        # Trước đây cả hai mốc này là một: cả mẫu làm sẵn của bánh
+        # hai tầng đẳng bị bắt phải đặt trước 48 giờ — sai, vì nó đã có sẵn.
         lead = lead_hours_for_items(items)
+        design_lead = custom_design_lead_hours(items)
 
         # Ngày chỉ có ngày-tháng (YYYY-MM-DD) được hiểu là 00:00 hôm đó. Nếu khách
         # nói "hôm nay" thì 00:00 đã trôi qua, cho ra số giờ ÂM trông vô lý. Coi
@@ -407,11 +413,12 @@ class OrderTools:
             # mốc đó thì chỉ bán được bánh sẵn có trong danh mục, vì làm mẫu mới
             # không kịp.
             #
-            # Ngưỡng này CHÍNH LÀ `required_lead_hours` — cùng một số, cùng một
-            # nguồn `lead_hours_for_items`. Trước đây tách ra hai mốc (24 cho
-            # đặt mẫu, 48 cho làm bánh) là sai: bánh hai tầng phải cần 48 giờ ở
-            # CẢ HAI chỗ, nếu không sẽ nhận đơn hai tầng mà không kịp làm.
-            "custom_design_allowed": hours_notice >= lead,
+            # Ngưỡng đặt mẫu là `design_lead`, KHÔNG phải `lead`.
+            # `lead` là mốc của đơn đang có (0 giờ nếu toàn mẫu làm sẵn).
+            # Trước đây tách ra hai mốc (24 cho đặt mẫu, 48 cho làm bánh) là sai:
+            # bánh hai tầng phải cần 48 giờ ở CẢ HAI chỗ, nếu không sẽ nhận đơn
+            # hai tầng mà không kịp làm.
+            "custom_design_allowed": hours_notice >= design_lead,
             "message": (
                 f"Kịp. Còn {hours_notice:.0f} giờ, cần tối thiểu {lead} giờ."
                 if hours_notice >= lead
