@@ -76,9 +76,40 @@ def normalize_size(size) -> str:
     return size.strip().lower()
 
 
-def is_custom_cake(product_id) -> bool:
-    """True khi món không có sản phẩm danh mục đứng sau."""
-    return product_id is None or str(product_id) == NIL_UUID
+def catalogue_product_id(item: dict):
+    """ID sản phẩm DANH MỤC của một dòng đơn, hay None nếu là mẫu đặt.
+
+    Đơn từ checkout gửi `product_id`; đơn từ trợ lý gửi `cake_id` — cùng một
+    thứ, hai tên khác nhau. Trước đây hàm này chỉ đọc `product_id`, nên mọi dòng
+    do trợ lý gửi đều bị coi là MẪU ĐẶT và bị bắt chờ 24 hay 48 giờ — tức là
+    một chiếc bánh đã có sẵn trong danh mục bị từ chối đơn dù khách nhận ngay
+    hôm nay.
+
+    Trả về None khi không có id nào, vì lúc đó chưa biết là hàng danh mục hay
+    mẫu đặt: mặc định là thận trọng hơn.
+    """
+    if not isinstance(item, dict):
+        return None
+    for key in ("product_id", "cake_id"):
+        value = item.get(key)
+        if value is None:
+            continue
+        text = str(value).strip()
+        if not text or text == NIL_UUID:
+            continue
+        return text
+    return None
+
+
+def is_custom_cake(item) -> bool:
+    """True khi món không có sản phẩm danh mục đứng sau.
+
+    Nhận cả dòng đơn (dict) lẫn id trần, để nơi gọi không phải tự biết mình
+    đang cầm cái gì.
+    """
+    if isinstance(item, dict):
+        return catalogue_product_id(item) is None
+    return item is None or str(item) == NIL_UUID
 
 
 def is_two_tier(size) -> bool:
@@ -118,7 +149,7 @@ def lead_hours_for_items(items) -> int:
         if not isinstance(item, dict):
             continue
         # Mẫu làm sẵn trong danh mục: có sẵn, không cần chờ làm.
-        if not is_custom_cake(item.get("product_id")):
+        if not is_custom_cake(item):
             continue
         has_custom = True
         size = item.get("size")
@@ -144,7 +175,7 @@ def custom_design_lead_hours(items) -> int:
     for item in items or []:
         if not isinstance(item, dict):
             continue
-        if not is_custom_cake(item.get("product_id")):
+        if not is_custom_cake(item):
             continue
         hours = SIZE_LEAD_HOURS.get(
             normalize_size(item.get("size")), DEFAULT_LEAD_HOURS

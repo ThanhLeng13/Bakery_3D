@@ -13,6 +13,7 @@ from typing import Any
 from app.services.pricing import (
     DEFAULT_LEAD_HOURS,
     lead_hours_for_items,
+    catalogue_product_id,
     is_custom_cake,
     is_two_tier,
     order_total,
@@ -268,7 +269,7 @@ class OrderService:
         """
         prices: list[int] = []
         for item in items:
-            raw_pid = item.get("product_id")
+            raw_pid = catalogue_product_id(item)
             if is_custom_cake(raw_pid):
                 design = item.get("customization_json")
                 if not isinstance(design, dict) or not design:
@@ -360,8 +361,8 @@ class OrderService:
             {
                 "product_id": (
                     ""
-                    if is_custom_cake(item.get("product_id"))
-                    else str(item.get("product_id"))
+                    if is_custom_cake(item)
+                    else str(catalogue_product_id(item))
                 ),
                 "size": item.get("size"),
                 "flavor": item.get("flavor"),

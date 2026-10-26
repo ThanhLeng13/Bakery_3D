@@ -338,3 +338,103 @@ class TestThoiGianChoMauTrongDanhMuc:
             f"không nên nói 'cần đặt trước 0 giờ' với khách: {reasoning}"
         )
         assert "có sẵn" in reasoning
+
+class TestHaiTenIdCuaMauDanhMuc:
+    """Mẫu danh mục phải ra cùng kết luận dù đi vào bằng tên id nào.
+
+    Lỗi đã xảy ra: trợ lý gửi `cake_id` (đúng theo schema `create_draft_order`)
+    nhưng `lead_hours_for_items` chỉ đọc `product_id`. Dòng đơn của trợ lý vì
+    thế không có id nào được đọc, bị coi là MẪU ĐẶT, và bị bắt chờ 24 hay 48
+    giờ — một chiếc bánh đã có sẵn trong danh mục bị từ chối đơn dù khách
+    nhận ngay hôm nay.
+
+    Đo được trước khi sửa, khách nhận sau 2 giờ:
+
+        cake_id    (agent gui) : lead= 24  is_possible=False
+        product_id (checkout)  : lead=  0  is_possible=True
+        khong co id (mau dat)  : lead= 24  is_possible=False
+
+    Sau khi sửa, cả hai cùng ra 0, còn mẫu đặt vẫn 24.
+    """
+
+    PRODUCT_ID = "11111111-1111-1111-1111-111111111111"
+
+    def _tools(self):
+        from unittest.mock import MagicMock
+
+        from app.services.order_tools import OrderTools
+
+        products = [
+            {
+                "id": self.PRODUCT_ID,
+                "name": "Bánh kem dâu tây",
+                "base_price": 300000,
+                "category": "sinh nhat",
+                "description": "",
+                "sizes": [{"name": "20cm", "price": 300000}],
+                "flavors": [],
+                "product_type": "cake",
+            }
+        ]
+        client = MagicMock()
+        client.table.return_value.select.return_value.eq.return_value.execute.return_value = (
+            MagicMock(data=products)
+        )
+        return OrderTools(client)
+
+    def test_cake_id_va_product_id_cho_cung_ket_luan(self, monkeypatch):
+        monkeypatch.setattr("app.services.order_tools._vn_now", lambda: FREEZE)
+        tools = self._tools()
+
+        by_cake_id = tools.check_bake_time(
+            _at(2), items=[{"cake_id": self.PRODUCT_ID, "size": "20cm"}]
+        )
+        by_product_id = tools.check_bake_time(
+            _at(2), items=[{"product_id": self.PRODUCT_ID, "size": "20cm"}]
+        )
+
+        assert by_cake_id["required_lead_hours"] == 0, (
+            "trợ lý gửi cake_id, mẫu danh mục phải ra 0 giờ chờ"
+        )
+        assert by_cake_id["required_lead_hours"] == by_product_id["required_lead_hours"]
+        assert by_cake_id["is_possible"] is True, (
+            "mẫu đã có sẵn, khách nhận sau 2 giờ thì phải nhận được đơn"
+        )
+
+    def test_mau_dat_khong_co_id_van_bi_bat_cho(self, monkeypatch):
+        """Sửa lỗi trên KHÔNG được nới lỏng mẫu đặt."""
+        monkeypatch.setattr("app.services.order_tools._vn_now", lambda: FREEZE)
+        tools = self._tools()
+
+        for item in (
+            {"size": "20cm"},
+            {"product_id": NIL_UUID, "size": "20cm"},
+            {"cake_id": NIL_UUID, "size": "20cm"},
+        ):
+            result = tools.check_bake_time(_at(2), items=[item])
+            assert result["required_lead_hours"] == 24, (
+                f"mẫu đặt vẫn phải chờ 24 giờ: {item}"
+            )
+            assert result["is_possible"] is False
+
+    def test_hang_hoang_thi_van_la_mau_dat(self):
+        """Id rỗng thì chưa biết là hàng danh mục: thận trọng hơn."""
+        from app.services.pricing import is_custom_cake
+
+        assert is_custom_cake({"product_id": "", "size": "20cm"}) is True
+        assert is_custom_cake({"cake_id": "", "size": "20cm"}) is True
+        assert is_custom_cake({"product_id": NIL_UUID}) is True
+
+    def test_id_tran_van_dung_duoc(self):
+        """`is_custom_cake` nhận cả id trần, không chỉ dòng đơn."""
+        from app.services.pricing import is_custom_cake
+
+        assert is_custom_cake(None) is True
+        assert is_custom_cake(NIL_UUID) is True
+        assert is_custom_cake("11111111-1111-1111-1111-111111111111") is False
+
+    def test_checkout_van_dung_product_id(self, monkeypatch):
+        """Checkout gửi `product_id` — hành vi phải y như cũ, không đổi."""
+        from app.services.pricing import lead_hours_for_items
+
+        assert lead_hours_for_items([{"product_id": self.PRODUCT_ID, "size": "20cm"}]) == 0
