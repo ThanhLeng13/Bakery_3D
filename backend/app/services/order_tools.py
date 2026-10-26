@@ -42,17 +42,17 @@ VN_TZ = timezone(timedelta(hours=7))
 MIN_LEAD_HOURS = DEFAULT_LEAD_HOURS
 MIN_LEAD_HOURS_COMPLEX = 48
 
-# Ngưỡng "đặt trong ngày": còn ít hơn mấy giờ thì KHÔNG nhận đặt mẫu riêng.
+# Ngưỡng "đặt mẫu riêng" KHÔNG có hằng số riêng: nó CHÍNH LÀ
+# `lead_hours_for_items(items)` — cùng số với `required_lead_hours`.
 #
-# Quyết định của tiệm: khách cần gấp (trong ngày) thì chỉ bán được bánh sẵn có
-# sẵn trong danh mục; từ 24 giờ trở lên mới nhận đặt theo mẫu khách chọn.
+# Quy tắc của tiệm: bánh đơn giản cần 24 giờ, bánh phức tạp (hai tầng, hình
+# dáng) cần 48 giờ. Dưới mốc đó chỉ bán được bánh sẵn có trong danh mục.
 #
-# Cố ý KHÔNG đặt là 48 giờ dù bánh 2 tầng cần 48 giờ để làm: hai mốc này trả
-# lời hai câu hỏi khác nhau. 48 giờ là "lành kịp không", 24 giờ là "có nhận
-# thiết kế mới không". Khách đặt trước 30 giờ mà chọn mẫu có sẵn thì vẫn bán
-# được — chỉ là không nhận làm mẫu mới. Trộn hai mốc này sẽ từ chối oan những
-# đơn thật bán được.
-SAME_DAY_NOTICE_HOURS = 24
+# Trước đây tách hai mốc (24 cho đặt mẫu, 48 cho làm bánh) là SAI. Lý do đã
+# đo: một bánh hai tầng đặt trước 30 giờ sẽ bị chấp nhận đặt mẫu trong khi
+# 48 giờ mới kịp làm — nhận đơn rồi không làm kịp. Một mốc duy nhất theo độ
+# phức tạp loại bỏ hẳn lớp lỗi đó, và agent lẽ ra phải nói với khách đúng
+# như checkout nói.
 
 
 COMPLEX_KEYWORDS = ("2 tầng", "3 tầng", "figure", "tạo hình", "cưới")
@@ -402,15 +402,16 @@ class OrderTools:
             "is_possible": hours_notice >= lead,
             # Có được phép đặt mẫu riêng / tự thiết kế không.
             #
-            # Quy tắc của tiệm: đặt trong ngày (dưới 24 giờ) thì chỉ bán được
-            # bánh sẵn có trong danh mục, vì làm mẫu mới không kịp. Từ 24 giờ
-            # trở lên mới nhận đặt theo mẫu khách chọn.
+            # Quy tắc của tiệm: bánh ĐƠN GIẢN cần 24 giờ, bánh PHỨC TẠP (hai
+            # tầng, hình dáng, trang trí thủ công nhiều) cần 48 giờ. Còn ít hơn
+            # mốc đó thì chỉ bán được bánh sẵn có trong danh mục, vì làm mẫu mới
+            # không kịp.
             #
-            # Mốc này LÀ mốc của nghiệp vụ, không phải mốc làm bánh: một bánh
-            # 2 tầng cần 48 giờ để làm, nhưng nếu khách đặt trước 30 giờ và
-            # chọn mẫu có sẵn thì vẫn bán được — chỉ là không nhận thiết kế
-            # mới. Vì vậy KHÔNG lấy `lead` làm ngưỡng ở đây.
-            "custom_design_allowed": hours_notice >= SAME_DAY_NOTICE_HOURS,
+            # Ngưỡng này CHÍNH LÀ `required_lead_hours` — cùng một số, cùng một
+            # nguồn `lead_hours_for_items`. Trước đây tách ra hai mốc (24 cho
+            # đặt mẫu, 48 cho làm bánh) là sai: bánh hai tầng phải cần 48 giờ ở
+            # CẢ HAI chỗ, nếu không sẽ nhận đơn hai tầng mà không kịp làm.
+            "custom_design_allowed": hours_notice >= lead,
             "message": (
                 f"Kịp. Còn {hours_notice:.0f} giờ, cần tối thiểu {lead} giờ."
                 if hours_notice >= lead
