@@ -558,8 +558,10 @@ class TestProductTypeFilter:
 
         captured = {}
 
-        def fake_search(self, raw, match_count=6, match_threshold=0.0, product_type=None):
+        def fake_search(self, raw, match_count=6, match_threshold=0.0,
+                        product_type=None, has_3d_model=None):
             captured["product_type"] = product_type
+            captured["has_3d_model"] = has_3d_model
             return {"results": [], "count": 0, "timing_ms": {}, "model": "test"}
 
         client = TestClient(app)

@@ -32,6 +32,7 @@ from typing import Any, Optional
 from PIL import Image, UnidentifiedImageError
 
 from app.core.config import settings
+from app.services.orderable_3d import is_orderable_model
 from app.utils.image_url import format_image_url
 
 logger = logging.getLogger(__name__)
@@ -82,6 +83,36 @@ class ClipModelUnavailableError(ClipServiceError):
             + (f" ({detail})" if detail else ""),
             status_code=503,
         )
+
+
+
+
+def _is_missing_table_error(exc: BaseException) -> bool:
+    """Lỗi này do BẢNG chưa tồn tại, hay là lỗi thật?
+
+    PostgREST báo `PGRST205` khi không thấy bảng; Postgres báo `42P01`.
+    Mọi thứ khác — mất mạng, timeout, sai cấu hình — là lỗi thật và phải
+    nổi lên, không được nuốt thành "không có dữ liệu".
+
+    Vì sao KHÔNG dùng chung mẫu "does not exist": thông báo đó cũng dùng
+    cho cột hoặc hàm không tồn tại ("column cake_3d_models.slug does not
+    exist"). Nuốt nhầm lỗi đó thành "bảng chưa có" sẽ che mất lỗi schema
+    thật — lúc đó hệ thống im lặng trả về 0 mô hình thay vì báo lỗi.
+    Nên: marker riêng cho bảng, cộng fallback chỉ khi thông báo nói rõ
+    *quan hệ* (relation) không tồn tại.
+    """
+    message = str(exc).lower()
+    table_markers = ("pgrst205", "42p01", "could not find the table")
+    if any(marker in message for marker in table_markers):
+        return True
+    # Fallback: thông báo của Postgres là
+    #   relation "product_3d_models" does not exist
+    # nên phải đòi CẢ "does not exist" LẪN một từ chỉ quan hệ. Chỉ khớp
+    # "does not exist" đơn thuần là sai — mẫu đó cũng dùng cho cột/hàm
+    # ("column slug does not exist"), và nuốt nhầm sẽ che mất lỗi schema thật.
+    if "does not exist" not in message:
+        return False
+    return "relation" in message or "table" in message
 
 
 class InvalidImageError(ClipServiceError):
@@ -261,25 +292,44 @@ class ClipSearchService:
         match_threshold: float,
         match_count: int,
         product_type: str | None,
-    ) -> list[dict[str, Any]]:
-        """Lấy `match_count` dòng khớp `product_type`, xếp theo similarity.
+        has_3d_model: bool | None = None,
+    ) -> tuple[list[dict[str, Any]], dict[str, dict]]:
+        """Lấy dòng khớp `product_type`, xếp theo similarity.
 
-        Hỏi RPC theo từng trang và tăng dần kích thước trang cho tới khi đủ kết
-        quả hoặc hết dữ liệu. Cách này đúng cho mọi phân bố: dù nhóm cần tìm nằm
-        cuối bảng điểm, ta vẫn lấy tới khi tìm đủ, thay vì đoán một con số.
+        Trả về `(rows, models_by_product)`:
+          - `rows`: kết quả đã lọc và đã cắt còn `match_count` dòng.
+          - `models_by_product`: mapping 3D của các sản phẩm có trong `rows`,
+            để giao diện biết mẫu nào mở được viewer.
 
-        Không lọc (`product_type is None`) thì chỉ gọi RPC một lần đúng
-        `match_count` — giữ nguyên hành vi cũ, không tốn thêm request.
+        Hỏi RPC theo từng trang và tăng dần kích thước trang tới khi đủ kết
+        quả hoặc hết dữ liệu. Cách này đúng cho mọi phân bố: dù nhóm cần tìm
+        nằm cuối bảng điểm, ta vẫn lấy tới khi tìm đủ, thay vì đoán một con số.
+
+        Không lọc gì (`product_type is None` và `has_3d_model is None`) thì chỉ
+        gọi RPC một lần đúng `match_count` — giữ nguyên hành vi cũ, không tốn
+        thêm request.
+
+        Lọc theo mô hình 3D phải quét SÂU HƠN `match_count`: bảng mapping nằm
+        ngoài RPC nên không lọc được ngay trong SQL. Nếu cắt còn `match_count`
+        dòng rồi mới lọc, chế độ "chỉ mẫu có 3D" trả về ít hơn số khách xin.
+        Đo trên CSDL thật (27/10): chỉ 3/101 bánh sinh nhật có mô hình 3D, mà
+        top-6 theo similarity thường không chứa cả 3 — nên phải quét sâu hơn
+        mới lấy đủ.
 
         Trần `_MAX_PAGES` để một kho rất lớn cũng không quét vô hạn: sau khi vét
         cạn `_MAX_SCAN` dòng mà vẫn không đủ thì trả về những gì đang có.
         """
-        if not product_type:
+        if not product_type and has_3d_model is None:
             # Cắt lại tại đây thay vì tin RPC tôn trọng `match_count`: một số
             # backend bỏ qua giới hạn, và trả nhiều hơn số khách xin là sai.
-            return self._rpc(vector, match_threshold, match_count)[:match_count]
+            rows = self._rpc(vector, match_threshold, match_count)[:match_count]
+            wanted = [r.get("product_id") for r in rows if r.get("product_id")]
+            # Không lọc 3D: mapping chỉ là thông tin phụ (bật nút "Xem 3D"),
+            # nên lỗi đọc mapping không được chặn danh sách sản phẩm.
+            return rows, self._products_with_3d_model(wanted, strict=False)
 
         collected: list[dict[str, Any]] = []
+        models_by_product: dict[str, dict] = {}
         page = max(match_count * 2, _MIN_PAGE)
         scanned = 0
 
@@ -303,13 +353,34 @@ class ClipSearchService:
             #
             # Trang sau luôn là tập cha của trang trước, nên chỉ cần giữ lại kết
             # quả mới nhất — vừa đúng, vừa không cần khử trùng lặp.
-            collected = [r for r in batch if r.get("product_type") == product_type]
+            if product_type:
+                batch = [r for r in batch if r.get("product_type") == product_type]
+
+            if has_3d_model is None:
+                collected = batch
+            else:
+                # Cần mapping của MỌI sản phẩm trong trang để biết dòng nào
+                # giữ lại. Một truy vấn cho cả trang, không phải từng dòng.
+                wanted = [r.get("product_id") for r in batch if r.get("product_id")]
+                models_by_product = self._products_with_3d_model(wanted)
+                collected = [
+                    r
+                    for r in batch
+                    if (r.get("product_id") in models_by_product) == has_3d_model
+                ]
 
             if len(collected) >= match_count or exhausted or scanned >= _MAX_SCAN:
                 break
             page = min(page * 2, _MAX_SCAN)
 
-        return collected[:match_count]
+        rows = collected[:match_count]
+        if has_3d_model is None:
+            # Không lọc 3D nhưng vẫn cần mapping để giao diện biết mẫu nào
+            # mở được viewer (một truy vấn cho toàn bộ kết quả trả về).
+            wanted = [r.get("product_id") for r in rows if r.get("product_id")]
+            # Không lọc 3D: xem ghi chú o nhanh khong loc gi.
+            models_by_product = self._products_with_3d_model(wanted, strict=False)
+        return rows, models_by_product
 
     def _rpc(
         self, vector: list[float], match_threshold: float, count: int
@@ -331,16 +402,111 @@ class ClipSearchService:
             )
         return response.data or []
 
+    def _products_with_3d_model(
+        self, product_ids: list[str], strict: bool = True
+    ) -> dict[str, dict]:
+        """Lấy mapping 3D hợp lệ của các sản phẩm được, theo `product_id`.
+
+        "Hợp lệ" nghĩa là: sản phẩm còn đang bán, mô hình còn active, và có
+        mapping trỏ tới mô hình thật. Điều này quyết định kết quả tìm ảnh có
+        mở được viewer hay không — thiếu một là khách bấm vào rồi thấy trang
+        trắng.
+
+        `strict=True` (mặc định): lỗi đọc mapping nổi lên thành lỗi dịch vụ.
+        Dùng khi lọc theo 3D — vì đó là ĐIỀU KHOẢN: không đọc được mapping thì
+        không được im lặng trả rỗng, khách sẽ tưởng kho không có mẫu 3D.
+
+        `strict=False`: lỗi đọc mapping chỉ được ghi log, trả về mapping rỗng.
+        Dùng khi KHÔNG lọc 3D — ở đó mapping chỉ là thông tin phụ để bật nút
+        "Xem 3D"; đọc hỏng không nên chặn cả danh sách sản phẩm khách tìm.
+
+        Trả về dict `product_id -> {slug, glb_url, ...}`, rỗng nếu không sản
+        phẩm nào có mapping.
+        """
+        if not product_ids:
+            return {}
+
+        try:
+            links_resp = (
+                self.client.table("product_3d_models")
+                .select(
+                    "product_id, sort_order, is_primary, "
+                    "cake_3d_models(id, slug, name, glb_url, thumbnail_url, is_active)"
+                )
+                .in_("product_id", product_ids)
+                .execute()
+            )
+            links = links_resp.data or []
+        except Exception as exc:
+            # Bảng chưa tồn tại (migration chưa chạy) — tình huống ĐÃ BIẾT:
+            # coi như không sản phẩm nào có 3D.
+            if _is_missing_table_error(exc):
+                logger.warning(
+                    "Bảng product_3d_models chưa tồn tại (migration chưa chạy): %s",
+                    exc,
+                )
+                return {}
+            # Lỗi kết nối hoặc lỗi khác.
+            if not strict:
+                # Không lọc 3D: mapping chỉ là thông tin phụ, không chặn kết quả.
+                logger.exception("Không đọc được mapping 3D (bỏ qua)")
+                return {}
+            # Lọc 3D: KHÔNG được nuốt. Nuốt sẽ biến lỗi thành "không có kết
+            # quả" — chế độ chỉ-mẫu-3D trả HTTP 200 với 0 kết quả, khách tưởng
+            # kho không có mẫu 3D nào.
+            logger.exception("Không đọc được mapping 3D")
+            raise ClipServiceError(
+                "Không thể kiểm tra mô hình 3D của sản phẩm. Vui lòng thử lại.",
+                status_code=503,
+            ) from exc
+
+        valid: dict[str, dict] = {}
+        for link in links:
+            model = link.get("cake_3d_models") or {}
+            if isinstance(model, list):
+                model = model[0] if model else {}
+            if not isinstance(model, dict) or not model.get("id"):
+                continue
+            # Mô hình không còn active thì không xem được.
+            if not model.get("is_active"):
+                continue
+            pid = link.get("product_id")
+            entry = {
+                "id": model["id"],
+                "slug": model.get("slug"),
+                "name": model.get("name"),
+                "glb_url": model.get("glb_url"),
+                "thumbnail_url": model.get("thumbnail_url"),
+                "is_primary": bool(link.get("is_primary")),
+                "sort_order": link.get("sort_order") or 0,
+                # Mẫu xem được không đồng nghĩa bán được. Giao diện cần biết
+                # để ghi rõ cho khách thay vì để khách bấm "Đặt" rồi bị từ chối.
+                "is_orderable": is_orderable_model(model.get("slug")),
+            }
+            current = valid.get(pid)
+            if current is None:
+                valid[pid] = entry
+            elif entry["is_primary"] and not current["is_primary"]:
+                valid[pid] = entry
+            elif entry["is_primary"] == current["is_primary"] and (
+                entry["sort_order"] < current["sort_order"]
+            ):
+                valid[pid] = entry
+        return valid
+
     def search_by_image(
         self,
         raw: bytes,
         match_count: int = 6,
         match_threshold: float = 0.0,
         product_type: str | None = None,
+        has_3d_model: bool | None = None,
     ) -> dict[str, Any]:
         """Trả về danh sách sản phẩm giống nhất kèm độ tương đồng.
 
         Args:
+            has_3d_model: Chỉ trả sản phẩm CÓ mô hình 3D hợp lệ (sản phẩm
+                còn bán, mô hình còn active). None = không lọc.
             product_type: Lọc theo loại sản phẩm. `"cake"` = chỉ bánh sinh nhật
                 (bánh thiết kế theo kiểu mẫu). None = tìm trong toàn kho.
                 Lọc ở Python chứ không ở SQL vì RPC `match_cakes` không nhận
@@ -374,13 +540,20 @@ class ClipSearchService:
         # tới khi RPC trả về ít hơn số đã xin (hết dữ liệu). Như vậy kết quả không
         # còn phụ thuộc vào việc nhóm khác xếp hạng cao hay thấp.
         search_started = time.perf_counter()
-        rows = self._fetch_ranked(
+        rows, models_by_product = self._fetch_ranked(
             vector=vector,
             match_threshold=match_threshold,
             match_count=match_count,
             product_type=product_type,
+            has_3d_model=has_3d_model,
         )
         search_ms = (time.perf_counter() - search_started) * 1000
+
+        # Lọc theo mô hình 3D đã xong trong `_fetch_ranked` (và phải quét sâu
+        # hơn `match_count` mới đủ). Ở đây chỉ còn dựng kết quả trả về.
+        #
+        # `models_by_product` luôn có mặt cho mọi kết quả, kể cả khi không lọc:
+        # giao diện cần biết mẫu nào MỞ ĐƯỢC viewer để bật nút xem 3D.
 
         results = []
         for row in rows:
@@ -396,6 +569,9 @@ class ClipSearchService:
                     # Trả về % để giao diện hiển thị trực tiếp.
                     "similarity": round(similarity, 4),
                     "similarity_percent": round(similarity * 100, 1),
+                    # Mô hình 3D để mở viewer. None khi sản phẩm không có
+                    # mô hình hợp lệ.
+                    "three_d_model": models_by_product.get(row.get("product_id")),
                 }
             )
 
