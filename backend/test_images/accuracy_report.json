@@ -4,15 +4,15 @@
   "top1_accuracy": 16.666666666666664,
   "top3_accuracy": 27.77777777777778,
   "n_in_catalog": 18,
-  "n_out_of_catalog_cake": 12,
-  "n_out_of_domain": 14,
+  "n_out_of_catalog_cake": 10,
+  "n_out_of_domain": 16,
   "n_3d_body": 30,
   "body_3d_hit_rate": 0.0,
   "body_3d_viewable_rate": 0.0,
   "filtered_3d_all_viewable_rate": 100.0,
   "sim_avg_in": 0.5837111111111111,
-  "sim_avg_out": 0.5506083333333333,
-  "sim_avg_out_of_domain": 0.50625,
+  "sim_avg_out": 0.54281,
+  "sim_avg_out_of_domain": 0.51666875,
   "details": [
     {
       "file": "trong_kho/Bánh_tiramisu_truyền_thống__1.jpg",
@@ -250,6 +250,18 @@
     }
   ],
   "details_out_of_domain": [
+    {
+      "file": "ngoai_mien_banh/kem__1.jpg",
+      "label": "kem",
+      "top1": "Bánh mousse chanh dây trái cây nền trắng",
+      "sim1": 0.5781
+    },
+    {
+      "file": "ngoai_mien_banh/che__1.jpg",
+      "label": "che",
+      "top1": "Bánh tart trứng",
+      "sim1": 0.6011
+    },
     {
       "file": "ngoai_mien_banh/pizza__1.jpg",
       "label": "pizza",

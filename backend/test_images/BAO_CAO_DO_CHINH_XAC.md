@@ -28,8 +28,8 @@ khác ánh sáng, khác nền.
 |---|---|---|---|
 | `trong_kho` | 18 | Đo top-1 / top-3 accuracy | Wikimedia Commons |
 | `mo_hinh_3d` | 30 | Đo nhận dạng kiểu thân, phủ **6 kiểu** | Render từ GLB của chính dự án |
-| `ngoai_kho` | 12 | Là bánh nhưng kho không có món đó | Wikimedia Commons |
-| `ngoai_mien_banh` | 14 | **Không phải bánh** — đo khả năng từ chối | Wikimedia Commons |
+| `ngoai_kho` | 10 | Là bánh nhưng kho không có món đó | Wikimedia Commons |
+| `ngoai_mien_banh` | 16 | **Không phải bánh** — đo khả năng từ chối | Wikimedia Commons |
 
 **Tất cả 74 ảnh đều có nguồn + giấy phép ghi trong `manifest.json` và
 `manifest_3d.json`** (đã kiểm: 0 ảnh thiếu giấy phép — script
@@ -72,38 +72,43 @@ render có nội dung** (màu trung bình 53–58 sắc độ trong vùng giữa
 
 Ba món trúng top-1: Bánh Brownie, Bánh tart trứng (×2).
 
-### 3.2. Ảnh ngoài miền bánh (14 ảnh — đo khả năng từ chối)
-
 | Ảnh | Top-1 trả về | Similarity |
 |---|---|---|
-| pizza | Bánh kem xanh lá trái cây | 0.572 |
+| kem (kem xoa) | Bánh mousse chanh dây trái cây nền trắng | 0.578 |
+| chè | Bánh tart trứng | 0.601 |
+| pizza | Bánh kem xanh lá trái cây tươi | 0.572 |
 | hamburger | Bánh phomai sợi dẻo | 0.551 |
-| sushi | Bánh mousse chanh dây trái | 0.683 |
-| phở | Bánh kem xanh lá trái cây | 0.525 |
+| sushi | Bánh mousse chanh dây trái cây nền ghế trắng | 0.683 |
+| phở | Bánh kem xanh lá trái cây tươi | 0.525 |
 | salad | Bánh kem cốm dẻo | 0.513 |
 | cà phê | Bánh kem cuộn socola trắng | 0.420 |
 | xe hơi | Bánh kem cuộn socola trắng | 0.274 |
-| bánh mì | Bánh kem trái cây tươi nơ | 0.536 |
+| bánh mì | Bánh kem trái cây tươi nơ trắng | 0.536 |
 | bún bò | Bánh kem cuộn socola trắng | 0.492 |
-| gỏi cuốn | Bánh mousse chanh dây trái | 0.578 |
-| chè | Bánh kem cuộn socola trắng | 0.578 |
+| gỏi cuốn | Bánh mousse chanh dây trái cây nền ghế trắng | 0.578 |
+| trà | Bánh kem cuộn socola trắng | 0.578 |
 | nước cam | Bánh Brownie | 0.308 |
 | bánh bao | Bánh kem cuộn socola trắng | 0.564 |
 | xúc xích | Bánh chuối nướng nước dừa | 0.492 |
+
+**Kem và chè ở đây, không phải `ngoai_kho`:** cả hai đều **không phải bánh**
+(kem xoa, chè súp) — cùng loại với trà và nước cam. Trước đây chúng bị xếp
+nhầm vào `ngoai_kho` ("là bánh nhưng kho không có"), làm hỏng nghĩa của cả
+hai nhóm và làm lệch phép so sánh. Đã chuyển ngày 27/10.
 
 ### 3.3. Phân bố similarity
 
 | Nhóm | Trung bình | Min | Max |
 |---|---|---|---|
 | Trong kho | 0.584 | 0.355 | 0.701 |
-| Ngoài kho (là bánh) | 0.551 | 0.411 | 0.625 |
-| **Ngoài miền bánh** | 0.506 | 0.274 | 0.683 |
+| Ngoài kho (là bánh) | 0.543 | 0.411 | 0.625 |
+| **Ngoài miền bánh** | 0.517 | 0.274 | 0.683 |
 
-Khoảng cách trong-kho ↔ ngoài-miền: **+0.078** — hẹp.
+Khoảng cách trong-kho ↔ ngoài-miền: **+0.067** — hẹp.
 
-Với ngưỡng trung điểm 0.545:
-- Ảnh ngoài miền bánh bị nhận nhầm: **3/14**
-- Ảnh trong kho bị bỏ sót: **5/18**
+Với ngưỡng trung điểm 0.550:
+- Ảnh ngoài miền bánh bị nhận nhầm: **8/16**
+- Ảnh trong kho bị bỏ sót: **4/18**
 
 ### 3.4. Ảnh mô hình 3D (30 ảnh — đo nhận dạng kiểu thân)
 
@@ -215,7 +220,7 @@ thứ giúp ích cho việc nhận diện — trong khi phần chữ chỉ chi�
 
 Cần nói rõ để không báo cáo quá mức:
 
-1. **Bộ test nhỏ**: 18 ảnh trong kho, 14 ảnh ngoài miền. Sai số thống kê lớn —
+1. **Bộ test nhỏ**: 18 ảnh trong kho, 16 ảnh ngoài miền. Sai số thống kê lớn —
    một ảnh đổi kết quả làm accuracy đổi 5,6 điểm phần trăm.
 2. **Nhãn do người viết gán**, dựa trên từ khoá tìm kiếm, chưa được kiểm duyệt
    độc lập. Ảnh tìm bằng từ khoá "banana cake" có thể không đúng là bánh chuối
@@ -277,7 +282,7 @@ kết quả nhảy mạnh theo tải máy (đo được p50 end-to-end 478 ms �
 sót phần này nên số bị thấp hơn thực tế.
 
 Ghi chú: lần đo trước (09/10) cho cold 9,49 s và search p50 126 ms — chênh lệch
-do tải máy lúc đo, không phải do thay đổi code. Con số **end-to-end p50 ~0,4 s**
+do tải máy lúc đo, không phải do thay đổi code. Con số **end-to-end p50 ~0,54 s**
 là con số nên trích dẫn.
 
 Bảng đầy đủ: `backend/test_images/latency_report.json`.

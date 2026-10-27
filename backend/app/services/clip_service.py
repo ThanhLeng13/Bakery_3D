@@ -88,15 +88,33 @@ class ClipModelUnavailableError(ClipServiceError):
 
 
 def _is_missing_table_error(exc: BaseException) -> bool:
-    """Lỗi này do bảng chưa tồn tại, hay là lỗi thật?
+    """Lỗi này do BẢNG chưa tồn tại, hay là lỗi thật?
 
     PostgREST báo `PGRST205` khi không thấy bảng; Postgres báo `42P01`.
     Mọi thứ khác — mất mạng, timeout, sai cấu hình — là lỗi thật và phải
     nổi lên, không được nuốt thành "không có dữ liệu".
+
+    Vì sao KHÔNG dùng chung mẫu "does not exist": thông báo đó cũng dùng
+    cho cột hoặc hàm không tồn tại ("column cake_3d_models.slug does not
+    exist"). Nuốt nhầm lỗi đó thành "bảng chưa có" sẽ che mất lỗi schema
+    thật — lúc đó hệ thống im lặng trả về 0 mô hình thay vì báo lỗi.
+    Nên: marker riêng cho bảng, cộng fallback chỉ khi thông báo nói rõ
+    *quan hệ* (relation) không tồn tại.
     """
     message = str(exc).lower()
-    markers = ("pgrst205", "42p01", "does not exist", "could not find the table")
-    return any(marker in message for marker in markers)
+    table_markers = ("pgrst205", "42p01", "could not find the table")
+    if any(marker in message for marker in table_markers):
+        return True
+    # Fallback: thông báo của Postgres là
+    #   relation "product_3d_models" does not exist
+    # nên phải đòi CẢ "does not exist" LẪN một từ chỉ quan hệ. Chỉ khớp
+    # "does not exist" đơn thuần là sai — mẫu đó cũng dùng cho cột/hàm
+    # ("column slug does not exist"), và nuốt nhầm sẽ che mất lỗi schema thật.
+    if "does not exist" not in message:
+        return False
+    return "relation" in message or "table" in message
+
+
 class InvalidImageError(ClipServiceError):
     """Ảnh tải lên không hợp lệ."""
 
@@ -306,7 +324,9 @@ class ClipSearchService:
             # backend bỏ qua giới hạn, và trả nhiều hơn số khách xin là sai.
             rows = self._rpc(vector, match_threshold, match_count)[:match_count]
             wanted = [r.get("product_id") for r in rows if r.get("product_id")]
-            return rows, self._products_with_3d_model(wanted)
+            # Không lọc 3D: mapping chỉ là thông tin phụ (bật nút "Xem 3D"),
+            # nên lỗi đọc mapping không được chặn danh sách sản phẩm.
+            return rows, self._products_with_3d_model(wanted, strict=False)
 
         collected: list[dict[str, Any]] = []
         models_by_product: dict[str, dict] = {}
@@ -358,7 +378,8 @@ class ClipSearchService:
             # Không lọc 3D nhưng vẫn cần mapping để giao diện biết mẫu nào
             # mở được viewer (một truy vấn cho toàn bộ kết quả trả về).
             wanted = [r.get("product_id") for r in rows if r.get("product_id")]
-            models_by_product = self._products_with_3d_model(wanted)
+            # Không lọc 3D: xem ghi chú o nhanh khong loc gi.
+            models_by_product = self._products_with_3d_model(wanted, strict=False)
         return rows, models_by_product
 
     def _rpc(
@@ -381,13 +402,23 @@ class ClipSearchService:
             )
         return response.data or []
 
-    def _products_with_3d_model(self, product_ids: list[str]) -> dict[str, dict]:
+    def _products_with_3d_model(
+        self, product_ids: list[str], strict: bool = True
+    ) -> dict[str, dict]:
         """Lấy mapping 3D hợp lệ của các sản phẩm được, theo `product_id`.
 
         "Hợp lệ" nghĩa là: sản phẩm còn đang bán, mô hình còn active, và có
         mapping trỏ tới mô hình thật. Điều này quyết định kết quả tìm ảnh có
         mở được viewer hay không — thiếu một là khách bấm vào rồi thấy trang
         trắng.
+
+        `strict=True` (mặc định): lỗi đọc mapping nổi lên thành lỗi dịch vụ.
+        Dùng khi lọc theo 3D — vì đó là ĐIỀU KHOẢN: không đọc được mapping thì
+        không được im lặng trả rỗng, khách sẽ tưởng kho không có mẫu 3D.
+
+        `strict=False`: lỗi đọc mapping chỉ được ghi log, trả về mapping rỗng.
+        Dùng khi KHÔNG lọc 3D — ở đó mapping chỉ là thông tin phụ để bật nút
+        "Xem 3D"; đọc hỏng không nên chặn cả danh sách sản phẩm khách tìm.
 
         Trả về dict `product_id -> {slug, glb_url, ...}`, rỗng nếu không sản
         phẩm nào có mapping.
@@ -415,9 +446,14 @@ class ClipSearchService:
                     exc,
                 )
                 return {}
-            # Lỗi kết nối hoặc lỗi khác: KHÔNG được nuốt. Nuốt sẽ biến lỗi
-            # thành "không có kết quả" — chế độ chỉ-mẫu-3D trả HTTP 200 với
-            # 0 kết quả, khách tưởng kho không có mẫu 3D nào.
+            # Lỗi kết nối hoặc lỗi khác.
+            if not strict:
+                # Không lọc 3D: mapping chỉ là thông tin phụ, không chặn kết quả.
+                logger.exception("Không đọc được mapping 3D (bỏ qua)")
+                return {}
+            # Lọc 3D: KHÔNG được nuốt. Nuốt sẽ biến lỗi thành "không có kết
+            # quả" — chế độ chỉ-mẫu-3D trả HTTP 200 với 0 kết quả, khách tưởng
+            # kho không có mẫu 3D nào.
             logger.exception("Không đọc được mapping 3D")
             raise ClipServiceError(
                 "Không thể kiểm tra mô hình 3D của sản phẩm. Vui lòng thử lại.",

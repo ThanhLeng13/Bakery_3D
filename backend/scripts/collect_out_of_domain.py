@@ -31,7 +31,7 @@ from collect_test_images import (  # noqa: E402
     search_commons,
 )
 
-# 14 món KHÔNG PHẢI Bánh. Chọn cả món ăn (dễ nhầm với bánh) lẫn đồ vật
+# 16 món KHÔNG PHẢI Bánh. Chọn cả món ăn (dễ nhầm với bánh) lẫn đồ vật
 # (rõ ràng không phải bánh) để đo được cả hai kiểu từ chối.
 OUT_OF_DOMAIN = {
     "pizza": "pizza margherita",
@@ -48,6 +48,10 @@ OUT_OF_DOMAIN = {
     "dau an": "fruit juice glass",
     "banh bao": "steamed bun dim sum",
     "xuc xich": "sausage grilled food",
+    # Kem va che: KHONG phai banh (kem xoa, che sung) — dua sang day tu
+    # nhom `ngoai_kho`, noi chung ta nghien la "la banh nhung kho khong".
+    "kem": "ice cream scoop",
+    "che": "asian dessert pudding bowl",
 }
 
 

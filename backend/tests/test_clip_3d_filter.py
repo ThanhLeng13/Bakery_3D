@@ -184,6 +184,82 @@ class TestMappingHopLe:
             _search(service, has_3d_model=True)
         assert exc.value.status_code == 503
 
+    def test_lỗi_mapping_không_chặn_kết_quả_khi_không_lọc_3d(self):
+        """Không lọc 3D: mapping chỉ là thông tin phụ, hỏng thì bỏ qua.
+
+        Khác với trường hợp lọc 3D ở trên. Ở đây khách vẫn phải thấy danh sách
+        sản phẩm — chỉ là không có nút "Xem 3D" để bấm. Chặn cả danh sách vì
+        một bảng phụ đọc hỏng là đánh đổi sai.
+        """
+        client = MagicMock()
+        client.rpc.return_value.execute.return_value = MagicMock(
+            data=[_row("p1", "Bánh A"), _row("p2", "Bánh B")]
+        )
+        client.table.return_value.select.return_value.in_.return_value.execute.side_effect = (
+            Exception("connection refused")
+        )
+        service = ClipSearchService(client)
+
+        result = _search(service)  # không truyền has_3d_model
+        assert result["count"] == 2
+        assert all(r["three_d_model"] is None for r in result["results"])
+
+    def test_lỗi_mapping_không_chặn_khi_lọc_kiểu_sản_phẩm(self):
+        """Lọc theo `product_type` nhưng KHÔNG lọc 3D: cũng phải bỏ qua lỗi."""
+        client = MagicMock()
+        client.rpc.return_value.execute.return_value = MagicMock(
+            data=[_row("p1", "Bánh A")]
+        )
+        client.table.return_value.select.return_value.in_.return_value.execute.side_effect = (
+            Exception("connection refused")
+        )
+        service = ClipSearchService(client)
+
+        result = _search(service, product_type="cake")
+        assert result["count"] == 1
+
+
+class TestPhanLoaiLoi:
+    """`_is_missing_table_error` chỉ nhận lỗi BẢNG không tồn tại.
+
+    Phân loại sai ở đây rất tốn kém: nuốt lỗi cột/hàm không tồn tại thành
+    "bảng chưa có" sẽ che mất lỗi schema thật, và hệ thống im lặng trả về 0
+    mô hình 3D thay vì báo cho người vận hành biết migration hỏng.
+    """
+
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "PGRST205: Could not find the table 'public.product_3d_models'",
+            "could not find the table",
+            "42P01",
+            'relation "product_3d_models" does not exist',
+            "table does not exist",
+        ],
+    )
+    def test_nhan_dung_loi_bang_khong_ton_tai(self, message):
+        from app.services.clip_service import _is_missing_table_error
+
+        assert _is_missing_table_error(Exception(message)) is True
+
+    @pytest.mark.parametrize(
+        "message",
+        [
+            # Lỗi CỘT — không phải bảng. Nuốt nhầm là che mất lỗi migration.
+            "column cake_3d_models.slug does not exist",
+            # Lỗi HÀM — RPC sai chữ ký.
+            "function match_cakes(vector, int) does not exist",
+            "connection refused",
+            "ReadTimeout",
+            "WinError 10054 An existing connection was forcibly closed",
+            "invalid API key",
+        ],
+    )
+    def test_khong_nhan_nham_loi_khac(self, message):
+        from app.services.clip_service import _is_missing_table_error
+
+        assert _is_missing_table_error(Exception(message)) is False
+
 
 class TestLocFalse:
     """`has_3d_model=False` = chỉ mẫu KHÔNG có 3D."""

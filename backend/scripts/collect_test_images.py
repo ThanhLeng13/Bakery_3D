@@ -68,9 +68,10 @@ OUT_CATALOG = {
     # thuc pham khac — de do kha nang tu choi co that hay khong.
     "banh mì ngot": "sweet bread loaf",
     "bánh mặn": "savory pastry",
-    "kem": "ice cream scoop",
     "bánh xèo": "savory crepe pancake",
-    "che": "asian dessert pudding bowl",
+    # `kem` va `che` KHONG o day: kem (ice cream) va che (pudding) khong
+    # phai banh — chung loai voi cha, dau an, xuc xich. Xem
+    # `collect_out_of_domain.py`.
     "donut": "donut pastry",
 }
 
@@ -163,16 +164,22 @@ def prior_meta(path: Path) -> dict:
     Ảnh tải về trước đó đã có metadata thật, nhưng lần chạy lại sẽ ghi đè
     manifest bằng "?" nếu ảnh đã tồn tại nên không gọi mạng. Hàm này giữ lại
     thông tin đó: đọc manifest cũ, tra theo đường dẫn file.
+
+    Đường dẫn được chuẩn hóa về dạng POSIX ở CẢ HAI phía trước khi so khớp.
+    Không làm vậy thì trên Windows `str(relative_to())` cho
+    "ngoai_kho\\kem__1.jpg" còn manifest ghi "ngoai_kho/kem__1.jpg" — không
+    khớp, và metadata thật bị thay bằng "?" mỗi lần chạy lại.
     """
     manifest_path = OUT_DIR / "manifest.json"
-    rel = str(path.relative_to(OUT_DIR))
+    rel = path.relative_to(OUT_DIR).as_posix()
     if manifest_path.exists():
         try:
             prior = json.loads(manifest_path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             prior = []
         for item in prior:
-            if item.get("file") == rel:
+            stored = str(item.get("file", "")).replace("\\", "/")
+            if stored == rel:
                 return {
                     "source": item.get("source", "?"),
                     "license": item.get("license", "?"),

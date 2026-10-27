@@ -3,8 +3,8 @@
 BỘ ẢNH (đo được trên đĩa, xem `manifest.json` và `manifest_3d.json`)
     trong_kho        18 ảnh — món CÓ trong kho (Wikimedia Commons)
     mo_hinh_3d      30 ảnh — 6 kiểu thân, render từ GLB của chính dự án
-    ngoai_kho       12 ảnh — LÀ bánh nhưng kho không có món đó
-    ngoai_mien_banh 14 ảnh — KHÔNG phải bánh (đồ ăn khác, đồ vật)
+    ngoai_kho       10 ảnh — LÀ bánh nhưng kho không có món đó
+    ngoai_mien_banh 16 ảnh — KHÔNG phải bánh (đồ ăn khác, đồ vật)
 
 VÌ SAO TÁCH 4 NHÓM
     Nhóm "trong_kho" đo độ đúng (top-1/top-3).
@@ -248,6 +248,11 @@ def main() -> int:
         # ĐO RIÊNG chế độ lọc 3D: khách bấm "Chỉ mẫu có 3D" thì mọi kết quả
         # đều phải mở được viewer. Đây là điều khoản của sản phẩm, KHÁC với
         # việc xếp hạng đúng kiểu thân.
+        #
+        # `filtered_total` đếm MỌI lượt truy vấn đã thử — kể cả lượt lỗi.
+        # Bỏ lượt lỗi ra khỏi mẫu số sẽ làm tỉ lệ trông đẹp hơn thực tế:
+        # lỗi thì không phải "mọi kết quả đều mở được viewer".
+        filtered_total += 1
         try:
             fresult = service.search_by_image(
                 path.read_bytes(), match_count=6, product_type="cake",
@@ -258,7 +263,6 @@ def main() -> int:
             fresult = None
         if fresult is not None:
             fres = fresult["results"]
-            filtered_total += 1
             if fres and all(r.get("three_d_model") for r in fres):
                 filtered_hits += 1
         print(f"  {item['label'][:16]:16s} {top['name'][:28]:30s} "
