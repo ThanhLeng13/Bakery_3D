@@ -114,15 +114,17 @@ Với ngưỡng trung điểm 0.550:
 
 | Chỉ số | Kết quả |
 |---|---|
-| Top-1 trả về mẫu có mô hình 3D | **0/30 = 0.0%** |
-| Top-1 có mô hình 3D đúng **kiểu thân** | **0/30 = 0.0%** |
-| **Chế độ lọc 3D: mọi kết quả mở được viewer** | **30/30 = 100%** |
+| Top-1 trả về mẫu có mô hình 3D | **0/29 = 0.0%** *(1/30 lượt không lọc lỗi mạng)* |
+| Top-1 có mô hình 3D đúng **kiểu thân** | **0/29 = 0.0%** *(1/30 lượt không lọc lỗi mạng)* |
+| **Lọc 3D: lượt trả về toàn bộ viewer trên mọi lần thử** | **29/30 = 96,7%** |
 | Sản phẩm có mapping 3D nằm trong top-30 | 16/30 |
 | Hạng trung bình của sản phẩm có mapping 3D | 12.1 |
 | Similarity top-1 trung bình của nhóm này | 0.446 |
 
-**Cần nói rõ vì sao 0/30.** Đây **không phải lỗi của chế độ lọc 3D** — mà là hệ
-quả của hai điều kiện đo được trên CSDL thật:
+**Cần nói rõ vì sao 0/29.** Có 30 ảnh truy vấn; một lượt tìm **không lọc** lỗi
+mạng (`ClipServiceError`) nên không có top-1 để xếp hạng. Lượt đó vẫn được giữ
+trong mẫu số riêng của phép đo lọc 3D. Kết quả xếp hạng 0/29 **không phải lỗi của
+chế độ lọc 3D** — mà là hệ quả của hai điều kiện đo được trên CSDL thật:
 
 1. **Chỉ 3 trong 101 bánh sinh nhật có mô hình 3D** (`product_3d_models` có đúng
    3 dòng). Không có cách nào để ảnh truy vấn trúng mẫu có 3D khi tỉ lệ nền là
@@ -134,11 +136,12 @@ quả của hai điều kiện đo được trên CSDL thật:
 
 **Hai số này phải tách bạch khi trình bày:**
 
-- *Xếp hạng* (0/30): ảnh truy vấn có dẫn tới đúng mẫu 3D hay không. Đây là
-  câu hỏi **xếp hạng** — và câu trả lời là chưa đạt.
-- *Điều khoản sản phẩm* (30/30): khi khách bật chế độ "Chỉ mẫu có 3D", mọi
-  kết quả trả về đều mở được viewer. Đây là câu hỏi **hợp đồng sản phẩm** —
-  và điều khoản này đã đạt 100%.
+- *Xếp hạng* (0/29; 1 lượt lỗi mạng): ảnh truy vấn có dẫn tới đúng mẫu 3D hay
+  không. Đây là câu hỏi **xếp hạng** — và câu trả lời là chưa đạt.
+- *Điều khoản sản phẩm* (29/30 = 96,7%): khi khách bật chế độ "Chỉ mẫu có 3D",
+  mọi lượt thử có trả kết quả đều chỉ trả mẫu mở được viewer; **một lượt lỗi
+  mạng** được tính vào mẫu số, không bị bỏ qua. Đây là câu hỏi **hợp đồng sản
+  phẩm** — kết quả thực tế chưa phải 100%.
 
 Nói cách khác: **bộ ảnh mô hình 3D đo được sự phân biệt kiểu thân, chưa đo được
 khả năng "từ ảnh tìm ra mẫu 3D"** — vì kho chưa đủ mẫu 3D để đo. Đây là hạn

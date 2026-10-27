@@ -33,8 +33,17 @@ import sys
 import time
 from pathlib import Path
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+
+def _configure_stdout() -> None:
+    """Dùng UTF-8 khi chạy script trực tiếp, không đổi stdout lúc được import.
+
+    Import-time mutation trước đây làm test không thể import script an toàn:
+    pytest/capsys đang sở hữu `sys.stdout`, còn script thay nó bằng wrapper mới.
+    """
+    if hasattr(sys.stdout, "buffer"):
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
 from dotenv import load_dotenv  # noqa: E402
 
@@ -224,8 +233,34 @@ def main() -> int:
         if not path.exists():
             continue
         try:
+            image_bytes = path.read_bytes()
+        except OSError as exc:
+            print(f"  {item['label'][:24]:26s} LOI DOC ANH: {type(exc).__name__}")
+            continue
+
+        # ĐO ĐỘC LẬP chế độ lọc 3D trước lượt đo không lọc bên dưới. Một lỗi
+        # hoặc kết quả rỗng của lượt không lọc không được làm mất mẫu số của
+        # điều khoản "Chỉ mẫu có 3D": ảnh vẫn có sẵn để thử đúng chế độ đó.
+        # `filtered_total` đếm MỌI lượt lọc đã thử, kể cả lượt lỗi/rỗng.
+        filtered_total += 1
+        try:
+            fresult = service.search_by_image(
+                image_bytes, match_count=6, product_type="cake",
+                has_3d_model=True,
+            )
+        except Exception as exc:
+            print(f"  {item['label'][:24]:26s} LOI (loc 3D): {type(exc).__name__}")
+            fresult = None
+        if fresult is not None:
+            fres = fresult["results"]
+            if fres and all(r.get("three_d_model") for r in fres):
+                filtered_hits += 1
+
+        # Đo xếp hạng kiểu thân là chỉ số RIÊNG. Lỗi/rỗng chỉ loại ảnh khỏi
+        # mẫu số `body_total`, không ảnh hưởng phép đo lọc 3D đã chạy ở trên.
+        try:
             result = service.search_by_image(
-                path.read_bytes(), match_count=6, product_type="cake"
+                image_bytes, match_count=6, product_type="cake"
             )
         except Exception as exc:
             print(f"  {item['label'][:24]:26s} LOI: {type(exc).__name__}")
@@ -244,27 +279,6 @@ def main() -> int:
         hit = bool(top_slug) and top_slug == item["label"]
         body_hits += int(hit)
         viewable += int(bool(top_slug))
-
-        # ĐO RIÊNG chế độ lọc 3D: khách bấm "Chỉ mẫu có 3D" thì mọi kết quả
-        # đều phải mở được viewer. Đây là điều khoản của sản phẩm, KHÁC với
-        # việc xếp hạng đúng kiểu thân.
-        #
-        # `filtered_total` đếm MỌI lượt truy vấn đã thử — kể cả lượt lỗi.
-        # Bỏ lượt lỗi ra khỏi mẫu số sẽ làm tỉ lệ trông đẹp hơn thực tế:
-        # lỗi thì không phải "mọi kết quả đều mở được viewer".
-        filtered_total += 1
-        try:
-            fresult = service.search_by_image(
-                path.read_bytes(), match_count=6, product_type="cake",
-                has_3d_model=True,
-            )
-        except Exception as exc:
-            print(f"  {item['label'][:24]:26s} LOI (loc 3D): {type(exc).__name__}")
-            fresult = None
-        if fresult is not None:
-            fres = fresult["results"]
-            if fres and all(r.get("three_d_model") for r in fres):
-                filtered_hits += 1
         print(f"  {item['label'][:16]:16s} {top['name'][:28]:30s} "
               f"{top['similarity']:6.3f}  {n3d}/{len(results):>12}  "
               f"{'HIT' if hit else 'truot'}  slug={top_slug or '-'}")
@@ -334,6 +348,9 @@ def main() -> int:
         "n_3d_body": body_total,
         "body_3d_hit_rate": (body_hits / body_total * 100) if body_total else None,
         "body_3d_viewable_rate": (viewable / body_total * 100) if body_total else None,
+        # Mẫu số riêng của phép đo lọc 3D: không đồng nhất với `n_3d_body`,
+        # vì một lượt không lọc có thể lỗi/rỗng nhưng lượt lọc vẫn đã được thử.
+        "filtered_3d_attempts": filtered_total,
         "filtered_3d_all_viewable_rate": (
             (filtered_hits / filtered_total * 100) if filtered_total else None
         ),
@@ -353,4 +370,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    _configure_stdout()
     raise SystemExit(main())
