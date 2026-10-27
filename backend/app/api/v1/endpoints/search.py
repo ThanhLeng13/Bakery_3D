@@ -63,6 +63,12 @@ async def search_by_image(
         description="Lọc theo loại: 'cake' = bánh sinh nhật (mặc định), "
         "'sweet' = bánh ngọt, 'all' = tất cả",
     ),
+    has_3d_model: bool | None = Form(
+        default=None,
+        description="Chỉ trả sản phẩm có mô hình 3D hợp lệ. "
+        "True = chỉ mẫu xem được 3D, False = chỉ mẫu không có 3D, "
+        "bỏ trống = không lọc.",
+    ),
 ):
     """Tìm sản phẩm trong kho gần giống nhất với ảnh khách tải lên.
 
@@ -74,6 +80,7 @@ async def search_by_image(
         2. Sinh vector 512 chiều bằng CLIP ViT-B-32
         3. So sánh cosine với embedding trong kho qua RPC match_cakes
         4. Lọc theo loại sản phẩm, trả về top-K kèm % tương đồng
+        5. Lọc theo mô hình 3D (tùy chọn): chỉ giữ mẫu có mô hình hợp lệ
 
     Lỗi trả về:
         400 - ảnh không hợp lệ hoặc quá nhỏ
@@ -111,6 +118,7 @@ async def search_by_image(
             match_count=match_count,
             match_threshold=match_threshold,
             product_type=filter_type,
+            has_3d_model=has_3d_model,
         )
     except ClipServiceError as exc:
         # exc.message là thông báo đã được viết cho người dùng; chi tiết kỹ thuật

@@ -18,6 +18,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -26,6 +27,23 @@ const API_BASE_URL =
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+/**
+ * Mô hình 3D gắn với sản phẩm.
+ *
+ * `null` nghĩa là sản phẩm không có mô hình 3D nào mở được — kết quả đó
+ * không bật nút xem 3D. `is_orderable` phân biệt mẫu XEM ĐƯỢC với mẫu
+ * BÁN ĐƯỢC: mẫu chỉ xem thì giao diện ghi rõ, không mời khách bấm Đặt.
+ */
+interface ThreeDModel {
+  id: string;
+  slug: string;
+  name: string | null;
+  glb_url: string | null;
+  thumbnail_url: string | null;
+  is_primary: boolean;
+  is_orderable: boolean;
+}
 
 interface SearchResult {
   product_id: string;
@@ -36,6 +54,7 @@ interface SearchResult {
   base_price: number | null;
   similarity: number;
   similarity_percent: number;
+  three_d_model: ThreeDModel | null;
 }
 
 interface SearchResponse {
@@ -87,6 +106,10 @@ export default function ImageSearchClient() {
   const [error, setError] = useState("");
   const [dragging, setDragging] = useState(false);
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
+  // Chỉ trả về mẫu có mô hình 3D mở được. Bật khi khách muốn "xem trước
+  // mẫu 3D" — khi đó mọi kết quả đều mở được viewer.
+  const [chiLoc3D, setChiLoc3D] = useState(false);
+  const router = useRouter();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -164,6 +187,8 @@ export default function ImageSearchClient() {
       // Tìm trong nhóm bánh sinh nhật — đúng nhu cầu khách tìm theo kiểu mẫu.
       // Đổi thành "all" nếu muốn tìm cả bánh ngọt.
       form.append("product_type", "cake");
+      // Bật lọc 3D: server chỉ trả mẫu có mapping hợp lệ, mở được viewer.
+      if (chiLoc3D) form.append("has_3d_model", "true");
 
       const response = await fetch(`${API_BASE_URL}/api/v1/search/by-image`, {
         method: "POST",
@@ -298,6 +323,47 @@ export default function ImageSearchClient() {
             />
           </div>
 
+          {/* Chọn chế độ tìm */}
+          <fieldset className="mt-6">
+            <legend className="text-sm font-medium text-ink mb-2">
+              Chế độ tìm
+            </legend>
+            <div className="flex flex-wrap gap-2" role="radiogroup"
+              aria-label="Chế độ tìm mẫu">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={!chiLoc3D}
+                onClick={() => setChiLoc3D(false)}
+                className={`rounded-full border px-4 py-2 text-sm transition-colors ${
+                  chiLoc3D
+                    ? "border-line bg-white text-muted hover:border-brand"
+                    : "border-brand bg-subtle text-ink font-medium"
+                }`}
+              >
+                Tất cả mẫu bánh
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={chiLoc3D}
+                onClick={() => setChiLoc3D(true)}
+                className={`rounded-full border px-4 py-2 text-sm transition-colors ${
+                  chiLoc3D
+                    ? "border-brand bg-subtle text-ink font-medium"
+                    : "border-line bg-white text-muted hover:border-brand"
+                }`}
+              >
+                Chỉ mẫu có 3D
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-muted">
+              Chế độ “Chỉ mẫu có 3D” chỉ trả về mẫu có mô hình 3D mở được
+              viewer — bấm vào là xem được luôn, không phải chờ tới trang sản
+              phẩm rồi mới biết có mẫu hay không.
+            </p>
+          </fieldset>
+
           {/* Lỗi */}
           {error && (
             <div
@@ -338,6 +404,27 @@ export default function ImageSearchClient() {
                 )}
               </div>
 
+              {/* Giải thích % tương đồng.
+
+                  Đây là điểm dễ gây hiểu nhầm nhất của tính năng này: con số
+                  85% KHÔNG phải "85% khả năng đây là đúng món", cũng không phải
+                  "85% giống hệt". Đó là mức độ khớp của VECTƠ ĐẶC TRƯNG ảnh
+                  với ảnh trong kho do mô hình CLIP sinh ra — cùng một thang đo
+                  cho mọi ảnh, không phải xác suất.
+
+                  Nói rõ điều này ngay trên giao diện thay vì để khách tự hiểu,
+                  vì bánh trông giống nhau 60% vẫn có thể là món hoàn toàn khác.
+              */}
+              <p className="mb-6 rounded-lg border border-line bg-white px-4 py-3 text-xs leading-relaxed text-muted">
+                <strong className="font-medium text-ink">
+                  Về con số % tương đồng:
+                </strong>{" "}
+                đây là mức độ khớp của đặc trưng hình ảnh, không phải xác suất
+                đúng món. 80% nghĩa là ảnh có nét hình gần với mẫu trong kho —
+                món trông giống nhau vẫn có thể là hai món khác nhau. Hãy mở
+                mẫu để xem và tự quyết định.
+              </p>
+
               {results.length === 0 ? (
                 <div className="rounded-2xl border border-line bg-white px-5 py-5">
                   <p className="text-ink text-sm font-medium mb-2">
@@ -356,7 +443,14 @@ export default function ImageSearchClient() {
                 </div>
               ) : (
                 <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                  {results.map((item) => (
+                  {results.map((item) => {
+                    const model3d = item.three_d_model;
+                    // Tính sẵn ở đây: TypeScript không giữ việc thu hẹp kiểu
+                    // (`model3d` khác null) bên trong callback của JSX.
+                    const studioHref: string | null = model3d
+                      ? `/cake-builder?model=${model3d.slug}`
+                      : null;
+                    return (
                     <li key={item.product_id + item.image_url}>
                       <Link
                         href={`/products/${item.product_id}`}
@@ -388,6 +482,12 @@ export default function ImageSearchClient() {
                           <span className="absolute top-2 right-2 rounded-full bg-ink px-3 py-1 text-sm font-semibold text-white">
                             {item.similarity_percent.toFixed(0)}%
                           </span>
+                          {/* Cờ 3D: chỉ hiện khi mẫu có mô hình mở được. */}
+                          {model3d && (
+                            <span className="absolute top-2 left-2 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-ink shadow-sm">
+                              Mẫu 3D
+                            </span>
+                          )}
                         </div>
                         <div className="p-4">
                           <h3 className="font-heading text-base font-medium text-ink line-clamp-2 leading-snug">
@@ -396,10 +496,43 @@ export default function ImageSearchClient() {
                           <p className="mt-1.5 text-sm text-muted tracking-wide">
                             {formatPrice(item.base_price)}
                           </p>
+                          {item.three_d_model && (
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              <span
+                                role="link"
+                                tabIndex={0}
+                                className="rounded-full border border-brand px-3 py-1 text-xs font-medium text-brand transition-colors hover:bg-subtle cursor-pointer"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  router.push(
+                                    studioHref!,
+                                  );
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    router.push(
+                                      studioHref!,
+                                    );
+                                  }
+                                }}
+                              >
+                                Mở Studio 3D
+                              </span>
+                              {!item.three_d_model.is_orderable && (
+                                <span className="text-xs text-muted">
+                                  mẫu xem trước, chưa đặt được
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </Link>
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               )}
             </section>

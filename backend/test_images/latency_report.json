@@ -1,0 +1,27 @@
+{
+  "model": "ViT-B-32 / laion2b_s34b_b79k",
+  "embedding_dim": 512,
+  "device": "cpu",
+  "n_images": 18,
+  "cold_seconds": 8.57,
+  "embed_ms": {
+    "p50": 119.0,
+    "p95": 139.9,
+    "mean": 121.4,
+    "min": 107.9,
+    "max": 140.2
+  },
+  "search_ms": {
+    "p50": 371.1,
+    "p95": 1406.7,
+    "mean": 673.3,
+    "min": 293.3,
+    "max": 2895.4
+  },
+  "end_to_end_ms": {
+    "p50": 386.7,
+    "p95": 677.5,
+    "mean": 440.2
+  },
+  "how_to_reproduce": "cd backend && python scripts/measure_clip_latency.py (cần ảnh trong backend/test_images/trong_kho/)"
+}

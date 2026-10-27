@@ -63,6 +63,15 @@ OUT_CATALOG = {
     "salad": "green salad bowl",
     "cafe": "espresso coffee cup",
     "oto": "automobile car",
+    # Bo sung de dat nguong 10 anh ngoai mien (keo len tu 8 len 14).
+    # Chon mon "gan vung" voi banh — cung la mau, cung tren ban, van la doi
+    # thuc pham khac — de do kha nang tu choi co that hay khong.
+    "banh mì ngot": "sweet bread loaf",
+    "bánh mặn": "savory pastry",
+    "kem": "ice cream scoop",
+    "bánh xèo": "savory crepe pancake",
+    "che": "asian dessert pudding bowl",
+    "donut": "donut pastry",
 }
 
 # Lọc kết quả rác: Wikimedia hay trả về tên file không liên quan
@@ -148,6 +157,33 @@ def download(url: str, dest: Path) -> tuple[bool, int]:
     return True, len(raw)
 
 
+def prior_meta(path: Path) -> dict:
+    """Lấy lại source/license/artist của ảnh từ manifest đã có.
+
+    Ảnh tải về trước đó đã có metadata thật, nhưng lần chạy lại sẽ ghi đè
+    manifest bằng "?" nếu ảnh đã tồn tại nên không gọi mạng. Hàm này giữ lại
+    thông tin đó: đọc manifest cũ, tra theo đường dẫn file.
+    """
+    manifest_path = OUT_DIR / "manifest.json"
+    rel = str(path.relative_to(OUT_DIR))
+    if manifest_path.exists():
+        try:
+            prior = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            prior = []
+        for item in prior:
+            if item.get("file") == rel:
+                return {
+                    "source": item.get("source", "?"),
+                    "license": item.get("license", "?"),
+                    "artist": item.get("artist", "?"),
+                    "original_size": item.get("original_size", "?"),
+                }
+    return {
+        "source": "?", "license": "?", "artist": "?", "original_size": "?",
+    }
+
+
 def collect(group: str, mapping: dict[str, str], per_item: int = 2) -> list[dict]:
     manifest = []
     for label, term in mapping.items():
@@ -161,8 +197,10 @@ def collect(group: str, mapping: dict[str, str], per_item: int = 2) -> list[dict
                     "group": group, "label": label, "search_term": term,
                     "file": str(path.relative_to(OUT_DIR)),
                     "bytes": path.stat().st_size,
-                    "source": "(xem manifest.json lan chay truoc)",
-                    "license": "?", "artist": "?", "original_size": "?",
+                    # Metadata thật lấy lại từ manifest cũ. Trước đây mục này
+                    # ghi "?" khiến 4 ảnh mất thông tin nguồn/giấy phép — không
+                    # trích dẫn được trong luận văn.
+                    **prior_meta(path),
                 })
             continue
 

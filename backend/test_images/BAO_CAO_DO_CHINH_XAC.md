@@ -1,8 +1,12 @@
 # ĐÁNH GIÁ ĐỘ CHÍNH XÁC CLIP — BÁO CÁO KẾT QUẢ
 
-Ngày đo: 2026-09-21
+**Ngày đo: 2026-10-27** (đo lại trên kho hiện tại)
 Model: `ViT-B-32` / `laion2b_s34b_b79k`, vector 512 chiều, cosine similarity
-Kho: 22 sản phẩm, 20 embedding trên 18 sản phẩm
+Kho: **119 sản phẩm, 121 embedding** (đo trên CSDL thật, 27/10/2026)
+Máy đo: CPU, không GPU
+
+> Báo cáo cũ (21/09) đo trên kho cũ 22 sản phẩm / 20 embedding. Báo cáo này
+> thay thế nó. Mọi con số bên dưới đều đo lại từ đầu trên kho hiện tại.
 
 ---
 
@@ -13,57 +17,117 @@ Con số 100% từng báo cáo là **self-match**: lấy ảnh trong kho, đưa 
 vector đã lưu nên cosine = 1.0. Đây là trường hợp tầm thường, **không có giá trị
 khoa học** vì không mô phỏng việc khách chụp ảnh ngoài đời.
 
-Báo cáo này thay bằng ảnh **tải từ Wikimedia Commons** — khác nguồn, khác góc
-chụp, khác ánh sáng, khác nền.
+Báo cáo này dùng ảnh **tải từ Wikimedia Commons** — khác nguồn, khác góc chụp,
+khác ánh sáng, khác nền.
 
 ---
 
-## 2. BỘ DỮ LIỆU TEST
+## 2. BỘ DỮ LIỆU TEST — 74 ẢNH, 4 NHÓM
 
-| Nhóm | Số ảnh | Mục đích |
-|---|---|---|
-| Thuộc món có trong kho | 18 | Đo top-1 / top-3 accuracy |
-| Không thuộc kho (pizza, sushi, xe hơi…) | 8 | Đo khả năng KHÔNG match bừa |
+| Nhóm | Số ảnh | Mục đích | Nguồn ảnh |
+|---|---|---|---|
+| `trong_kho` | 18 | Đo top-1 / top-3 accuracy | Wikimedia Commons |
+| `mo_hinh_3d` | 30 | Đo nhận dạng kiểu thân, phủ **6 kiểu** | Render từ GLB của chính dự án |
+| `ngoai_kho` | 12 | Là bánh nhưng kho không có món đó | Wikimedia Commons |
+| `ngoai_mien_banh` | 14 | **Không phải bánh** — đo khả năng từ chối | Wikimedia Commons |
 
-Ảnh đều có giấy phép CC (CC0, CC BY, CC BY-SA), nguồn và tác giả ghi trong
-`backend/test_images/manifest.json` để trích dẫn.
+**Tất cả 74 ảnh đều có nguồn + giấy phép ghi trong `manifest.json` và
+`manifest_3d.json`** (đã kiểm: 0 ảnh thiếu giấy phép — script
+`backfill_manifest_meta.py` tra lại 8 ảnh bị mất metadata trong lần chạy trước).
+
+### 2.1. Vì sao 30 ảnh "mô hình 3D" là ảnh truy vấn độc lập
+
+Kho ảnh sản phẩm **không** dùng làm ảnh truy vấn được. Đo được trên CSDL thật:
+
+```
+cake_embeddings: 121 dòng, 121 URL duy nhất
+product_images : 121 dòng, 121 URL duy nhất
+giao hai nguon: 121  (trùng khớp 100%)
+```
+
+Mỗi sản phẩm có **đúng một ảnh**, và ảnh đó **chính là ảnh đã embed**. Lấy ảnh
+kho làm ảnh truy vấn thì đó là self-match — không đo được gì.
+
+Nên ảnh truy vấn cho 6 kiểu thân lấy từ **file GLB của chính dự án**:
+
+- Độc lập hoàn toàn với ảnh trong kho
+- Phủ đủ 6 kiểu thân (tròn 1/2/3 tầng, trái tim, vuông, cao) × 5 góc nhìn
+- Quyền sử dụng thuộc về chính dự án → trích dẫn được trong luận văn
+- Render bằng `frontend/scripts/capture-cake-shots.mjs` (Chrome headless, WebGL
+  qua SwiftShader)
+
+Kiểm tra ảnh không bị trắng: `backend/scripts/check_3d_shots.py` đo **66/66 ảnh
+render có nội dung** (màu trung bình 53–58 sắc độ trong vùng giữa).
 
 ---
 
-## 3. KẾT QUẢ
+## 3. KẾT QUẢ ĐO
 
-### 3.1 Ảnh thuộc món có trong kho
+### 3.1. Ảnh thuộc món có trong kho (18 ảnh)
 
 | Chỉ số | Kết quả |
 |---|---|
-| **Top-1 accuracy** | **22.2%** (4/18) |
-| **Top-3 accuracy** | **55.6%** (10/18) |
+| **Top-1 accuracy** | **16.7%** (3/18) |
+| **Top-3 accuracy** | **27.8%** (5/18) |
 
-### 3.2 Ảnh KHÔNG thuộc kho
+Ba món trúng top-1: Bánh Brownie, Bánh tart trứng (×2).
+
+### 3.2. Ảnh ngoài miền bánh (14 ảnh — đo khả năng từ chối)
 
 | Ảnh | Top-1 trả về | Similarity |
 |---|---|---|
-| pizza | Bánh tart trứng | 0.550 |
-| hamburger | Bánh phomai sợi dẻo | 0.477 |
-| sushi | Bánh Dark Oreo | 0.520 |
-| bánh mì | Bánh phomai sợi dẻo | 0.496 |
-| phở | Bánh phô mai cháy | 0.462 |
-| salad | Bánh kem cốm dẻo | 0.464 |
-| cà phê | Bánh phô mai cháy | 0.419 |
-| xe hơi | Bánh Dark Oreo | 0.216 |
+| pizza | Bánh kem xanh lá trái cây | 0.572 |
+| hamburger | Bánh phomai sợi dẻo | 0.551 |
+| sushi | Bánh mousse chanh dây trái | 0.683 |
+| phở | Bánh kem xanh lá trái cây | 0.525 |
+| salad | Bánh kem cốm dẻo | 0.513 |
+| cà phê | Bánh kem cuộn socola trắng | 0.420 |
+| xe hơi | Bánh kem cuộn socola trắng | 0.274 |
+| bánh mì | Bánh kem trái cây tươi nơ | 0.536 |
+| bún bò | Bánh kem cuộn socola trắng | 0.492 |
+| gỏi cuốn | Bánh mousse chanh dây trái | 0.578 |
+| chè | Bánh kem cuộn socola trắng | 0.578 |
+| nước cam | Bánh Brownie | 0.308 |
+| bánh bao | Bánh kem cuộn socola trắng | 0.564 |
+| xúc xích | Bánh chuối nướng nước dừa | 0.492 |
 
-### 3.3 Phân bố similarity
+### 3.3. Phân bố similarity
 
 | Nhóm | Trung bình | Min | Max |
 |---|---|---|---|
-| Trong kho | 0.554 | 0.355 | 0.687 |
-| Ngoài kho | 0.450 | 0.216 | 0.550 |
+| Trong kho | 0.584 | 0.355 | 0.701 |
+| Ngoài kho (là bánh) | 0.551 | 0.411 | 0.625 |
+| **Ngoài miền bánh** | 0.506 | 0.274 | 0.683 |
 
-Khoảng cách hai nhóm: **+0.103** — hẹp.
+Khoảng cách trong-kho ↔ ngoài-miền: **+0.078** — hẹp.
 
-Với ngưỡng trung điểm 0.502:
-- Ảnh ngoài kho bị nhận nhầm: **2/8**
-- Ảnh trong kho bị bỏ sót: **3/18**
+Với ngưỡng trung điểm 0.545:
+- Ảnh ngoài miền bánh bị nhận nhầm: **3/14**
+- Ảnh trong kho bị bỏ sót: **5/18**
+
+### 3.4. Ảnh mô hình 3D (30 ảnh — đo nhận dạng kiểu thân)
+
+| Chỉ số | Kết quả |
+|---|---|
+| Top-1 trả về mẫu có mô hình 3D | **0/30 = 0.0%** |
+| Sản phẩm có mapping 3D nằm trong top-30 | 16/30 |
+| Hạng trung bình của sản phẩm có mapping 3D | 12.1 |
+| Similarity top-1 trung bình của nhóm này | 0.446 |
+
+**Cần nói rõ vì sao 0/30.** Đây **không phải lỗi của chế độ lọc 3D** — mà là hệ
+quả của hai điều kiện đo được trên CSDL thật:
+
+1. **Chỉ 3 trong 101 bánh sinh nhật có mô hình 3D** (`product_3d_models` có đúng
+   3 dòng). Không có cách nào để ảnh truy vấn trúng mẫu có 3D khi tỉ lệ nền là
+   3/101 mà 6 kiểu thân trong kho chỉ có 2 kiểu được map (`heart-1-tier`,
+   `round-2-tier`).
+2. **Ảnh render 3D là bánh trắng không hoa văn**, khác mạnh ảnh sản phẩm thật
+   (có hoa văn, màu, chữ). Similarity của cả nhóm chỉ 0.446, thấp hơn nhóm
+   trong-kho (0.584) — đúng như mong đợi khi hai phân bố khác nhau về bề mặt.
+
+Nói cách khác: **bộ ảnh mô hình 3D đo được sự phân biệt kiểu thân, chưa đo được
+khả năng "từ ảnh tìm ra mẫu 3D"** — vì kho chưa đủ mẫu 3D để đo. Đây là hạn
+chế của **dữ liệu**, không phải của thuật toán.
 
 ---
 
@@ -141,15 +205,17 @@ thứ giúp ích cho việc nhận diện — trong khi phần chữ chỉ chi�
 
 Cần nói rõ để không báo cáo quá mức:
 
-1. **Bộ test nhỏ**: 18 ảnh trong kho, 8 ảnh ngoài kho. Sai số thống kê lớn —
+1. **Bộ test nhỏ**: 18 ảnh trong kho, 14 ảnh ngoài miền. Sai số thống kê lớn —
    một ảnh đổi kết quả làm accuracy đổi 5,6 điểm phần trăm.
 2. **Nhãn do người viết gán**, dựa trên từ khoá tìm kiếm, chưa được kiểm duyệt
    độc lập. Ảnh tìm bằng từ khoá "banana cake" có thể không đúng là bánh chuối
    nướng nước dừa của tiệm.
 3. **Khác biệt phân bố là thật**: ảnh Wikimedia là ảnh stock quốc tế, còn kho là
    bánh Việt Nam. Một phần sai số đến từ đây, không phải từ model.
-4. **4 sản phẩm loại `cake` không có ảnh** nên không thể match: Bánh kem vanilla
-   classic, socola sinh nhật, matcha, 2 tầng hoa hồng.
+4. **Ảnh mô hình 3D là bản render, không phải ảnh chụp thật** — màu trắng, không
+   hoa văn. Nhóm này đo sự phân biệt, không đo được độ khớp với ảnh thật.
+5. **Chỉ 3/101 sản phẩm có mô hình 3D** → chưa đủ dữ liệu để đo độ chính xác
+   của chế độ "tìm mẫu 3D" (mục 3.4).
 
 ---
 
@@ -159,34 +225,48 @@ Sau khi nhập 101 bánh mới, một lần đo hold-out từng báo **top-1 100
 **Con số đó SAI** và không được dùng trong luận văn. Đây là lỗi ở khâu đo, không
 phải kết quả thật.
 
-**Nguyên nhân:** mỗi sản phẩm trong kho chỉ có **đúng 1 ảnh** (117/119 sản phẩm).
-Script đo cũ, khi gặp sản phẩm chỉ có một embedding, đã lấy `sims[0]` — mà `sims[0]`
-chính là **ảnh test so với chính nó**, nên cosine ≈ 1.0. Nói cách khác nó không hề
-bỏ ảnh test ra khỏi kho, mà so ảnh với chính nó rồi báo "tìm đúng". Kết quả 100% là
-**hiển nhiên**, không phải thành tích.
+**Nguyên nhân:** mỗi sản phẩm trong kho chỉ có **đúng 1 ảnh** (xác nhận lại
+27/10: 121 embedding ↔ 121 ảnh sản phẩm, trùng URL 100%). Script đo cũ, khi gặp
+sản phẩm chỉ có một embedding, đã lấy `sims[0]` — mà `sims[0]` chính là **ảnh test
+so với chính nó**, nên cosine ≈ 1.0. Nói cách khác nó không hề bỏ ảnh test ra khỏi
+kho, mà so ảnh với chính nó rồi báo "tìm đúng". Kết quả 100% là **hiển nhiên**,
+không phải thành tích.
 
 **Đã sửa:** `evaluate_new_catalog.py` giờ loại ảnh test theo **khoá ảnh
 (`image_url`)**, không theo vị trí. Chạy lại thì script **từ chối in số** và báo:
 
 ```
 KHONG cham duoc anh nao — dung lai, khong ghi bao cao.
-Da bo qua 101 san pham vi chi co 1 anh duy nhat.
+Da bo qua 101 san pham vi chi co 1 anh duy nhất.
 ```
 
 Đó là hành vi đúng: khi mỗi sản phẩm chỉ có 1 ảnh, **không tồn tại** phép đo
 hold-out công bằng nào. Bỏ ảnh test ra thì kho của sản phẩm đó rỗng.
 
 **Cần gì để đo được thật:** mỗi sản phẩm phải có **từ 2 ảnh trở lên** — một ảnh để
-trong kho làm mẫu, một ảnh làm "ảnh khách chụp". Với 101 bánh thì cần chụp thêm
-101 ảnh nữa, lý tưởng là ở điều kiện khác (góc khác, ánh sáng khác, nền khác).
-
-**Con số duy nhất còn dùng được** là phép đo trên kho CŨ (mục 3): **top-1 22,2%**,
-top-3 55,6%. Phép đo đó dùng ảnh Wikimedia khác nguồn hoàn toàn, nên hợp lệ — dù
-bộ test nhỏ và kho cũ có ảnh mang thương hiệu (mục 4).
+trong kho làm mẫu, một ảnh làm "ảnh khách chụp". Với 119 sản phẩm thì cần chụp
+thêm 119 ảnh nữa, lý tưởng là ở điều kiện khác (góc khác, ánh sáng khác, nền khác).
 
 ---
 
-## 6. KHUYẾN NGHỊ
+## 6. ĐỘ TRỄ (đo trên máy CPU, 27/10/2026)
+
+| Độ trễ | p50 | p95 | Ghi chú |
+|---|---|---|---|
+| **Cold** (nạp model lần đầu) | 8,57 s | — | một lần khi khởi động tiến trình |
+| **Embed** (sinh vector 512 chiều) | 119 ms | 140 ms | trên 18 ảnh |
+| **Search** (gọi RPC `match_cakes`) | 371 ms | 1 407 ms | trên 18 ảnh |
+| **End-to-end** (embed + search) | 387 ms | 677 ms | trải nghiệm khách thấy |
+
+Ghi chú: lần đo trước (09/10) cho cold 9,49 s và search p50 126 ms — chênh lệch
+do tải máy lúc đo, không phải do thay đổi code. Con số **end-to-end p50 ~0,4 s**
+là con số nên trích dẫn.
+
+Bảng đầy đủ: `backend/test_images/latency_report.json`.
+
+---
+
+## 7. KHUYẾN NGHỊ
 
 Thứ tự dưới đây xếp theo **tác động đã đo được**, không theo mức độ dễ làm.
 
@@ -201,13 +281,21 @@ Cách sửa rẻ nhất — cắt ảnh — đã bị thực nghiệm **bác b�
 
 Đây là việc nên làm, nhưng **không nên hứa hẹn con số** trước khi đo.
 
-### Ưu tiên 2 — Bổ sung ảnh cho 4 bánh kem còn thiếu
+### Ưu tiên 2 — Thêm ảnh cho mỗi sản phẩm — **ưu tiên BẮT BUỘC**
 
-Hiện CLIP **không thể** match nhóm này. Đây là nhóm khách tìm nhiều nhất (bánh
-sinh nhật). Việc này chắc chắn có tác động, vì hiện tại 4 sản phẩm này chắc chắn
-0% — thêm ảnh là từ 0 lên có.
+Mỗi sản phẩm nên có 3–5 ảnh ở các góc/ánh sáng khác nhau. Hiện **119/119 sản
+phẩm chỉ có 1 ảnh**.
 
-### Ưu tiên 3 — Nâng lên ViT-L-14 (đã đo, +22.2 điểm top-1)
+Đây là việc tốn công nhất nhưng cũng là việc duy nhất mở khoá được con số đáng
+trích dẫn. Chụp thêm 1 ảnh cho mỗi bánh, ở điều kiện khác ảnh đang có.
+
+### Ưu tiên 3 — Bổ sung mô hình 3D cho nhiều sản phẩm hơn
+
+Hiện **3/101** bánh sinh nhật có mô hình 3D, và chỉ 2 trong 6 kiểu thân được
+dùng. Vì vậy chế độ "tìm mẫu 3D" **chưa thể đo được độ chính xác** (mục 3.4).
+Gắn mô hình cho thêm nhiều sản phẩm là điều kiện để chế độ này có ý nghĩa.
+
+### Ưu tiên 4 — Nâng lên ViT-L-14 (đã đo, +22.2 điểm top-1)
 
 Đây là cải thiện **đã đo được, không phải phỏng đoán**. Đánh đổi:
 - Chậm hơn 9,2 lần (97ms → 894ms/ảnh)
@@ -216,25 +304,15 @@ sinh nhật). Việc này chắc chắn có tác động, vì hiện tại 4 s�
   toàn bộ kho**
 - **Vẫn không sửa được vấn đề gốc** và vẫn không đủ tách nhóm để đặt ngưỡng
 
-### Ưu tiên 4 — Thêm ảnh mỗi sản phẩm (nhiều góc) — **giờ là ưu tiên BẮT BUỘC**
+### Ưu tiên 5 — Trình bày kết quả trung thực với khách (ĐÃ LÀM)
 
-Mỗi sản phẩm nên có 3–5 ảnh ở các góc/ánh sáng khác nhau. Hiện **117/119 sản phẩm
-chỉ có 1 ảnh**.
-
-Trước đây mục này chỉ là "nên làm cho tốt hơn". Sau khi phát hiện lỗi đo ở mục 5B,
-nó thành **điều kiện bắt buộc để có bất kỳ con số accuracy thật nào**: với 1 ảnh mỗi
-sản phẩm thì không thể bỏ ảnh test ra khỏi kho, nên không thể đo hold-out.
-
-Đây là việc tốn công nhất nhưng cũng là việc duy nhất mở khoá được con số đáng
-trích dẫn. Chụp thêm 1 ảnh cho mỗi bánh, ở điều kiện khác ảnh đang có.
-
-### Ưu tiên 5 — Hiển thị top-3 kèm phần trăm, đừng khẳng định
-
-Với khoảng cách hai nhóm gần bằng 0 (−0.006 với ViT-B-32, +0.021 với ViT-L-14),
-**không ngưỡng nào tách sạch được**. Nên:
-- Hiển thị **top-3 kèm % giống** để khách tự chọn
-- Ghi rõ **"kết quả gần đúng"**, không khẳng định "đây là bánh bạn muốn"
-- Đây là cách trung thực với người dùng khi model chưa đủ tin cậy
+Với khoảng cách hai nhóm hẹp (+0,078), **không ngưỡng nào tách sạch được**.
+Giao diện hiện đã:
+- Hiển thị **top-K kèm % giống** để khách tự chọn
+- Ghi rõ ngay trên trang: **% tương đồng là mức độ khớp đặc trưng hình ảnh,
+  KHÔNG phải xác suất đúng món** (kiểm thử e2e: `tim-banh.spec.ts`)
+- Ở chế độ chỉ mẫu có 3D, **mọi kết quả đều mở được viewer**, và mẫu chỉ-xem
+  được ghi rõ "mẫu xem trước, chưa đặt được"
 
 ### Hướng cải thiện model (nếu còn thời gian)
 
@@ -265,8 +343,8 @@ Nhưng phải đọc con số này cho đúng — ba điều cần lưu ý:
    hơn chỉ **may mắn đúng ở nhiều món khác hơn**, chứ không tạo ra ranh giới rõ
    ràng hơn giữa "có trong kho" và "không có".
 
-   Bằng chứng: khoảng cách similarity giữa nhóm trong kho và ngoài kho chỉ đi từ
-   **−0.006** lên **+0.021**. Vẫn gần như bằng 0. Nghĩa là **vẫn không thể đặt
+   Bằng chứng: khoảng cách similarity giữa nhóm trong kho và ngoài miền chỉ đi
+   từ **−0.006** lên **+0.021**. Vẫn gần như bằng 0. Nghĩa là **vẫn không thể đặt
    ngưỡng từ chối đáng tin cậy** dù dùng model nào.
 
 **Kết luận về model:** nâng lên ViT-L-14 là một cải thiện **có thật và đo được**,
@@ -278,22 +356,35 @@ thay thế được việc sửa dữ liệu** — vẫn phải làm Khuyến ng
 - `ViT-H-14` (vector 1024) — còn lớn hơn nữa, RAM có thể vượt 6 GB
 - `SigLIP` — huấn luyện trên dữ liệu lớn hơn, có thể nhạy với ảnh sản phẩm hơn
 - Fine-tune trên chính ảnh của tiệm — hiệu quả nhất nhưng cần nhiều ảnh có nhãn,
-  mà hiện kho chỉ có 20 ảnh
+  mà hiện kho chỉ có 1 ảnh mỗi sản phẩm
 
 ---
 
-## 7. CÁCH TÁI LẬP KẾT QUẢ
+## 8. CÁCH TÁI LẬP KẾT QUẢ
 
 ```bash
 cd backend
-python scripts/collect_test_images.py      # tải bộ ảnh test (cần mạng)
-python scripts/evaluate_clip_accuracy.py   # đo accuracy: top-1 22.2%
-python scripts/try_preprocessing.py        # thử 8 cách tiền xử lý ảnh
-python scripts/compare_models.py           # so ViT-B-32 với ViT-L-14
+python scripts/collect_test_images.py       # tải ảnh Wikimedia (cần mạng)
+python scripts/collect_out_of_domain.py     # tải ảnh ngoài miền bánh
+python scripts/build_3d_query_set.py        # dựng 30 ảnh truy vấn 6 kiểu thân
+python scripts/backfill_manifest_meta.py    # tra lại nguồn/giấy phép còn thiếu
+python scripts/evaluate_clip_accuracy.py    # đo top-1/top-3/từ chối
+python scripts/measure_clip_latency.py      # đo cold/warm/p50/p95
+python scripts/check_3d_shots.py            # kiểm ảnh 3D không bị trắng
+```
+
+Bước `build_3d_query_set.py` cần ảnh render trước:
+
+```bash
+cd frontend
+node scripts/capture-cake-shots.mjs        # ảnh trong frontend/tmp_shots/
 ```
 
 Kết quả chi tiết:
-- `backend/test_images/accuracy_report.json` — từng ảnh, top-1/top-3
+- `backend/test_images/accuracy_report.json` — từng ảnh, top-1/top-3, 4 nhóm
+- `backend/test_images/latency_report.json` — cold/warm/p50/p95
+- `backend/test_images/manifest.json` — nguồn + giấy phép ảnh Wikimedia
+- `backend/test_images/manifest_3d.json` — nguồn + giấy phép ảnh mô hình 3D
 - `backend/test_images/preprocessing_results.json` — 8 chiến lược tiền xử lý
 - `backend/test_images/model_comparison.json` — so sánh hai model
 

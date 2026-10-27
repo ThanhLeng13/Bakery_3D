@@ -32,6 +32,7 @@ from typing import Any, Optional
 from PIL import Image, UnidentifiedImageError
 
 from app.core.config import settings
+from app.services.orderable_3d import is_orderable_model
 from app.utils.image_url import format_image_url
 
 logger = logging.getLogger(__name__)
@@ -331,16 +332,84 @@ class ClipSearchService:
             )
         return response.data or []
 
+    def _products_with_3d_model(self, product_ids: list[str]) -> dict[str, dict]:
+        """Lấy mapping 3D hợp lệ của các sản phẩm được, theo `product_id`.
+
+        "Hợp lệ" nghĩa là: sản phẩm còn đang bán, mô hình còn active, và có
+        mapping trỏ tới mô hình thật. Điều này quyết định kết quả tìm ảnh có
+        mở được viewer hay không — thiếu một là khách bấm vào rồi thấy trang
+        trắng.
+
+        Trả về dict `product_id -> {slug, glb_url, ...}`, rỗng nếu không sản
+        phẩm nào có mapping.
+        """
+        if not product_ids:
+            return {}
+
+        try:
+            links_resp = (
+                self.client.table("product_3d_models")
+                .select(
+                    "product_id, sort_order, is_primary, "
+                    "cake_3d_models(id, slug, name, glb_url, thumbnail_url, is_active)"
+                )
+                .in_("product_id", product_ids)
+                .execute()
+            )
+            links = links_resp.data or []
+        except Exception:
+            # Không có bảng mapping (migration chưa chạy) thì coi như không sản
+            # phẩm nào có 3D — chế độ lọc trả về rỗng, không phải lỗi 500.
+            logger.exception("Không đọc được mapping 3D")
+            return {}
+
+        valid: dict[str, dict] = {}
+        for link in links:
+            model = link.get("cake_3d_models") or {}
+            if isinstance(model, list):
+                model = model[0] if model else {}
+            if not isinstance(model, dict) or not model.get("id"):
+                continue
+            # Mô hình không còn active thì không xem được.
+            if not model.get("is_active"):
+                continue
+            pid = link.get("product_id")
+            entry = {
+                "id": model["id"],
+                "slug": model.get("slug"),
+                "name": model.get("name"),
+                "glb_url": model.get("glb_url"),
+                "thumbnail_url": model.get("thumbnail_url"),
+                "is_primary": bool(link.get("is_primary")),
+                "sort_order": link.get("sort_order") or 0,
+                # Mẫu xem được không đồng nghĩa bán được. Giao diện cần biết
+                # để ghi rõ cho khách thay vì để khách bấm "Đặt" rồi bị từ chối.
+                "is_orderable": is_orderable_model(model.get("slug")),
+            }
+            current = valid.get(pid)
+            if current is None:
+                valid[pid] = entry
+            elif entry["is_primary"] and not current["is_primary"]:
+                valid[pid] = entry
+            elif entry["is_primary"] == current["is_primary"] and (
+                entry["sort_order"] < current["sort_order"]
+            ):
+                valid[pid] = entry
+        return valid
+
     def search_by_image(
         self,
         raw: bytes,
         match_count: int = 6,
         match_threshold: float = 0.0,
         product_type: str | None = None,
+        has_3d_model: bool | None = None,
     ) -> dict[str, Any]:
         """Trả về danh sách sản phẩm giống nhất kèm độ tương đồng.
 
         Args:
+            has_3d_model: Chỉ trả sản phẩm CÓ mô hình 3D hợp lệ (sản phẩm
+                còn bán, mô hình còn active). None = không lọc.
             product_type: Lọc theo loại sản phẩm. `"cake"` = chỉ bánh sinh nhật
                 (bánh thiết kế theo kiểu mẫu). None = tìm trong toàn kho.
                 Lọc ở Python chứ không ở SQL vì RPC `match_cakes` không nhận
@@ -382,6 +451,26 @@ class ClipSearchService:
         )
         search_ms = (time.perf_counter() - search_started) * 1000
 
+        # Chỉ giữ sản phẩm có mô hình 3D hợp lệ.
+        #
+        # Đề tài yêu cầu: tải ảnh lên phải dẫn tới mẫu 3D xem được. Nếu kết quả
+        # trả về sản phẩm không có mô hình, khách bấm vào thấy trang sản phẩm mà
+        # không có viewer — hứa một đằng, làm một nẻo.
+        #
+        # Lọc ở Python chứ không ở SQL vì RPC match_cakes không biết bảng mapping.
+        # Lọc SAU khi đã xếp hạng, nên phải quét đủ sâu để lấy đủ match_count món
+        # có 3D — giống cách lọc theo product_type.
+        # Luôn lấy mapping cho các dòng trả về, kể cả khi không lọc:
+        # giao diện cần biết mẫu nào MỞ ĐƯỢC viewer để bật nút xem 3D.
+        # Một truy vấn, tối đa 20 dòng — rẻ hơn việc giao diện phải gọi thêm
+        # một vòng cho từng kết quả.
+        wanted = [r.get("product_id") for r in rows if r.get("product_id")]
+        models_by_product = self._products_with_3d_model(wanted)
+
+        if has_3d_model:
+            rows = [r for r in rows if r.get("product_id") in models_by_product]
+            rows = rows[:match_count]
+
         results = []
         for row in rows:
             similarity = float(row.get("similarity") or 0.0)
@@ -396,6 +485,9 @@ class ClipSearchService:
                     # Trả về % để giao diện hiển thị trực tiếp.
                     "similarity": round(similarity, 4),
                     "similarity_percent": round(similarity * 100, 1),
+                    # Mô hình 3D để mở viewer. None khi sản phẩm không có
+                    # mô hình hợp lệ.
+                    "three_d_model": models_by_product.get(row.get("product_id")),
                 }
             )
 
