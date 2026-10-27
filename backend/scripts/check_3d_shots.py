@@ -11,7 +11,10 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
 
-SHOT_DIR = Path(r"D:\DE_TAI\Bakery_3D\frontend\tmp_shots")
+# Thu muc anh render: suy tu vi tri file nay de khong phu thuoc may.
+# backend/scripts/check_3d_shots.py -> <repo>/frontend/tmp_shots
+SHOT_DIR = (Path(__file__).resolve().parent.parent.parent
+            / "frontend" / "tmp_shots")
 
 
 def decode_png(path: Path):
@@ -95,8 +98,12 @@ def analyse(path: Path):
     }
 
 
-def main():
+def main() -> int:
     files = sorted(SHOT_DIR.glob("*.png"))
+    if not files:
+        print(f"  Thu muc rong: {SHOT_DIR}")
+        print("  Chay `node scripts/capture-cake-shots.mjs` trong frontend truoc.")
+        return 1
     print(f"  thu muc: {SHOT_DIR}")
     print(f"  so anh: {len(files)}\n")
     ok = 0
@@ -121,6 +128,8 @@ def main():
         avg_delta = sum(r["delta"] for _, r in items) / len(items)
         print(f"    {model:16s} {good}/{len(items)} anh   mau trung binh={avg_colors:.0f}  lech nen={avg_delta:.1f}")
 
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

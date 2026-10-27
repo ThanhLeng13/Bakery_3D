@@ -8,12 +8,14 @@
   "n_out_of_domain": 14,
   "n_3d_body": 30,
   "body_3d_hit_rate": 0.0,
+  "body_3d_viewable_rate": 0.0,
+  "filtered_3d_all_viewable_rate": 100.0,
   "sim_avg_in": 0.5837111111111111,
   "sim_avg_out": 0.5506083333333333,
   "sim_avg_out_of_domain": 0.50625,
   "details": [
     {
-      "file": "trong_kho\\Bánh_tiramisu_truyền_thống__1.jpg",
+      "file": "trong_kho/Bánh_tiramisu_truyền_thống__1.jpg",
       "expected": "Bánh tiramisu truyền thống",
       "top1": "Bánh Dark Oreo",
       "top3": [
@@ -26,7 +28,7 @@
       "correct_top3": false
     },
     {
-      "file": "trong_kho\\Bánh_tiramisu_truyền_thống__2.jpg",
+      "file": "trong_kho/Bánh_tiramisu_truyền_thống__2.jpg",
       "expected": "Bánh tiramisu truyền thống",
       "top1": "Bánh kem socola viên tròn",
       "top3": [
@@ -39,7 +41,7 @@
       "correct_top3": false
     },
     {
-      "file": "trong_kho\\Bánh_Brownie__1.jpg",
+      "file": "trong_kho/Bánh_Brownie__1.jpg",
       "expected": "Bánh Brownie",
       "top1": "Bánh kem cuộn socola trắng",
       "top3": [
@@ -52,7 +54,7 @@
       "correct_top3": true
     },
     {
-      "file": "trong_kho\\Bánh_Brownie__2.jpg",
+      "file": "trong_kho/Bánh_Brownie__2.jpg",
       "expected": "Bánh Brownie",
       "top1": "Bánh Brownie",
       "top3": [
@@ -65,7 +67,7 @@
       "correct_top3": true
     },
     {
-      "file": "trong_kho\\Cheesecake_Red_Velvet__1.jpg",
+      "file": "trong_kho/Cheesecake_Red_Velvet__1.jpg",
       "expected": "Cheesecake Red Velvet",
       "top1": "Bánh khoai lang phô mai",
       "top3": [
@@ -78,7 +80,7 @@
       "correct_top3": false
     },
     {
-      "file": "trong_kho\\Cheesecake_Red_Velvet__2.jpg",
+      "file": "trong_kho/Cheesecake_Red_Velvet__2.jpg",
       "expected": "Cheesecake Red Velvet",
       "top1": "Bánh kem trái cây dâu việt quất",
       "top3": [
@@ -91,7 +93,7 @@
       "correct_top3": false
     },
     {
-      "file": "trong_kho\\Bánh_phô_mai_cháy__1.jpg",
+      "file": "trong_kho/Bánh_phô_mai_cháy__1.jpg",
       "expected": "Bánh phô mai cháy",
       "top1": "Bánh mousse chanh dây trái cây nền gỗ",
       "top3": [
@@ -104,7 +106,7 @@
       "correct_top3": false
     },
     {
-      "file": "trong_kho\\Bánh_phô_mai_cháy__2.jpg",
+      "file": "trong_kho/Bánh_phô_mai_cháy__2.jpg",
       "expected": "Bánh phô mai cháy",
       "top1": "Bánh khoai lang phô mai",
       "top3": [
@@ -117,7 +119,7 @@
       "correct_top3": false
     },
     {
-      "file": "trong_kho\\Bánh_tart_trứng__1.jpg",
+      "file": "trong_kho/Bánh_tart_trứng__1.jpg",
       "expected": "Bánh tart trứng",
       "top1": "Bánh tart trứng",
       "top3": [
@@ -130,7 +132,7 @@
       "correct_top3": true
     },
     {
-      "file": "trong_kho\\Bánh_tart_trứng__2.jpg",
+      "file": "trong_kho/Bánh_tart_trứng__2.jpg",
       "expected": "Bánh tart trứng",
       "top1": "Bánh tart trứng",
       "top3": [
@@ -143,7 +145,7 @@
       "correct_top3": true
     },
     {
-      "file": "trong_kho\\Bánh_su_kem__1.jpg",
+      "file": "trong_kho/Bánh_su_kem__1.jpg",
       "expected": "Bánh su kem",
       "top1": "Bánh tart trứng",
       "top3": [
@@ -156,7 +158,7 @@
       "correct_top3": false
     },
     {
-      "file": "trong_kho\\Bánh_su_kem__2.jpg",
+      "file": "trong_kho/Bánh_su_kem__2.jpg",
       "expected": "Bánh su kem",
       "top1": "Bánh khoai lang phô mai",
       "top3": [
@@ -169,7 +171,7 @@
       "correct_top3": true
     },
     {
-      "file": "trong_kho\\Bánh_kem_trứng_dừa_nướng__1.jpg",
+      "file": "trong_kho/Bánh_kem_trứng_dừa_nướng__1.jpg",
       "expected": "Bánh kem trứng dừa nướng",
       "top1": "Bánh phô mai cháy",
       "top3": [
@@ -182,7 +184,7 @@
       "correct_top3": false
     },
     {
-      "file": "trong_kho\\Bánh_kem_trứng_dừa_nướng__2.jpg",
+      "file": "trong_kho/Bánh_kem_trứng_dừa_nướng__2.jpg",
       "expected": "Bánh kem trứng dừa nướng",
       "top1": "Bánh kem cuộn socola trắng",
       "top3": [
@@ -195,7 +197,7 @@
       "correct_top3": false
     },
     {
-      "file": "trong_kho\\Bánh_chuối_nướng_nước_dừa__1.jpg",
+      "file": "trong_kho/Bánh_chuối_nướng_nước_dừa__1.jpg",
       "expected": "Bánh chuối nướng nước dừa",
       "top1": "Bánh mousse chanh dây trái cây nền trắng",
       "top3": [
@@ -208,7 +210,7 @@
       "correct_top3": false
     },
     {
-      "file": "trong_kho\\Bánh_chuối_nướng_nước_dừa__2.jpg",
+      "file": "trong_kho/Bánh_chuối_nướng_nước_dừa__2.jpg",
       "expected": "Bánh chuối nướng nước dừa",
       "top1": "Bánh kem trái cây dâu việt quất",
       "top3": [
@@ -221,7 +223,7 @@
       "correct_top3": false
     },
     {
-      "file": "trong_kho\\Bánh_crepe_sầu_riêng__1.jpg",
+      "file": "trong_kho/Bánh_crepe_sầu_riêng__1.jpg",
       "expected": "Bánh crepe sầu riêng",
       "top1": "Bánh kem cuộn socola trắng",
       "top3": [
@@ -234,7 +236,7 @@
       "correct_top3": false
     },
     {
-      "file": "trong_kho\\Bánh_crepe_sầu_riêng__2.jpg",
+      "file": "trong_kho/Bánh_crepe_sầu_riêng__2.jpg",
       "expected": "Bánh crepe sầu riêng",
       "top1": "Bánh kem cuộn socola trắng",
       "top3": [
@@ -249,85 +251,85 @@
   ],
   "details_out_of_domain": [
     {
-      "file": "ngoai_mien_banh\\pizza__1.jpg",
+      "file": "ngoai_mien_banh/pizza__1.jpg",
       "label": "pizza",
       "top1": "Bánh kem xanh lá trái cây tươi",
       "sim1": 0.5722
     },
     {
-      "file": "ngoai_mien_banh\\hamburger__1.jpg",
+      "file": "ngoai_mien_banh/hamburger__1.jpg",
       "label": "hamburger",
       "top1": "Bánh phomai sợi dẻo",
       "sim1": 0.5515
     },
     {
-      "file": "ngoai_mien_banh\\sushi__1.jpg",
+      "file": "ngoai_mien_banh/sushi__1.jpg",
       "label": "sushi",
       "top1": "Bánh mousse chanh dây trái cây nền ghế trắng",
       "sim1": 0.6835
     },
     {
-      "file": "ngoai_mien_banh\\pho__1.jpg",
+      "file": "ngoai_mien_banh/pho__1.jpg",
       "label": "pho",
       "top1": "Bánh kem xanh lá trái cây tươi",
       "sim1": 0.5252
     },
     {
-      "file": "ngoai_mien_banh\\salad__1.jpg",
+      "file": "ngoai_mien_banh/salad__1.jpg",
       "label": "salad",
       "top1": "Bánh kem cốm dẻo",
       "sim1": 0.5126
     },
     {
-      "file": "ngoai_mien_banh\\cafe__1.jpg",
+      "file": "ngoai_mien_banh/cafe__1.jpg",
       "label": "cafe",
       "top1": "Bánh kem cuộn socola trắng",
       "sim1": 0.4204
     },
     {
-      "file": "ngoai_mien_banh\\oto__1.jpg",
+      "file": "ngoai_mien_banh/oto__1.jpg",
       "label": "oto",
       "top1": "Bánh kem cuộn socola trắng",
       "sim1": 0.2735
     },
     {
-      "file": "ngoai_mien_banh\\banh_mi__1.jpg",
+      "file": "ngoai_mien_banh/banh_mi__1.jpg",
       "label": "banh mi",
       "top1": "Bánh kem trái cây tươi nơ trắng",
       "sim1": 0.536
     },
     {
-      "file": "ngoai_mien_banh\\bun_bo__1.jpg",
+      "file": "ngoai_mien_banh/bun_bo__1.jpg",
       "label": "bun bo",
       "top1": "Bánh kem cuộn socola trắng",
       "sim1": 0.4923
     },
     {
-      "file": "ngoai_mien_banh\\goi_cuon__1.jpg",
+      "file": "ngoai_mien_banh/goi_cuon__1.jpg",
       "label": "goi cuon",
       "top1": "Bánh mousse chanh dây trái cây nền ghế trắng",
       "sim1": 0.5784
     },
     {
-      "file": "ngoai_mien_banh\\cha__1.jpg",
+      "file": "ngoai_mien_banh/cha__1.jpg",
       "label": "cha",
       "top1": "Bánh kem cuộn socola trắng",
       "sim1": 0.5781
     },
     {
-      "file": "ngoai_mien_banh\\dau_an__1.jpg",
+      "file": "ngoai_mien_banh/dau_an__1.jpg",
       "label": "dau an",
       "top1": "Bánh Brownie",
       "sim1": 0.3079
     },
     {
-      "file": "ngoai_mien_banh\\banh_bao__1.jpg",
+      "file": "ngoai_mien_banh/banh_bao__1.jpg",
       "label": "banh bao",
       "top1": "Bánh kem cuộn socola trắng",
       "sim1": 0.5636
     },
     {
-      "file": "ngoai_mien_banh\\xuc_xich__1.jpg",
+      "file": "ngoai_mien_banh/xuc_xich__1.jpg",
       "label": "xuc xich",
       "top1": "Bánh chuối nướng nước dừa",
       "sim1": 0.4923
@@ -335,244 +337,274 @@
   ],
   "details_3d_body": [
     {
-      "file": "mo_hinh_3d\\round-1-tier__front.jpg",
+      "file": "mo_hinh_3d/round-1-tier__front.jpg",
       "body": "round-1-tier",
       "top1": "Bánh kem cuộn socola trắng",
       "sim1": 0.4566,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\round-1-tier__top.jpg",
+      "file": "mo_hinh_3d/round-1-tier__top.jpg",
       "body": "round-1-tier",
       "top1": "Bánh kem cuộn socola trắng",
       "sim1": 0.4389,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\round-1-tier__side.jpg",
+      "file": "mo_hinh_3d/round-1-tier__side.jpg",
       "body": "round-1-tier",
       "top1": "Bánh kem cuộn socola trắng",
       "sim1": 0.45,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\round-1-tier__spin-0.jpg",
+      "file": "mo_hinh_3d/round-1-tier__spin-0.jpg",
       "body": "round-1-tier",
       "top1": "Bánh kem cuộn socola trắng",
       "sim1": 0.4566,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\round-1-tier__spin-3.jpg",
+      "file": "mo_hinh_3d/round-1-tier__spin-3.jpg",
       "body": "round-1-tier",
       "top1": "Bánh kem cuộn socola trắng",
       "sim1": 0.433,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\round-2-tier__front.jpg",
+      "file": "mo_hinh_3d/round-2-tier__front.jpg",
       "body": "round-2-tier",
       "top1": "Bánh kem hoa hồng đen vẽ line đen",
       "sim1": 0.5077,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\round-2-tier__top.jpg",
+      "file": "mo_hinh_3d/round-2-tier__top.jpg",
       "body": "round-2-tier",
       "top1": "Bánh kem cuộn socola trắng",
       "sim1": 0.4026,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\round-2-tier__side.jpg",
+      "file": "mo_hinh_3d/round-2-tier__side.jpg",
       "body": "round-2-tier",
       "top1": "Bánh kem hoa hồng đen vẽ line đen",
       "sim1": 0.5121,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\round-2-tier__spin-0.jpg",
+      "file": "mo_hinh_3d/round-2-tier__spin-0.jpg",
       "body": "round-2-tier",
       "top1": "Bánh kem hoa hồng đen vẽ line đen",
       "sim1": 0.5077,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\round-2-tier__spin-3.jpg",
+      "file": "mo_hinh_3d/round-2-tier__spin-3.jpg",
       "body": "round-2-tier",
       "top1": "Bánh kem hoa hồng đen vẽ line đen",
       "sim1": 0.5183,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\round-3-tier__front.jpg",
+      "file": "mo_hinh_3d/round-3-tier__front.jpg",
       "body": "round-3-tier",
       "top1": "Bánh kem hoa hồng đen vẽ line đen",
       "sim1": 0.4841,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\round-3-tier__top.jpg",
+      "file": "mo_hinh_3d/round-3-tier__top.jpg",
       "body": "round-3-tier",
       "top1": "Bánh kem cuộn socola trắng",
       "sim1": 0.4106,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\round-3-tier__side.jpg",
+      "file": "mo_hinh_3d/round-3-tier__side.jpg",
       "body": "round-3-tier",
       "top1": "Bánh kem hoa hồng đen vẽ line đen",
       "sim1": 0.5062,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\round-3-tier__spin-0.jpg",
+      "file": "mo_hinh_3d/round-3-tier__spin-0.jpg",
       "body": "round-3-tier",
       "top1": "Bánh kem hoa hồng đen vẽ line đen",
       "sim1": 0.4841,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\round-3-tier__spin-3.jpg",
+      "file": "mo_hinh_3d/round-3-tier__spin-3.jpg",
       "body": "round-3-tier",
       "top1": "Bánh kem hoa hồng đen vẽ line đen",
       "sim1": 0.4897,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\heart-1-tier__front.jpg",
+      "file": "mo_hinh_3d/heart-1-tier__front.jpg",
       "body": "heart-1-tier",
       "top1": "Bánh kem cuộn socola trắng",
       "sim1": 0.4174,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\heart-1-tier__top.jpg",
+      "file": "mo_hinh_3d/heart-1-tier__top.jpg",
       "body": "heart-1-tier",
       "top1": "Bánh kem hoa hồng đen vẽ line đen",
       "sim1": 0.4015,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\heart-1-tier__side.jpg",
+      "file": "mo_hinh_3d/heart-1-tier__side.jpg",
       "body": "heart-1-tier",
       "top1": "Bánh kem cuộn socola trắng",
       "sim1": 0.429,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\heart-1-tier__spin-0.jpg",
+      "file": "mo_hinh_3d/heart-1-tier__spin-0.jpg",
       "body": "heart-1-tier",
       "top1": "Bánh kem cuộn socola trắng",
       "sim1": 0.4174,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\heart-1-tier__spin-3.jpg",
+      "file": "mo_hinh_3d/heart-1-tier__spin-3.jpg",
       "body": "heart-1-tier",
       "top1": "Bánh kem cuộn socola trắng",
       "sim1": 0.4318,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\square-1-tier__front.jpg",
+      "file": "mo_hinh_3d/square-1-tier__front.jpg",
       "body": "square-1-tier",
       "top1": "Bánh kem hoa dại nhỏ nhiều màu",
       "sim1": 0.4048,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\square-1-tier__top.jpg",
+      "file": "mo_hinh_3d/square-1-tier__top.jpg",
       "body": "square-1-tier",
       "top1": "Bánh kem cuộn socola trắng",
       "sim1": 0.3968,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\square-1-tier__side.jpg",
+      "file": "mo_hinh_3d/square-1-tier__side.jpg",
       "body": "square-1-tier",
       "top1": "Bánh kem cuộn socola trắng",
       "sim1": 0.3992,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\square-1-tier__spin-0.jpg",
+      "file": "mo_hinh_3d/square-1-tier__spin-0.jpg",
       "body": "square-1-tier",
       "top1": "Bánh kem hoa dại nhỏ nhiều màu",
       "sim1": 0.4048,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\square-1-tier__spin-3.jpg",
+      "file": "mo_hinh_3d/square-1-tier__spin-3.jpg",
       "body": "square-1-tier",
       "top1": "Bánh kem cuộn socola trắng",
       "sim1": 0.3957,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\tall-1-tier__front.jpg",
+      "file": "mo_hinh_3d/tall-1-tier__front.jpg",
       "body": "tall-1-tier",
       "top1": "Bánh kem mặt hồng pastel hoa nhỏ",
       "sim1": 0.4643,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\tall-1-tier__top.jpg",
+      "file": "mo_hinh_3d/tall-1-tier__top.jpg",
       "body": "tall-1-tier",
       "top1": "Bánh kem cuộn socola trắng",
       "sim1": 0.421,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\tall-1-tier__side.jpg",
+      "file": "mo_hinh_3d/tall-1-tier__side.jpg",
       "body": "tall-1-tier",
       "top1": "Bánh kem mặt hồng pastel hoa nhỏ",
       "sim1": 0.4462,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\tall-1-tier__spin-0.jpg",
+      "file": "mo_hinh_3d/tall-1-tier__spin-0.jpg",
       "body": "tall-1-tier",
       "top1": "Bánh kem mặt hồng pastel hoa nhỏ",
       "sim1": 0.4643,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     },
     {
-      "file": "mo_hinh_3d\\tall-1-tier__spin-3.jpg",
+      "file": "mo_hinh_3d/tall-1-tier__spin-3.jpg",
       "body": "tall-1-tier",
       "top1": "Bánh kem mặt hồng pastel hoa nhỏ",
       "sim1": 0.4321,
       "n_results_with_3d": 0,
-      "hit": false
+      "hit": false,
+      "top_slug": null
     }
   ]
 }

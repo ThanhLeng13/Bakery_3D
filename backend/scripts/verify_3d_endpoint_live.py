@@ -68,6 +68,7 @@ for im in imgs:
 
     r_all = post_image(raw, match_count=6, product_type="cake")
     r_3d = post_image(raw, match_count=6, product_type="cake", has_3d_model="true")
+    r_no3d = post_image(raw, match_count=6, product_type="cake", has_3d_model="false")
     print(f"    khong loc : {r_all['count']} ket qua, "
           f"{sum(1 for x in r_all['results'] if x.get('three_d_model'))} co mo hinh 3D")
     print(f"    loc 3D    : {r_3d['count']} ket qua")
@@ -75,6 +76,11 @@ for im in imgs:
         m = x.get("three_d_model") or {}
         print(f"       - {x['name'][:38]:38s} sim={x['similarity']:.3f} "
               f"3D={m.get('slug')} orderable={m.get('is_orderable')}")
+    # `has_3d_model=false` phai tra dung nhung mau KHONG co mo hinh 3D.
+    bad = [x for x in r_no3d["results"] if x.get("three_d_model")]
+    print(f"    loai bo 3D: {r_no3d['count']} ket qua, "
+          f"{len(bad)} con mang mo hinh 3D (phai la 0)")
+    assert not bad, f"has_3d_model=false van tra mau co 3D: {[x['name'] for x in bad]}"
 
     # Ảnh không phải bánh → phải trả rỗng, không vỡ.
     fake = b"\x89PNG\r\n\x1a\n" + b"\x00" * 200

@@ -3,25 +3,28 @@
   "embedding_dim": 512,
   "device": "cpu",
   "n_images": 18,
-  "cold_seconds": 8.57,
+  "rounds": 5,
+  "samples_per_metric": 90,
+  "note": "Máy có tiến trình nền chạy song song, nên số đo nhảy theo tải. Đo nhiều vòng; p50/p95 tính trên toàn bộ mẫu của các vòng. 'search' LÀ thời gian gọi RPC + đọc bảng mapping 3D.",
+  "cold_seconds": 9.1,
   "embed_ms": {
-    "p50": 119.0,
-    "p95": 139.9,
-    "mean": 121.4,
-    "min": 107.9,
-    "max": 140.2
+    "p50": 113.5,
+    "p95": 143.7,
+    "mean": 116.6,
+    "min": 97.9,
+    "max": 162.2
   },
   "search_ms": {
-    "p50": 371.1,
-    "p95": 1406.7,
-    "mean": 673.3,
-    "min": 293.3,
-    "max": 2895.4
+    "p50": 455.2,
+    "p95": 1406.6,
+    "mean": 561.8,
+    "min": 177.8,
+    "max": 2492.7
   },
   "end_to_end_ms": {
-    "p50": 386.7,
-    "p95": 677.5,
-    "mean": 440.2
+    "p50": 537.9,
+    "p95": 1208.6,
+    "mean": 633.8
   },
   "how_to_reproduce": "cd backend && python scripts/measure_clip_latency.py (cần ảnh trong backend/test_images/trong_kho/)"
 }

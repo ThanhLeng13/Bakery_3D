@@ -152,3 +152,52 @@ test("chế độ chỉ mẫu có 3D gửi tham số lọc xuống API", async (
   expect(sentForm).toContain("has_3d_model");
   expect(sentForm).toContain("true");
 });
+
+test("đổi chế độ tìm thì xoá kết quả của chế độ cũ", async ({ page }) => {
+  await page.goto("/tim-banh");
+
+  await page.route("**/api/v1/search/by-image", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        count: 1,
+        model: "ViT-B-32",
+        timing_ms: { embed: 120, search: 40, total: 160 },
+        results: [
+          {
+            product_id: "33333333-3333-3333-3333-333333333333",
+            name: "Bánh kem tròn 1 tầng",
+            image_url: "https://example.test/a.jpg",
+            category: "sinh nhat",
+            product_type: "cake",
+            base_price: 350000,
+            similarity: 0.82,
+            similarity_percent: 82,
+            // KHÔNG có mô hình 3D — nếu kết quả này còn lại sau khi bật
+            // "Chỉ mẫu có 3D" thì giao diện hiển thị sai.
+            three_d_model: null,
+          },
+        ],
+      }),
+    }),
+  );
+
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Chọn ảnh từ máy" }).click();
+  const fc = await chooser;
+  await fc.setFiles({
+    name: "anh.jpg",
+    mimeType: "image/jpeg",
+    buffer: await makePngBytes(),
+  });
+
+  await page.getByRole("button", { name: "Tìm bánh giống nhất" }).click();
+  await expect(page.getByText("1 mẫu bánh giống nhất")).toBeVisible();
+
+  // Bật "Chỉ mẫu có 3D" — kết quả cũ (mẫu KHÔNG có 3D) phải biến mất.
+  await page.getByRole("radio", { name: "Chỉ mẫu có 3D" }).click();
+
+  await expect(page.getByText("1 mẫu bánh giống nhất")).toBeHidden();
+  await expect(page.getByText("Bánh kem tròn 1 tầng")).toBeHidden();
+});

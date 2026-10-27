@@ -62,6 +62,10 @@ def load_manifest() -> list[dict]:
         if not path.exists():
             continue
         for item in json.loads(path.read_text(encoding="utf-8")):
+            # Manifest ghi duong dan POSIX ("ngoai_kho/x.jpg"). Khi chay tren
+            # Windows, `Path` / "ngoai_kho/x.jpg" tao ra "ngoai_kho\\x.jpg" —
+            # dung khi nen chuan hoa ve "ngoai_kho/x.jpg" de chay duoc ca hai.
+            item["file"] = item["file"].replace("\\", "/")
             item["_manifest"] = name
             items.append(item)
     return items
@@ -204,8 +208,15 @@ def main() -> int:
     print(f"  {'Kieu than':16s} {'Top-1':30s} {'sim':>6s}  {'co mo hinh 3D':>14s}")
     print("  " + "-" * 74)
 
+    # `body_hits` = top-1 KHOP KIỂU THÂN (slug của mô hình trùng nhãn ảnh).
+    # `viewable` = top-1 có mô hình 3D mở được, KHÔNG quan tâm đúng kiểu.
+    # Hai thứ này khác nhau: đo gộp chung sẽ báo "nhận dạng kiểu thân"
+    # trong khi thực ra chỉ đo được "có mô hình 3D hay không".
     body_hits = 0
     body_total = 0
+    viewable = 0
+    filtered_hits = 0
+    filtered_total = 0
     with3d = 0
     body_rows: list[dict] = []
     for item in by_group["mo_hinh_3d"]:
@@ -226,23 +237,48 @@ def main() -> int:
         top = results[0]
         n3d = sum(1 for r in results if r.get("three_d_model"))
         with3d += n3d
-        # Kiểu thân có mô hình 3D là "đúng" khi kết quả đầu là mẫu có mapping
-        # 3D (tức là hệ thống tìm ra mẫu xem được 3D).
-        hit = bool(top.get("three_d_model"))
+        # HIT = kết quả đầu có mô hình 3D đúng kiểu thân của ảnh truy vấn.
+        # Chỉ có mô hình 3D thôi là chưa đủ — mô hình sai kiểu vẫn là sai.
+        top_model = top.get("three_d_model") or {}
+        top_slug = top_model.get("slug")
+        hit = bool(top_slug) and top_slug == item["label"]
         body_hits += int(hit)
+        viewable += int(bool(top_slug))
+
+        # ĐO RIÊNG chế độ lọc 3D: khách bấm "Chỉ mẫu có 3D" thì mọi kết quả
+        # đều phải mở được viewer. Đây là điều khoản của sản phẩm, KHÁC với
+        # việc xếp hạng đúng kiểu thân.
+        try:
+            fresult = service.search_by_image(
+                path.read_bytes(), match_count=6, product_type="cake",
+                has_3d_model=True,
+            )
+        except Exception as exc:
+            print(f"  {item['label'][:24]:26s} LOI (loc 3D): {type(exc).__name__}")
+            fresult = None
+        if fresult is not None:
+            fres = fresult["results"]
+            filtered_total += 1
+            if fres and all(r.get("three_d_model") for r in fres):
+                filtered_hits += 1
         print(f"  {item['label'][:16]:16s} {top['name'][:28]:30s} "
               f"{top['similarity']:6.3f}  {n3d}/{len(results):>12}  "
-              f"{'HIT' if hit else 'truot'}")
+              f"{'HIT' if hit else 'truot'}  slug={top_slug or '-'}")
         body_rows.append({
             "file": item["file"], "body": item["label"],
             "top1": top["name"], "sim1": top["similarity"],
-            "n_results_with_3d": n3d, "hit": hit,
+            "n_results_with_3d": n3d, "hit": hit, "top_slug": top_slug,
         })
 
     print("  " + "-" * 74)
     if body_total:
-        print(f"  Top-1 ra duoc mau co mo hinh 3D : {body_hits}/{body_total} = "
+        print(f"  Top-1 KHOP KIỂU THÂN (slug == nhãn) : {body_hits}/{body_total} = "
               f"{body_hits / body_total * 100:.1f}%")
+        print(f"  Top-1 có mô hình 3D mở được       : {viewable}/{body_total} = "
+              f"{viewable / body_total * 100:.1f}%")
+    if filtered_total:
+        print(f"  Chế độ lọc 3D — mọi kết quả mở được viewer: "
+              f"{filtered_hits}/{filtered_total}")
 
     # ─── Tổng hợp ────────────────────────────────────────────────────────────
     print()
@@ -253,8 +289,13 @@ def main() -> int:
         print(f"  Top-1 accuracy (trong kho)   : {top1 / total * 100:.1f}%  ({top1}/{total})")
         print(f"  Top-3 accuracy (trong kho)   : {top3 / total * 100:.1f}%  ({top3}/{total})")
     if body_total:
-        print(f"  Nhan dang kieu than (mo hinh 3D): {body_hits / body_total * 100:.1f}%  "
+        print(f"  Nhận dạng kiểu thân (slug khớp): {body_hits / body_total * 100:.1f}%  "
               f"({body_hits}/{body_total})")
+        print(f"  Top-1 có mô hình 3D mở được   : {viewable / body_total * 100:.1f}%  "
+              f"({viewable}/{body_total})")
+    if filtered_total:
+        print(f"  Chế độ lọc 3D — kết quả mở được viewer: "
+              f"{filtered_hits}/{filtered_total}")
 
     def avg(xs):
         return sum(xs) / len(xs) if xs else None
@@ -288,6 +329,10 @@ def main() -> int:
         "n_out_of_domain": len(sims_ood),
         "n_3d_body": body_total,
         "body_3d_hit_rate": (body_hits / body_total * 100) if body_total else None,
+        "body_3d_viewable_rate": (viewable / body_total * 100) if body_total else None,
+        "filtered_3d_all_viewable_rate": (
+            (filtered_hits / filtered_total * 100) if filtered_total else None
+        ),
         "sim_avg_in": avg(sims_hit),
         "sim_avg_out": avg(sims_out),
         "sim_avg_out_of_domain": avg(sims_ood),

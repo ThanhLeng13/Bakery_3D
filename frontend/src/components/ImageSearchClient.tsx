@@ -109,10 +109,34 @@ export default function ImageSearchClient() {
   // Chỉ trả về mẫu có mô hình 3D mở được. Bật khi khách muốn "xem trước
   // mẫu 3D" — khi đó mọi kết quả đều mở được viewer.
   const [chiLoc3D, setChiLoc3D] = useState(false);
+
   const router = useRouter();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Đổi chế độ tìm = kết quả cũ KHÔNG còn đúng với chế độ mới.
+  //
+  // Ví dụ: tìm "Tất cả mẫu bánh" ra 6 mẫu, rồi bấm "Chỉ mẫu có 3D" — nếu
+  // giữ nguyên 6 mẫu cũ, giao diện sẽ hiển thị mẫu KHÔNG có 3D dưới nhãn
+  // "Chỉ mẫu có 3D". Khách bấm vào thấy trang không có viewer — đúng cái lỗi
+  // mà bộ lọc ở server sinh ra để chặn.
+  //
+  // Xoá kết quả thay vì tự chạy lại: ảnh khách vừa tải lên có thể đã lỗi, và
+  // tự gọi lại API sẽ tốn thêm một lượt embed (khoảng 0,4 s trên CPU).
+  const changeMode = useCallback(
+    (next: boolean) => {
+      if (next === chiLoc3D) return;
+      abortRef.current?.abort();
+      abortRef.current = null;
+      setLoading(false);
+      setChiLoc3D(next);
+      setResults(null);
+      setTiming(null);
+      setError("");
+    },
+    [chiLoc3D],
+  );
 
   // Thu hồi object URL khi ảnh đổi hoặc component unmount — tránh rò rỉ bộ nhớ.
   useEffect(() => {
@@ -334,7 +358,7 @@ export default function ImageSearchClient() {
                 type="button"
                 role="radio"
                 aria-checked={!chiLoc3D}
-                onClick={() => setChiLoc3D(false)}
+                onClick={() => changeMode(false)}
                 className={`rounded-full border px-4 py-2 text-sm transition-colors ${
                   chiLoc3D
                     ? "border-line bg-white text-muted hover:border-brand"
@@ -347,7 +371,7 @@ export default function ImageSearchClient() {
                 type="button"
                 role="radio"
                 aria-checked={chiLoc3D}
-                onClick={() => setChiLoc3D(true)}
+                onClick={() => changeMode(true)}
                 className={`rounded-full border px-4 py-2 text-sm transition-colors ${
                   chiLoc3D
                     ? "border-brand bg-subtle text-ink font-medium"

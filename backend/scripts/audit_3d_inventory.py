@@ -158,11 +158,16 @@ for label, ptype in (("cake", "cake"), ("sweet", "sweet")):
 
 print()
 print("  San pham co mapping 3D (chi tiet):")
-for l in links:
-    p = prod_by_id.get(l["product_id"], {})
-    m = model_by_id.get(l["model_id"], {})
-    n_img = len(img_by_prod.get(l["product_id"], []))
-    print(f"  - {p.get('name','?')[:40]:40s} -> {m.get('slug','?'):14s} anh={n_img}")
+# `links` co the la dict khi truy van that bai (thi du bang khong ton tai).
+# Khi do KHONG duyet — dung va in thong bao, phan con lai cua audit van chay.
+if isinstance(links, list):
+    for l in links:
+        p = prod_by_id.get(l["product_id"], {})
+        m = model_by_id.get(l["model_id"], {})
+        n_img = len(img_by_prod.get(l["product_id"], []))
+        print(f"  - {p.get('name','?')[:40]:40s} -> {m.get('slug','?'):14s} anh={n_img}")
+else:
+    print(f"  BO QUA chi tiet mapping: truy van that bai -> {links}")
 
 print()
 print("=" * 72)

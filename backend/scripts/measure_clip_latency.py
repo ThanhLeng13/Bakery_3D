@@ -31,6 +31,11 @@ from app.services.clip_service import ClipSearchService, embed_image_bytes  # no
 
 TEST_DIR = Path(__file__).resolve().parent.parent / "test_images"
 
+# So vong do lap. May co tien trinh nen chay song song nen mot vong do 18
+# anh co the ra p50 478 ms roi 946 ms o vong sau — chenh 2 lan. Do nhieu
+# vong lam so on dinh hon.
+ROUNDS = 5
+
 
 def pct(values: list[float], p: float) -> float:
     """Phân vị p (0..1) theo cách gần nhất."""
@@ -67,11 +72,12 @@ def main() -> int:
     # ── WARM: sinh vector cho từng ảnh ───────────────────────────────────────
     print("  ĐO WARM (sinh vector)...")
     embed_ms: list[float] = []
-    for img in images:
-        raw = img.read_bytes()
-        t = time.perf_counter()
-        embed_image_bytes(raw)
-        embed_ms.append((time.perf_counter() - t) * 1000)
+    for _ in range(ROUNDS):
+        for img in images:
+            raw = img.read_bytes()
+            t = time.perf_counter()
+            embed_image_bytes(raw)
+            embed_ms.append((time.perf_counter() - t) * 1000)
     print(f"    so anh          : {len(embed_ms)}")
     print(f"    p50             : {pct(embed_ms, 0.50):.0f} ms")
     print(f"    p95             : {pct(embed_ms, 0.95):.0f} ms")
@@ -82,13 +88,18 @@ def main() -> int:
 
     # ── SEARCH: gọi RPC match_cakes ─────────────────────────────────────────
     print("  ĐO SEARCH (goi RPC match_cakes)...")
+    # LƯU Ý: lấy `timing_ms['search']` từ chính service, KHÔNG đo wall-clock
+    # ở đây — `search_by_image` tự embed lại ảnh nên wall-clock gồm cả embed.
     service = ClipSearchService()
     search_ms: list[float] = []
-    for img in images:
-        raw = img.read_bytes()
-        t = time.perf_counter()
-        service.search_by_image(raw, match_count=6, product_type="cake")
-        search_ms.append((time.perf_counter() - t) * 1000)
+    for _ in range(ROUNDS):
+        for img in images:
+            raw = img.read_bytes()
+            # Dùng `timing_ms['search']` mà service tự đo — đó là đúng thời gian
+            # gọi RPC + đọc bảng mapping 3D. Đo wall-clock ở đây sẽ CỘNG thêm
+            # lần embed thứ hai (vì `search_by_image` tự embed lại ảnh).
+            result = service.search_by_image(raw, match_count=6, product_type="cake")
+            search_ms.append(result["timing_ms"]["search"])
     print(f"    so lan          : {len(search_ms)}")
     print(f"    p50             : {pct(search_ms, 0.50):.0f} ms")
     print(f"    p95             : {pct(search_ms, 0.95):.0f} ms")
@@ -100,11 +111,12 @@ def main() -> int:
     # ── END-TO-END: tổng thời gian khách chờ ─────────────────────────────────
     print("  ĐO END-TO-END (embed + search, model da nap)...")
     e2e_ms: list[float] = []
-    for img in images:
-        raw = img.read_bytes()
-        t = time.perf_counter()
-        service.search_by_image(raw, match_count=6, product_type="cake")
-        e2e_ms.append((time.perf_counter() - t) * 1000)
+    for _ in range(ROUNDS):
+        for img in images:
+            raw = img.read_bytes()
+            t = time.perf_counter()
+            service.search_by_image(raw, match_count=6, product_type="cake")
+            e2e_ms.append((time.perf_counter() - t) * 1000)
     print(f"    p50             : {pct(e2e_ms, 0.50):.0f} ms")
     print(f"    p95             : {pct(e2e_ms, 0.95):.0f} ms")
     print(f"    trung binh      : {statistics.mean(e2e_ms):.0f} ms")
@@ -115,6 +127,13 @@ def main() -> int:
         "embedding_dim": 512,
         "device": "cpu",
         "n_images": len(images),
+        "rounds": ROUNDS,
+        "samples_per_metric": len(images) * ROUNDS,
+        "note": (
+            "Máy có tiến trình nền chạy song song, nên số đo nhảy theo tải. "
+            "Đo nhiều vòng; p50/p95 tính trên toàn bộ mẫu của các vòng. "
+            "'search' LÀ thời gian gọi RPC + đọc bảng mapping 3D."
+        ),
         "cold_seconds": round(cold_s, 2),
         "embed_ms": {
             "p50": round(pct(embed_ms, 0.50), 1),

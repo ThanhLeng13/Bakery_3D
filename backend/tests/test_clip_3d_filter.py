@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.services.clip_service import ClipSearchService
+from app.services.clip_service import ClipSearchService, ClipServiceError
 
 
 def _png() -> bytes:
@@ -165,6 +165,84 @@ class TestMappingHopLe:
         service = ClipSearchService(client)
         result = _search(service, has_3d_model=True)
         assert result["count"] == 0
+
+    def test_lỗi_kết_nối_thì_phải_nổi_lên_không_phải_rỗng(self):
+        """Mất mạng KHÔNG được biến thành "không có kết quả".
+
+        Nuốt lỗi sẽ khiến chế độ chỉ-mẫu-3D trả HTTP 200 với 0 kết quả, khách
+        tưởng kho không có mẫu 3D nào — trong khi thực ra là hỏng đường truyền.
+        """
+        client = MagicMock()
+        client.rpc.return_value.execute.return_value = MagicMock(
+            data=[_row("p1", "Bánh A")]
+        )
+        client.table.return_value.select.return_value.in_.return_value.execute.side_effect = (
+            Exception("connection refused")
+        )
+        service = ClipSearchService(client)
+        with pytest.raises(ClipServiceError) as exc:
+            _search(service, has_3d_model=True)
+        assert exc.value.status_code == 503
+
+
+class TestLocFalse:
+    """`has_3d_model=False` = chỉ mẫu KHÔNG có 3D."""
+
+    def test_false_giu_san_pham_khong_co_3d(self):
+        service = _service(
+            [_row("p1", "Bánh A"), _row("p2", "Bánh B")],
+            [_link("p1", "round-1-tier", "/models/a.glb")],
+        )
+        result = _search(service, has_3d_model=False)
+        names = [r["name"] for r in result["results"]]
+        assert names == ["Bánh B"], f"phai chi giu san pham KHONG co 3D, got {names}"
+
+    def test_false_bo_san_pham_co_3d(self):
+        service = _service(
+            [_row("p1", "Bánh A"), _row("p2", "Bánh B")],
+            [_link("p1", "round-1-tier", "/models/a.glb")],
+        )
+        result = _search(service, has_3d_model=False)
+        assert all(r["three_d_model"] is None for r in result["results"])
+
+    def test_none_thi_khong_loc(self):
+        """None = không lọc — hành vi cũ phải giữ nguyên."""
+        service = _service(
+            [_row("p1", "Bánh A"), _row("p2", "Bánh B")],
+            [_link("p1", "round-1-tier", "/models/a.glb")],
+        )
+        result = _search(service, has_3d_model=None)
+        assert result["count"] == 2
+
+
+class TestQuetSauHon:
+    """Lọc 3D phải quét sâu hơn `match_count`."""
+
+    def test_loc_3d_van_lay_du_so_ket_qua(self):
+        """Chỉ 3/101 bánh có mô hình 3D; top-6 thường không chứa cả 3.
+
+        Nếu cắt còn `match_count` dòng rồi mới lọc, chế độ "chỉ mẫu có 3D"
+        trả về 0-1 món dù kho có 3 mẫu. Phải quét sâu hơn mới lấy đủ.
+        """
+        rows = [_row(f"p{i}", f"Bánh {i}", 0.9 - i * 0.01) for i in range(1, 13)]
+        # Chỉ 2 sản phẩm có 3D, nằm ở CUỐI bảng điểm.
+        links = [
+            _link("p11", "round-1-tier", "/models/a.glb"),
+            _link("p12", "round-2-tier", "/models/b.glb"),
+        ]
+        service = _service(rows, links)
+        result = _search(service, has_3d_model=True, match_count=6)
+        names = sorted(r["name"] for r in result["results"])
+        assert names == ["Bánh 11", "Bánh 12"], (
+            f"phai quet sau hon match_count de lay du 2 mau co 3D, got {names}"
+        )
+
+    def test_khong_loc_thi_van_cung_match_count(self):
+        """Không lọc 3D thì hành vi cũ: cắt còn đúng match_count."""
+        rows = [_row(f"p{i}", f"Bánh {i}") for i in range(1, 13)]
+        service = _service(rows, [])
+        result = _search(service, match_count=4)
+        assert result["count"] == 4
 
 
 class TestKhongLamSaiKetQua:

@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from collect_test_images import (  # noqa: E402
     OUT_DIR,
     download,
+    prior_meta,
     search_commons,
 )
 
@@ -65,7 +66,21 @@ def main() -> int:
         safe = label.replace(" ", "_").replace("/", "-")
         dest = out_dir / f"{safe}__1.jpg"
         if dest.exists():
-            print(f"  [{group}] {label}  (da co, bo qua)")
+            # Anh da co: LAY LAI metadata da xac minh tu manifest chinh.
+            # Bo qua han se lam mat nguon/giay phep khi chay lai.
+            prior = prior_meta(dest)
+            if prior.get("license", "?") == "?":
+                print(f"  [{group}] {label}  (da co, thieu metadata — can tra lai)")
+                continue
+            manifest.append({
+                "group": group,
+                "label": label,
+                "search_term": term,
+                "file": dest.relative_to(OUT_DIR).as_posix(),
+                "bytes": dest.stat().st_size,
+                **prior,
+            })
+            print(f"  [{group}] {label}  (da co, giu metadata)")
             continue
         print(f"  [{group}] {label}")
         try:
@@ -84,7 +99,7 @@ def main() -> int:
                 "group": group,
                 "label": label,
                 "search_term": term,
-                "file": str(dest.relative_to(OUT_DIR)),
+                "file": dest.relative_to(OUT_DIR).as_posix(),
                 "bytes": nbytes,
                 "source": item["page"],
                 "license": item["license"],
@@ -99,14 +114,20 @@ def main() -> int:
     main_manifest = OUT_DIR / "manifest.json"
     if main_manifest.exists():
         existing = json.loads(main_manifest.read_text(encoding="utf-8"))
-        have = {m.get("file") for m in existing}
+        by_file = {m.get("file"): m for m in existing}
+        replaced = 0
         for m in manifest:
-            if m["file"] not in have:
+            old = by_file.get(m["file"])
+            if old is None:
                 existing.append(m)
+            elif old.get("license", "?") == "?":
+                # Ban ghi truoc day thieu metadata — thay bang ban da xac minh.
+                old.update(m)
+                replaced += 1
+        print(f"  manifest.json: {len(existing)} muc ({replaced} muc cap nhat metadata)")
         main_manifest.write_text(
             json.dumps(existing, ensure_ascii=False, indent=2), encoding="utf-8"
         )
-        print(f"\n  manifest.json: {len(existing)} muc")
     else:
         (OUT_DIR / "manifest_out_of_domain.json").write_text(
             json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"

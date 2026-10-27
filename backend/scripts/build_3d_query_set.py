@@ -91,7 +91,7 @@ def main() -> int:
                 "group": "mo_hinh_3d",
                 "label": slug,
                 "search_term": f"mo hinh 3D: {slug}",
-                "file": str(dest.relative_to(BACKEND / "test_images")),
+                "file": dest.relative_to(BACKEND / "test_images").as_posix(),
                 "bytes": dest.stat().st_size,
                 "source": (
                     f"render trong {slug}-*.glb cua chinh du an "
@@ -104,6 +104,17 @@ def main() -> int:
                 "view": view,
             })
 
+    if missing:
+        # KHONG ghi manifest khi con thieu anh: ban ghi ghi day so la "co du
+        # anh" se khong khop anh thuc te, va moi lan do lai lai bang manifest
+        # cu hon se lam hong ca bo do.
+        print()
+        print(f"  THIEU {len(missing)} anh chup (khong co de render):")
+        for m in missing:
+            print(f"    - {m}")
+        print(f"  KHONG ghi {MANIFEST} de khong cong bo bo ban ghi thieu.")
+        return 1
+
     MANIFEST.write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
     )
@@ -114,11 +125,6 @@ def main() -> int:
         per_model[item["label"]] = per_model.get(item["label"], 0) + 1
     for slug in MODELS:
         print(f"    {slug:16s} {per_model.get(slug, 0)} anh")
-    if missing:
-        print()
-        print(f"  THIEU {len(missing)} anh chup (khong co de render):")
-        for m in missing:
-            print(f"    - {m}")
     print()
     print(f"  manifest: {MANIFEST}")
     return 0

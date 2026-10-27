@@ -110,6 +110,8 @@ Với ngưỡng trung điểm 0.545:
 | Chỉ số | Kết quả |
 |---|---|
 | Top-1 trả về mẫu có mô hình 3D | **0/30 = 0.0%** |
+| Top-1 có mô hình 3D đúng **kiểu thân** | **0/30 = 0.0%** |
+| **Chế độ lọc 3D: mọi kết quả mở được viewer** | **30/30 = 100%** |
 | Sản phẩm có mapping 3D nằm trong top-30 | 16/30 |
 | Hạng trung bình của sản phẩm có mapping 3D | 12.1 |
 | Similarity top-1 trung bình của nhóm này | 0.446 |
@@ -124,6 +126,14 @@ quả của hai điều kiện đo được trên CSDL thật:
 2. **Ảnh render 3D là bánh trắng không hoa văn**, khác mạnh ảnh sản phẩm thật
    (có hoa văn, màu, chữ). Similarity của cả nhóm chỉ 0.446, thấp hơn nhóm
    trong-kho (0.584) — đúng như mong đợi khi hai phân bố khác nhau về bề mặt.
+
+**Hai số này phải tách bạch khi trình bày:**
+
+- *Xếp hạng* (0/30): ảnh truy vấn có dẫn tới đúng mẫu 3D hay không. Đây là
+  câu hỏi **xếp hạng** — và câu trả lời là chưa đạt.
+- *Điều khoản sản phẩm* (30/30): khi khách bật chế độ "Chỉ mẫu có 3D", mọi
+  kết quả trả về đều mở được viewer. Đây là câu hỏi **hợp đồng sản phẩm** —
+  và điều khoản này đã đạt 100%.
 
 Nói cách khác: **bộ ảnh mô hình 3D đo được sự phân biệt kiểu thân, chưa đo được
 khả năng "từ ảnh tìm ra mẫu 3D"** — vì kho chưa đủ mẫu 3D để đo. Đây là hạn
@@ -253,10 +263,18 @@ thêm 119 ảnh nữa, lý tưởng là ở điều kiện khác (góc khác, á
 
 | Độ trễ | p50 | p95 | Ghi chú |
 |---|---|---|---|
-| **Cold** (nạp model lần đầu) | 8,57 s | — | một lần khi khởi động tiến trình |
-| **Embed** (sinh vector 512 chiều) | 119 ms | 140 ms | trên 18 ảnh |
-| **Search** (gọi RPC `match_cakes`) | 371 ms | 1 407 ms | trên 18 ảnh |
-| **End-to-end** (embed + search) | 387 ms | 677 ms | trải nghiệm khách thấy |
+| **Cold** (nạp model lần đầu) | 9,10 s | — | một lần khi khởi động tiến trình |
+| **Embed** (sinh vector 512 chiều) | 114 ms | 144 ms | 90 mẫu (18 ảnh × 5 vòng) |
+| **Search** (RPC + đọc mapping 3D) | 455 ms | 1 407 ms | 90 mẫu |
+| **End-to-end** (embed + search) | 538 ms | 1 209 ms | trải nghiệm khách thấy |
+
+**Cách đo:** 5 vòng × 18 ảnh = 90 mẫu cho mỗi chỉ số. Một vòng đơn lẻ cho
+kết quả nhảy mạnh theo tải máy (đo được p50 end-to-end 478 ms ở vòng này rồi
+946 ms ở vòng sau — chênh 2 lần), vì máy đang chạy song song tiến trình nền.
+Đo nhiều vòng làm số ổn định hơn.
+
+**`search` giờ bao gồm cả truy vấn bảng mapping 3D** — trước đây phép đo bỏ
+sót phần này nên số bị thấp hơn thực tế.
 
 Ghi chú: lần đo trước (09/10) cho cold 9,49 s và search p50 126 ms — chênh lệch
 do tải máy lúc đo, không phải do thay đổi code. Con số **end-to-end p50 ~0,4 s**
@@ -362,23 +380,33 @@ thay thế được việc sửa dữ liệu** — vẫn phải làm Khuyến ng
 
 ## 8. CÁCH TÁI LẬP KẾT QUẢ
 
+**Bước 0 — chụp ảnh render 3D trước.** 30 ảnh truy vấn kiểu thân được dựng từ
+ảnh render trong `frontend/tmp_shots/`, nên phải chụp trước khi dựng bộ ảnh:
+
+```bash
+cd frontend
+node scripts/capture-cake-shots.mjs        # tạo frontend/tmp_shots/*.png
+cd ..                                     # về thư mục gốc repo
+```
+
+**Bước 1 — thu thập và đo (chạy từ thư mục gốc repo):**
+
 ```bash
 cd backend
 python scripts/collect_test_images.py       # tải ảnh Wikimedia (cần mạng)
 python scripts/collect_out_of_domain.py     # tải ảnh ngoài miền bánh
 python scripts/build_3d_query_set.py        # dựng 30 ảnh truy vấn 6 kiểu thân
 python scripts/backfill_manifest_meta.py    # tra lại nguồn/giấy phép còn thiếu
+python scripts/check_3d_shots.py            # kiểm ảnh 3D không bị trắng
 python scripts/evaluate_clip_accuracy.py    # đo top-1/top-3/từ chối
 python scripts/measure_clip_latency.py      # đo cold/warm/p50/p95
-python scripts/check_3d_shots.py            # kiểm ảnh 3D không bị trắng
 ```
 
-Bước `build_3d_query_set.py` cần ảnh render trước:
-
-```bash
-cd frontend
-node scripts/capture-cake-shots.mjs        # ảnh trong frontend/tmp_shots/
-```
+Thứ tự này quan trọng: `build_3d_query_set.py` **không** ghi `manifest_3d.json`
+nếu còn thiếu ảnh chụp — nên `check_3d_shots.py` chạy sau để biết ảnh nào trắng
+trước khi đo. `backfill_manifest_meta.py` chỉ gán nguồn/giấy phép cho ảnh **xác
+minh được bằng byte hash**; ảnh không xác minh được thì giữ `"?"` chứ không
+đoán, để báo cáo báo đúng số ảnh còn thiếu giấy phép.
 
 Kết quả chi tiết:
 - `backend/test_images/accuracy_report.json` — từng ảnh, top-1/top-3, 4 nhóm

@@ -195,7 +195,7 @@ def collect(group: str, mapping: dict[str, str], per_item: int = 2) -> list[dict
             for path in existing[:per_item]:
                 manifest.append({
                     "group": group, "label": label, "search_term": term,
-                    "file": str(path.relative_to(OUT_DIR)),
+                    "file": path.relative_to(OUT_DIR).as_posix(),
                     "bytes": path.stat().st_size,
                     # Metadata thật lấy lại từ manifest cũ. Trước đây mục này
                     # ghi "?" khiến 4 ảnh mất thông tin nguồn/giấy phép — không
@@ -227,7 +227,7 @@ def collect(group: str, mapping: dict[str, str], per_item: int = 2) -> list[dict
                 "group": group,
                 "label": label,
                 "search_term": term,
-                "file": str(dest.relative_to(OUT_DIR)),
+                "file": dest.relative_to(OUT_DIR).as_posix(),
                 "bytes": nbytes,
                 "source": item["page"],
                 "license": item["license"],

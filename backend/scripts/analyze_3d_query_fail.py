@@ -19,14 +19,14 @@ items = json.loads((T / "manifest_3d.json").read_text(encoding="utf-8"))
 service = ClipSearchService()
 
 print("  Xep hang cua san pham CO mapping 3D trong ket qua cua anh 3D:")
-print("  (match_count=30 de xem hang thuoc bao nhieu)")
+print("  (match_count=20 — trần cua search_by_image; 30 se bi clamp ve 20)")
 print()
 rank_data = []
 for it in items:
     p = T / it["file"]
     if not p.exists():
         continue
-    res = service.search_by_image(p.read_bytes(), match_count=30, product_type="cake")
+    res = service.search_by_image(p.read_bytes(), match_count=20, product_type="cake")
     names = [r["name"] for r in res["results"]]
     # San pham 3D trong kho: "2 tang hoa hong", "trai tim figure", "trai tim Happy"
     hits = [i for i, n in enumerate(names) if "2 tầng" in n or "trái tim" in n]
@@ -37,12 +37,12 @@ for it in items:
         print(f"    {it['label']:16s} -> '{names[best][:34]}'  hang {best+1}  "
               f"sim={sims[best]:.3f}  (top1 sim={sims[0]:.3f})")
     else:
-        print(f"    {it['label']:16s} -> khong tim thay san pham 3D trong top 30  "
+        print(f"    {it['label']:16s} -> khong tim thay san pham 3D trong top 20  "
               f"(top1 sim={sims[0]:.3f})")
 
 print()
 found = [r for r in rank_data if r[1] is not None]
-print(f"  San pham co mapping 3D nam trong top-30: {len(found)}/{len(rank_data)}")
+print(f"  San pham co mapping 3D nam trong top-20: {len(found)}/{len(rank_data)}")
 if found:
     ranks = [r[1] + 1 for r in found]
     sims = [r[3][r[1]] for r in found]

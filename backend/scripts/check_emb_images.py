@@ -27,7 +27,11 @@ for pid in pids:
     rows = [e for e in emb if e["product_id"] == pid]
     print(f"  {names.get(pid,'?')[:46]:46s} embed={len(rows)}")
     for r in rows:
-        same = "TRUNG" if r["image_url"] in prod_imgs else "KHAC"
+        # So theo (product_id, url) chu KHONG so URL toan cuc: anh cua san pham
+        # nao cung se bi ghi "TRUNG" neu URL do ton tai o san pham khac —
+        # day la loai sai hay gap nhat khi kiem tra anh nguon cua embedding.
+        own = {i["url"] for i in imgs if i["product_id"] == pid}
+        same = "TRUNG" if r["image_url"] in own else "KHAC"
         print(f"      {same}  {r['image_url'][:95]}")
     for i in imgs:
         if i["product_id"] == pid:
