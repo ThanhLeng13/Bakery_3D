@@ -119,6 +119,34 @@ Với ngưỡng trung điểm 0.550:
 - Ảnh ngoài miền bánh bị nhận nhầm: **8/16**
 - Ảnh trong kho bị bỏ sót: **4/18**
 
+### 3.3B. Hiệu chỉnh/test tách biệt — đánh giá hồi cứu 30/10
+
+Chạy `python scripts/evaluate_clip_holdout.py`; artifact:
+`threshold_holdout_report.json`. Đây là **đánh giá hồi cứu**, không phải test
+mới chưa từng quan sát: các ảnh này đã được khảo sát trong những lần đo trước.
+Không dùng nó làm bằng chứng xác nhận tổng quát hóa trên dữ liệu mới.
+
+- Chia cố định theo protocol `bakery-clip-retrospective-v1`, không theo điểm.
+- Giữ cùng nhãn, nguồn Commons (chuẩn hóa URL) và SHA-256 ở cùng một phía;
+  dùng thành phần liên thông để xử lý các quan hệ chồng nhau.
+- 44 file Commons có 41 nguồn; ba cặp cùng nguồn không được tách sang hai phía.
+- Chỉ dùng `trong_kho` và `ngoai_mien_banh` cho ngưỡng từ chối; không dùng
+  render GLB hoặc `ngoai_kho` làm nhãn âm.
+- Chọn ngưỡng **0.553400** bằng balanced accuracy trên calibration; điểm test
+  không được tham gia chọn ngưỡng. Thiếu score thì script lỗi thay vì bỏ mẫu.
+
+| Chỉ số | Calibration | Test giữ riêng theo protocol |
+|---|---:|---:|
+| Ảnh trong kho / ngoài miền | 8 / 8 | 10 / 8 |
+| Chấp nhận ảnh trong kho | 7/8 = 87,5% | **6/10 = 60%** |
+| Từ chối ảnh ngoài miền | 5/8 = 62,5% | **4/8 = 50%** |
+| Balanced accuracy | 75% | **55%** |
+
+Đây là phân tích **offline của similarity top-1**, không phải xác suất đúng và
+không chứng minh API đã triển khai cơ chế từ chối theo ngưỡng này. Kết quả yếu,
+mẫu nhỏ, cần bộ ảnh mới thu thập sau khi khóa protocol để xác nhận độc lập.
+Artifact lưu SHA-256 của cả manifest và snapshot accuracy đầu vào để tái lập.
+
 ### 3.4. Ảnh mô hình 3D (30 ảnh — đo nhận dạng kiểu thân)
 
 | Chỉ số | Kết quả |
