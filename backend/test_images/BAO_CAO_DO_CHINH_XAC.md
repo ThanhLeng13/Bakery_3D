@@ -156,6 +156,12 @@ thực sự xem ảnh; không tự suy nhãn từ tên file/từ khóa. Cổng n
 ảnh khác toàn bộ ảnh embedding hoặc độc lập về nội dung. **Chưa có bộ ảnh mới
 được duyệt hoặc kết quả prospective**; không dùng protocol thay cho kết quả đo.
 
+Sau khi bộ ảnh vượt cổng kiểm tra, chạy
+`python scripts/evaluate_clip_prospective.py NEW_MANIFEST.json OUTPUT.json`.
+Lệnh dùng nguyên ngưỡng protocol, không tuning; kết quả rỗng tính là từ chối,
+lỗi dịch vụ ghi riêng và vẫn nằm trong mẫu số. Output phải là file mới để giữ
+các lượt chạy thất bại. Không được điền `label_verified` nếu chưa duyệt ảnh thật.
+
 ### 3.4. Ảnh mô hình 3D (30 ảnh — đo nhận dạng kiểu thân)
 
 | Chỉ số | Kết quả |
