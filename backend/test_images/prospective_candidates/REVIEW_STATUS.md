@@ -14,6 +14,13 @@ Missing queries: candidate 06 (durian crepe; no accepted download), candidate 14
 
 Do not mark these records human-verified on the strength of this note.
 
+A later attempt to view candidate_02 through candidate_05 returned only
+`Image omitted: exceeds maximum limit of 4 images per request`; it supplied no
+visual evidence, so no label was approved. Open `review_candidates.html` locally
+to inspect all 18 images. It is read-only and does not persist decisions.
+Record filename, correct/incorrect/uncertain, actual class and reason before
+editing any verification flags.
+
 ## Retrieval warnings requiring review/replacement BEFORE inference
 
 Source titles raise label concerns (title alone is not final image review):
