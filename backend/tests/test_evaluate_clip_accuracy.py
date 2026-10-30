@@ -85,3 +85,33 @@ def test_filtered_measurement_survives_unfiltered_failure_or_empty_result(
     assert report["filtered_3d_attempts"] == 1
     assert report["filtered_3d_all_viewable_rate"] == 100.0
     assert calls == [True, None]
+
+
+@pytest.mark.parametrize("rank", [1, 3, 4, 5, 6])
+def test_catalog_top_k_boundaries(tmp_path, monkeypatch, rank):
+    """Top-5 must include rank five, not rank six or only top three."""
+    import json
+
+    module = _load_script_module()
+    (tmp_path / "query.jpg").write_bytes(b"mock image")
+    names = [f"Other {i}" for i in range(6)]
+    names[rank - 1] = "Expected cake"
+
+    class FakeService:
+        def search_by_image(self, _bytes, **kwargs):
+            return {"results": [
+                {"name": name, "similarity": 0.8} for name in names
+            ]}
+
+    monkeypatch.setattr(module, "TEST_DIR", tmp_path)
+    monkeypatch.setattr(module, "ClipSearchService", FakeService)
+    monkeypatch.setattr(module, "load_manifest", lambda: [{
+        "group": "trong_kho", "label": "Expected cake", "file": "query.jpg",
+    }])
+    assert module.main() == 0
+    report = json.loads((tmp_path / "accuracy_report.json").read_text(encoding="utf-8"))
+    assert report["n_in_catalog"] == 1
+    for k in (1, 3, 5):
+        assert report[f"top{k}_accuracy"] == (100.0 if rank <= k else 0.0)
+        assert report["details"][0][f"correct_top{k}"] is (rank <= k)
+    assert report["details"][0]["top5"] == names[:5]

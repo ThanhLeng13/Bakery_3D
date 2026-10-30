@@ -69,6 +69,15 @@ render có nội dung** (màu trung bình 53–58 sắc độ trong vùng giữa
 |---|---|
 | **Top-1 accuracy** | **16.7%** (3/18) |
 | **Top-3 accuracy** | **27.8%** (5/18) |
+| **Top-5 accuracy** (bổ sung đo 30/10) | **33.3%** (6/18) |
+
+**Lần đo bổ sung 30/10/2026:** script đã tính và lưu Top-5 cùng danh sách
+5 kết quả và cờ `correct_top5` cho từng ảnh. Lần chạy này xếp hạng kiểu thân
+đạt **0/30**, lọc 3D **30/30** lượt trả kết quả không rỗng có mapping 3D.
+JSON hiện tại là snapshot lần chạy này. **Không xóa kết quả lỗi của lần 27/10:**
+bảng mục 3.4 bên dưới giữ **0/29** và **29/30** của lần trước để thể hiện lỗi
+truy vấn từng xảy ra; 30/30 lần này không chứng minh độ sẵn sàng luôn là 100%.
+Ngưỡng 0.550 vẫn là thăm dò trên cùng bộ ảnh, chưa được đánh giá bằng test giữ riêng.
 
 Ba món trúng top-1: Bánh Brownie, Bánh tart trứng (×2).
 
