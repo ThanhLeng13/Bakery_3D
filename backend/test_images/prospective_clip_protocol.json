@@ -1,0 +1,18 @@
+{
+  "protocol": "bakery-clip-prospective-v1",
+  "status": "frozen_before_new_query_collection",
+  "model": "ViT-B-32 / laion2b_s34b_b79k",
+  "embedding_dim": 512,
+  "threshold": 0.5534,
+  "threshold_origin": "Retrospective calibration only; do not retune using prospective scores",
+  "minimum_per_group": 10,
+  "groups": ["trong_kho", "ngoai_mien_banh"],
+  "label_verification": "human_review_required_before_inference",
+  "exclude": ["any source or SHA-256 in manifest.json", "any source or SHA-256 already in this prospective set", "catalogue embedding images"],
+  "measurement": "Offline top-1 similarity acceptance/rejection; not recognition accuracy or deployed API rejection",
+  "acceptance_rule": "top1 similarity >= threshold",
+  "empty_result": "count as rejected",
+  "query_exception": "record as failure; never remove attempted query from denominator",
+  "report": ["attempts per group", "query failures per group", "accepted in-catalogue / all in-catalogue attempts", "rejected out-of-domain / all out-of-domain attempts", "input SHA-256 and model version"],
+  "limitations": "New source/hash does not prove semantic independence. Labels require visual verification. No production-readiness claim. Do not tune the threshold or select images after observing their similarity scores."
+}

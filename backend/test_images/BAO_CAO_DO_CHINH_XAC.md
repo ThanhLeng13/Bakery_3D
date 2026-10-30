@@ -147,6 +147,15 @@ không chứng minh API đã triển khai cơ chế từ chối theo ngưỡng n
 mẫu nhỏ, cần bộ ảnh mới thu thập sau khi khóa protocol để xác nhận độc lập.
 Artifact lưu SHA-256 của cả manifest và snapshot accuracy đầu vào để tái lập.
 
+**Protocol xác nhận ảnh mới đã khóa:** `prospective_clip_protocol.json` cố định
+ngưỡng 0.5534, tối thiểu 10 ảnh mỗi nhóm trong-kho/ngoài-miền. Trước inference,
+chạy `python scripts/validate_clip_prospective.py NEW_MANIFEST.json` để chặn nguồn
+hoặc SHA-256 trùng tập cũ/tập mới, thiếu giấy phép, nhãn chưa xác nhận và thiếu
+số lượng. Mỗi ảnh cần `label_verified=true` cùng `verified_by` sau khi người duyệt
+thực sự xem ảnh; không tự suy nhãn từ tên file/từ khóa. Cổng này **không chứng minh**
+ảnh khác toàn bộ ảnh embedding hoặc độc lập về nội dung. **Chưa có bộ ảnh mới
+được duyệt hoặc kết quả prospective**; không dùng protocol thay cho kết quả đo.
+
 ### 3.4. Ảnh mô hình 3D (30 ảnh — đo nhận dạng kiểu thân)
 
 | Chỉ số | Kết quả |
