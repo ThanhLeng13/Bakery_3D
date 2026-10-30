@@ -153,6 +153,38 @@ test("chế độ chỉ mẫu có 3D gửi tham số lọc xuống API", async (
   expect(sentForm).toContain("true");
 });
 
+test("lỗi dịch vụ không bị hiển thị thành hết mẫu và có thể thử lại", async ({ page }) => {
+  await page.goto("/tim-banh");
+  let calls = 0;
+  await page.route("**/api/v1/search/by-image", (route) => {
+    calls++;
+    return route.fulfill({
+      status: calls === 1 ? 503 : 200,
+      contentType: "application/json",
+      body: JSON.stringify(calls === 1
+        ? { detail: "Không thể kiểm tra mô hình 3D. Vui lòng thử lại." }
+        : { count: 0, results: [], model: "ViT-B-32",
+            timing_ms: { embed: 10, search: 20, total: 30 } }),
+    });
+  });
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Chọn ảnh từ máy" }).click();
+  await (await chooser).setFiles({
+    name: "query.png", mimeType: "image/png", buffer: await makePngBytes(),
+  });
+  const search = page.getByRole("button", { name: "Tìm bánh giống nhất" });
+  await search.click();
+  await expect(page.locator('[role="alert"]').first()).toContainText(
+    "Không thể kiểm tra mô hình 3D",
+  );
+  await expect(page.getByText("Không tìm thấy mẫu bánh phù hợp")).toBeHidden();
+  await expect(search).toBeEnabled();
+  await search.click();
+  await expect(page.getByText("Không tìm thấy mẫu bánh phù hợp")).toBeVisible();
+  await expect(page.getByText("Không thể kiểm tra mô hình 3D. Vui lòng thử lại.")).toBeHidden();
+  expect(calls).toBe(2);
+});
+
 test("đổi chế độ tìm thì xoá kết quả của chế độ cũ", async ({ page }) => {
   await page.goto("/tim-banh");
 

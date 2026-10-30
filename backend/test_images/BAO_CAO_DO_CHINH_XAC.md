@@ -69,6 +69,15 @@ render có nội dung** (màu trung bình 53–58 sắc độ trong vùng giữa
 |---|---|
 | **Top-1 accuracy** | **16.7%** (3/18) |
 | **Top-3 accuracy** | **27.8%** (5/18) |
+| **Top-5 accuracy** (bổ sung đo 30/10) | **33.3%** (6/18) |
+
+**Lần đo bổ sung 30/10/2026:** script đã tính và lưu Top-5 cùng danh sách
+5 kết quả và cờ `correct_top5` cho từng ảnh. Lần chạy này xếp hạng kiểu thân
+đạt **0/30**, lọc 3D **30/30** lượt trả kết quả không rỗng có mapping 3D.
+JSON hiện tại là snapshot lần chạy này. **Không xóa kết quả lỗi của lần 27/10:**
+bảng mục 3.4 bên dưới giữ **0/29** và **29/30** của lần trước để thể hiện lỗi
+truy vấn từng xảy ra; 30/30 lần này không chứng minh độ sẵn sàng luôn là 100%.
+Ngưỡng 0.550 vẫn là thăm dò trên cùng bộ ảnh, chưa được đánh giá bằng test giữ riêng.
 
 Ba món trúng top-1: Bánh Brownie, Bánh tart trứng (×2).
 
@@ -109,6 +118,49 @@ Khoảng cách trong-kho ↔ ngoài-miền: **+0.067** — hẹp.
 Với ngưỡng trung điểm 0.550:
 - Ảnh ngoài miền bánh bị nhận nhầm: **8/16**
 - Ảnh trong kho bị bỏ sót: **4/18**
+
+### 3.3B. Hiệu chỉnh/test tách biệt — đánh giá hồi cứu 30/10
+
+Chạy `python scripts/evaluate_clip_holdout.py`; artifact:
+`threshold_holdout_report.json`. Đây là **đánh giá hồi cứu**, không phải test
+mới chưa từng quan sát: các ảnh này đã được khảo sát trong những lần đo trước.
+Không dùng nó làm bằng chứng xác nhận tổng quát hóa trên dữ liệu mới.
+
+- Chia cố định theo protocol `bakery-clip-retrospective-v1`, không theo điểm.
+- Giữ cùng nhãn, nguồn Commons (chuẩn hóa URL) và SHA-256 ở cùng một phía;
+  dùng thành phần liên thông để xử lý các quan hệ chồng nhau.
+- 44 file Commons có 41 nguồn; ba cặp cùng nguồn không được tách sang hai phía.
+- Chỉ dùng `trong_kho` và `ngoai_mien_banh` cho ngưỡng từ chối; không dùng
+  render GLB hoặc `ngoai_kho` làm nhãn âm.
+- Chọn ngưỡng **0.553400** bằng balanced accuracy trên calibration; điểm test
+  không được tham gia chọn ngưỡng. Thiếu score thì script lỗi thay vì bỏ mẫu.
+
+| Chỉ số | Calibration | Test giữ riêng theo protocol |
+|---|---:|---:|
+| Ảnh trong kho / ngoài miền | 8 / 8 | 10 / 8 |
+| Chấp nhận ảnh trong kho | 7/8 = 87,5% | **6/10 = 60%** |
+| Từ chối ảnh ngoài miền | 5/8 = 62,5% | **4/8 = 50%** |
+| Balanced accuracy | 75% | **55%** |
+
+Đây là phân tích **offline của similarity top-1**, không phải xác suất đúng và
+không chứng minh API đã triển khai cơ chế từ chối theo ngưỡng này. Kết quả yếu,
+mẫu nhỏ, cần bộ ảnh mới thu thập sau khi khóa protocol để xác nhận độc lập.
+Artifact lưu SHA-256 của cả manifest và snapshot accuracy đầu vào để tái lập.
+
+**Protocol xác nhận ảnh mới đã khóa:** `prospective_clip_protocol.json` cố định
+ngưỡng 0.5534, tối thiểu 10 ảnh mỗi nhóm trong-kho/ngoài-miền. Trước inference,
+chạy `python scripts/validate_clip_prospective.py NEW_MANIFEST.json` để chặn nguồn
+hoặc SHA-256 trùng tập cũ/tập mới, thiếu giấy phép, nhãn chưa xác nhận và thiếu
+số lượng. Mỗi ảnh cần `label_verified=true` cùng `verified_by` sau khi người duyệt
+thực sự xem ảnh; không tự suy nhãn từ tên file/từ khóa. Cổng này **không chứng minh**
+ảnh khác toàn bộ ảnh embedding hoặc độc lập về nội dung. **Chưa có bộ ảnh mới
+được duyệt hoặc kết quả prospective**; không dùng protocol thay cho kết quả đo.
+
+Sau khi bộ ảnh vượt cổng kiểm tra, chạy
+`python scripts/evaluate_clip_prospective.py NEW_MANIFEST.json OUTPUT.json`.
+Lệnh dùng nguyên ngưỡng protocol, không tuning; kết quả rỗng tính là từ chối,
+lỗi dịch vụ ghi riêng và vẫn nằm trong mẫu số. Output phải là file mới để giữ
+các lượt chạy thất bại. Không được điền `label_verified` nếu chưa duyệt ảnh thật.
 
 ### 3.4. Ảnh mô hình 3D (30 ảnh — đo nhận dạng kiểu thân)
 

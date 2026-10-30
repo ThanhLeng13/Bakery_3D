@@ -7,7 +7,7 @@ BỘ ẢNH (đo được trên đĩa, xem `manifest.json` và `manifest_3d.json`
     ngoai_mien_banh 16 ảnh — KHÔNG phải bánh (đồ ăn khác, đồ vật)
 
 VÌ SAO TÁCH 4 NHÓM
-    Nhóm "trong_kho" đo độ đúng (top-1/top-3).
+    Nhóm "trong_kho" đo độ đúng (top-1/top-3/top-5).
     Nhóm "ngoai_mien_banh" đo khả năng TỪ CHỐI — ảnh không phải bánh thì hệ
     thống phải cho điểm thấp. Đây là ngưỡng chặn "match bừa".
     Nhóm "ngoai_kho" đo khả năng "đúng một món khác": vẫn là bánh, nhưng kho
@@ -97,14 +97,14 @@ def main() -> int:
         print(f"  {g:18s} {len(by_group[g]):3d} anh   ({desc})")
     print()
 
-    # ─── Phần 1: ảnh thuộc món có trong kho → đo top-1/top-3 ────────────────
+    # ─── Phần 1: ảnh thuộc món có trong kho → đo top-1/top-3/top-5 ────────────────
     print("=" * 78)
-    print("PHAN 1: ANH THUOC MON CO TRONG KHO (do top-1/top-3)")
+    print("PHAN 1: ANH THUOC MON CO TRONG KHO (do top-1/top-3/top-5)")
     print("=" * 78)
     print(f"  {'Anh':34s} {'Mong doi':24s} {'Top-1 tra ve':24s} {'sim':>6s} {'KQ':>5s}")
     print("  " + "-" * 74)
 
-    top1 = top3 = total = 0
+    top1 = top3 = top5 = total = 0
     rows: list[dict] = []
     sims_hit: list[float] = []
 
@@ -129,8 +129,10 @@ def main() -> int:
         names = [r["name"] for r in results]
         hit1 = names[0] == expected
         hit3 = expected in names[:3]
+        hit5 = expected in names[:5]
         top1 += int(hit1)
         top3 += int(hit3)
+        top5 += int(hit5)
         total += 1
         sims_hit.append(results[0]["similarity"])
 
@@ -140,15 +142,16 @@ def main() -> int:
               f"{results[0]['similarity']:6.3f} {mark:>5s}")
         rows.append({
             "file": item["file"], "expected": expected,
-            "top1": names[0], "top3": names[:3],
+            "top1": names[0], "top3": names[:3], "top5": names[:5],
             "sim1": results[0]["similarity"],
-            "correct_top1": hit1, "correct_top3": hit3,
+            "correct_top1": hit1, "correct_top3": hit3, "correct_top5": hit5,
         })
 
     print("  " + "-" * 74)
     if total:
         print(f"  Top-1 accuracy : {top1}/{total} = {top1 / total * 100:.1f}%")
         print(f"  Top-3 accuracy : {top3}/{total} = {top3 / total * 100:.1f}%")
+        print(f"  Top-5 accuracy : {top5}/{total} = {top5 / total * 100:.1f}%")
     print()
 
     # ─── Phần 2: ảnh ngoài miền bánh → đo khả năng từ chối ──────────────────
@@ -306,6 +309,7 @@ def main() -> int:
     if total:
         print(f"  Top-1 accuracy (trong kho)   : {top1 / total * 100:.1f}%  ({top1}/{total})")
         print(f"  Top-3 accuracy (trong kho)   : {top3 / total * 100:.1f}%  ({top3}/{total})")
+        print(f"  Top-5 accuracy (trong kho)   : {top5 / total * 100:.1f}%  ({top5}/{total})")
     if body_total:
         print(f"  Nhận dạng kiểu thân (slug khớp): {body_hits / body_total * 100:.1f}%  "
               f"({body_hits}/{body_total})")
@@ -342,6 +346,7 @@ def main() -> int:
         "embedding_dim": 512,
         "top1_accuracy": (top1 / total * 100) if total else None,
         "top3_accuracy": (top3 / total * 100) if total else None,
+        "top5_accuracy": (top5 / total * 100) if total else None,
         "n_in_catalog": total,
         "n_out_of_catalog_cake": len(sims_out),
         "n_out_of_domain": len(sims_ood),
