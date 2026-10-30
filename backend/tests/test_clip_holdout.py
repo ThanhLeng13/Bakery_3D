@@ -56,6 +56,20 @@ def test_missing_scores_fail_instead_of_improving_denominator(tmp_path):
         module.evaluate(items, report, tmp_path)
 
 
+@pytest.mark.parametrize("score", [float("nan"), float("inf"), -float("inf")])
+@pytest.mark.parametrize("section", ["details", "details_out_of_domain"])
+def test_nonfinite_score_fails_before_threshold_selection(tmp_path, monkeypatch, score, section):
+    items, report = data(tmp_path)
+    report[section][0]["sim1"] = score
+
+    def forbidden(_rows):
+        pytest.fail("Invalid scores must fail before threshold selection")
+
+    monkeypatch.setattr(module, "choose_threshold", forbidden)
+    with pytest.raises(ValueError, match="Non-finite score"):
+        module.evaluate(items, report, tmp_path)
+
+
 def test_missing_source_is_not_treated_as_independent(tmp_path):
     items, report = data(tmp_path)
     items[0]["source"] = "?"

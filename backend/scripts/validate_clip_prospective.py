@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent / "test_images"
 
 
 def source_key(value: str) -> str:
-    return unquote(value).strip()
+    return unquote(value).replace("_", " ").strip()
 
 
 def validate(new_items: list[dict], old_items: list[dict], root: Path, protocol: dict) -> dict:
@@ -33,7 +33,8 @@ def validate(new_items: list[dict], old_items: list[dict], root: Path, protocol:
             raise ValueError("Human label verification is required before inference")
         if not item.get("label", "").strip():
             raise ValueError("Missing label")
-        if item.get("license", "?") in ("", "?"):
+        license_value = item.get("license")
+        if not isinstance(license_value, str) or license_value.strip() in ("", "?"):
             raise ValueError("Missing license")
         source = source_key(item.get("source", ""))
         if source in ("", "?") or source in sources:

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from pathlib import Path
 from urllib.parse import unquote
 
@@ -111,7 +112,10 @@ def evaluate(items: list[dict], report: dict, root: Path) -> dict:
         key = normalized(row["file"])
         if key in scores:
             raise ValueError(f"Duplicate score: {key}")
-        scores[key] = row["sim1"]
+        score = row["sim1"]
+        if not math.isfinite(score):
+            raise ValueError(f"Non-finite score: {key}")
+        scores[key] = score
     for row in split:
         if row["file"] not in scores:
             raise ValueError(f"Missing query score (do not silently drop failures): {row['file']}")

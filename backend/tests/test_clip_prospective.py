@@ -43,6 +43,27 @@ def test_reject_invalid_prospective_data(tmp_path, problem):
         module.validate(new, old, tmp_path, protocol)
 
 
+@pytest.mark.parametrize("license_value", [None, 123, False, [], {}, "", " ", "\t\n", "?"])
+def test_reject_missing_or_nonstring_license(tmp_path, license_value):
+    old, new, protocol = inputs(tmp_path)
+    new[0]["license"] = license_value
+    with pytest.raises(ValueError, match="Missing license"):
+        module.validate(new, old, tmp_path, protocol)
+
+
+@pytest.mark.parametrize("source", [
+    "https://commons.test/File:Old_title",
+    "https://commons.test/File%3AOld%20title",
+    "https://commons.test/File%3AOld%5Ftitle",
+])
+def test_mediawiki_space_underscore_variants_are_duplicate(tmp_path, source):
+    old, new, protocol = inputs(tmp_path)
+    old[0]["source"] = "https://commons.test/File:Old title"
+    new[0]["source"] = source
+    with pytest.raises(ValueError, match="duplicate source"):
+        module.validate(new, old, tmp_path, protocol)
+
+
 @pytest.mark.parametrize("outcome", ["error", "empty", "below", "at_threshold"])
 def test_prospective_measurement_keeps_failure_denominators(tmp_path, monkeypatch, outcome):
     import sys

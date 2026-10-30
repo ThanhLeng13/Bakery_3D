@@ -54,14 +54,23 @@ def main():
             for candidate in found:
                 if unquote(candidate["page"]) in sources or candidate["license"] in ("?", ""):
                     continue
-                raw = _fetch(candidate["url"], timeout=30)
-                digest = hashlib.sha256(raw).hexdigest()
-                if digest in hashes:
-                    continue
                 path = dest / key
-                path.write_bytes(raw)
-                with Image.open(path) as image:
-                    image.verify()
+                try:
+                    raw = _fetch(candidate["url"], timeout=30)
+                    digest = hashlib.sha256(raw).hexdigest()
+                    if digest in hashes:
+                        continue
+                    path.write_bytes(raw)
+                    with Image.open(path) as image:
+                        image.verify()
+                except Exception as exc:
+                    # This candidate failed, not the whole search query.
+                    # Only remove the exact candidate path inside our output dir.
+                    if path.resolve().parent != dest.resolve():
+                        raise ValueError("Unexpected candidate cleanup path") from exc
+                    path.unlink(missing_ok=True)
+                    print(f"SKIP {i}: {type(exc).__name__}: {str(exc)[:120]}", flush=True)
+                    continue
                 saved.append({
                     "group": group, "label": label, "search_term": term,
                     "file": path.relative_to(OUT_DIR).as_posix(),
