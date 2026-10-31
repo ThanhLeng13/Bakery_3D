@@ -19,7 +19,13 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health')"]
+      # `httpx.get(...)` không ném lỗi khi server trả 500, nên container lỗi vẫn
+      # được báo "healthy". Phải kiểm mã trạng thái HTTP.
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import httpx,sys; r=httpx.get('http://localhost:8000/health', timeout=5); sys.exit(0 if r.status_code == 200 else 1)"
       interval: 30s
       timeout: 10s
       retries: 3
@@ -41,7 +47,12 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health')"]
+      # Cùng lý do với service `api`: phải kiểm mã trạng thái, không chỉ gọi được.
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import httpx,sys; r=httpx.get('http://localhost:8000/health', timeout=5); sys.exit(0 if r.status_code == 200 else 1)"
       interval: 30s
       timeout: 10s
       retries: 3

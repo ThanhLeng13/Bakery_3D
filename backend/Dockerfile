@@ -1,4 +1,8 @@
-FROM python:3.11-slim
+# Trùng phiên bản với CI và venv phát triển (`python-version: "3.13"` trong
+# .github/workflows/ci.yml). Trước đây image dùng 3.11 trong khi test chạy 3.13,
+# nên "đã kiểm thử" và "đã đóng gói" là hai môi trường khác nhau; chính comment
+# trong CI ghi rõ phiên bản cũ từng gây lỗi không tái hiện được.
+FROM python:3.13-slim
 
 WORKDIR /app
 

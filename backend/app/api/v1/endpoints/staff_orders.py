@@ -26,6 +26,9 @@ router = APIRouter()
 SALES_STATUSES = ("pending", "ready")
 # Staff cần đọc đơn nháp để quyết định có nhận hay không.
 READABLE_STATUSES = ("draft", "pending", "ready")
+# Đơn nháp do trợ lý tạo. Cố ý tách khỏi hàng đợi `SALES_STATUSES`: một đơn nháp
+# CHƯA phải đơn tiệm đã nhận, nên không được lẫn vào đếm "cần xử lý" của quầy.
+DRAFT_STATUSES = ("draft",)
 
 
 class StaffStatusRequest(BaseModel):
@@ -56,25 +59,45 @@ def _get_order_service() -> OrderService:
 
 @router.get("")
 def list_sales_orders(staff: dict = Depends(require_staff)):
-    """Return orders that currently require action at the sales counter."""
+    """Return orders that currently require action at the sales counter.
+
+    `orders`/`pending_count`/`ready_count` chỉ gồm đơn tiệm ĐÃ nhận, giữ nguyên
+    như trước. Đơn nháp của trợ lý nằm riêng ở `drafts`: trước đây danh sách cố
+    ý loại `draft`, nhưng API lại cho phép chuyển `draft → pending`. Hệ quả: đơn
+    trợ lý tạo ra không hiện ở đâu trong giao diện, nên nhân viên không có cách
+    nào nhận nó — luồng đặt hàng qua chat bị kẹt dù backend "đã hỗ trợ".
+    """
     db = get_supabase_client(use_service_role=True)
+    columns = (
+        "id, status, total_price, pickup_date, customer_name, "
+        "customer_phone, customer_email, created_at, updated_at"
+    )
     try:
         result = (
             db.table("orders")
-            .select(
-                "id, status, total_price, pickup_date, customer_name, "
-                "customer_phone, customer_email, created_at, updated_at"
-            )
+            .select(columns)
             .in_("status", list(SALES_STATUSES))
             .order("pickup_date", desc=False)
             .execute()
         )
         orders = result.data or []
+
+        drafts_result = (
+            db.table("orders")
+            .select(columns)
+            .in_("status", list(DRAFT_STATUSES))
+            .order("created_at", desc=True)
+            .execute()
+        )
+        drafts = drafts_result.data or []
+
         return {
             "orders": orders,
             "total": len(orders),
             "pending_count": sum(1 for order in orders if order["status"] == "pending"),
             "ready_count": sum(1 for order in orders if order["status"] == "ready"),
+            "drafts": drafts,
+            "draft_count": len(drafts),
         }
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Không thể tải hàng đợi bán hàng.") from exc

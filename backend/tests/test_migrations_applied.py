@@ -47,8 +47,8 @@ def _has_credentials() -> bool:
 
 
 pytestmark = pytest.mark.skipif(
-    not _has_credentials(),
-    reason="Không có khoá Supabase trên máy này (CI dùng khoá giả).",
+    os.environ.get("BAKERY_RUN_LIVE_READONLY_TESTS") != "1" or not _has_credentials(),
+    reason="Live schema checks require BAKERY_RUN_LIVE_READONLY_TESTS=1 and Supabase credentials.",
 )
 
 
@@ -123,66 +123,23 @@ def db():
 
 
 def test_draft_is_allowed_as_an_order_status(db):
-    """`add_draft_order_status.sql` — enum `order_status` phải có 'draft'.
+    """Validate the draft enum using a read-only filter, never a probe order.
 
-    Không chạy migration này thì `create_draft_order` của agent lỗi ngay:
-    Postgres trả `22P02 invalid input value for enum order_status: "draft"`.
-
-    Cách kiểm: chèn một dòng **sao chép** đơn có sẵn rồi xoá. Không có cách nào
-    hỏi kiểu enum mà không cần quyền đọc `pg_type`, và service-role key không
-    đảm bảo có.
-
-    Sao chép cả đơn thay vì tự dựng payload: `orders` có nhiều cột NOT NULL
-    (`customer_id`, `pickup_date`, ...) và `customer_id` còn có khoá ngoại về
-    `users`, nên không thể bịa UUID. Bản đầu của test tự dựng payload và đã đổ
-    lỗi cho migration hai lần vì hai cột này, dù enum lúc đó đã đúng.
+    Postgres validates an enum literal even when LIMIT 0 returns no rows.
+    An empty orders table therefore needs no cloned customer/order data.
     """
-    # Một đơn có sẵn để làm khuôn. Nếu bảng rỗng thì bỏ qua.
-    # `_require_reachable` trả về `APIResponse`; danh sách dòng nằm ở `.data`.
-    template = _require_reachable(
-        db.table("orders").select("*").limit(1).execute
-    ).data
-    if not template:
-        pytest.skip("Bảng orders rỗng nên không có đơn nào để sao chép.")
-    template = template[0]
-
-    probe_id = "00000000-0000-0000-0000-0000000000d1"
-    # Không đem `id` cũ sang, và bỏ mấy cột Postgres tự sinh.
-    probe = {
-        k: v
-        for k, v in template.items()
-        if k not in ("id", "created_at", "updated_at")
-    }
-    probe["id"] = probe_id
-    probe["status"] = "draft"
-    probe["customer_name"] = "probe"
-    probe["customer_email"] = "probe@example.invalid"
-
-    # Xoá rác của lần chạy trước nếu có.
     try:
-        db.table("orders").delete().eq("id", probe_id).execute()
-    except Exception:
-        pass
-
-    try:
-        _require_reachable(db.table("orders").insert(probe).execute)
+        _require_reachable(
+            db.table("orders").select("id").eq("status", "draft").limit(0).execute
+        )
     except Exception as exc:
-        # `_require_reachable` đã chuyển lỗi mạng thành fail rõ ràng; tới đây
-        # là lỗi schema thật.
         message = str(exc)
-        if "22P02" in message or "order_status" in message:
+        if "22P02" in message:
             pytest.fail(
-                "Enum order_status chưa có 'draft' — chưa chạy "
+                "Enum order_status chưa có 'draft' — kiểm tra "
                 "migrations/add_draft_order_status.sql. Lỗi: " + message[:200]
             )
         raise
-    finally:
-        # Xoá probe dù chạy được hay không, để không để lại đơn rác.
-        # Đặt trong `finally` vì lần trước một lần chạy lỗi đã để rác lại.
-        try:
-            db.table("orders").delete().eq("id", probe_id).execute()
-        except Exception:
-            pass
 
 
 def test_order_has_voucher_and_discount_columns(db):
