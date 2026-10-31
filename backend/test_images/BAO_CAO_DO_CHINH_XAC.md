@@ -477,3 +477,126 @@ Kết quả chi tiết:
 - `backend/test_images/model_comparison.json` — so sánh hai model
 
 Lưu ý: `compare_models.py` tải ViT-L-14 (~1,6 GB) ở lần chạy đầu.
+
+---
+
+## 9. NHỮNG GÌ ĐÃ SỬA SAU KHI BÁO CÁO NÀY ĐƯỢC VIẾT (31/10/2026)
+
+Mục này ghi lại các lỗi **hợp đồng phần mềm** tìm thấy khi rà soát lại, đã sửa
+và có test hồi quy. Các số đo CLIP ở trên **không thay đổi** — chưa có dữ liệu
+xác nhận mới, nên chưa được phép tuyên bố độ chính xác cao hơn.
+
+### 9.1. Trợ lý không thể chỉ ra mẫu làm sẵn (đã sửa)
+
+`check_bake_time` khai schema từng món chỉ có `name` và `size`, nhưng
+`pricing.lead_hours_for_items` phân biệt mẫu làm sẵn bằng `cake_id`/`product_id`.
+LLM tuân theo schema nên **không bao giờ** gửi ID, và mọi mẫu có sẵn bị tính là
+bánh đặt — bánh hai tầng đã có sẵn bị đòi 48 giờ. Test cũ vẫn xanh vì nó tự
+nhét `cake_id` vào tham số, tức kiểm code chứ không kiểm đường LLM đi.
+
+Đã thêm `cake_id` + `product_id` vào schema và test đọc đúng schema công cụ.
+Mutation test: bỏ hai khoá này → **2 test đỏ**, khôi phục → **8 xanh**
+(`tests/test_order_contract_gaps.py`).
+
+### 9.2. Hai nguồn kích cỡ cho phép lách mốc 48 giờ (đã sửa)
+
+Checkout kiểm thời gian theo `item["size"]` rời, còn tính tiền theo
+`customization_json["size"]`. Thiết kế đã lưu là `2-tier` mà gửi kèm
+`size: "20cm"` thì qua được cửa 24 giờ trong khi tiền tính theo bánh hai tầng.
+Đã dùng **cùng** kích cỡ thiết kế cho cả hai. Mutation test: **2 đỏ → 8 xanh**.
+
+### 9.3. Trợ lý bỏ qua chặn mẫu 3D chỉ-để-xem (đã sửa)
+
+Checkout chặn sản phẩm gắn `heart-1-tier` trong `_catalog_price`, nhưng
+`OrderTools.price_order` → `create_draft_order` chỉ đọc `base_price`. Cùng một
+sản phẩm: khách tự đặt thì bị chặn, nhờ trợ lý đặt thì tạo được nháp. Đã dùng
+chung `ensure_orderable_model`, và lọc cả danh sách gợi ý.
+Mutation test: **2 đỏ → 5 xanh** (`tests/test_agent_preview_parity.py`).
+
+### 9.4. Đơn nháp của trợ lý không hiện cho nhân viên (đã sửa)
+
+`GET /api/v1/staff/orders` lọc `("pending","ready")` và trang bán hàng chỉ vẽ
+hai cột đó, nên đơn agent vừa tạo **không xuất hiện ở đâu**. Backend đã cho
+`draft → pending` nhưng không có nút nào gọi tới. Đã thêm `drafts` vào phản hồi
+và một cột riêng + nút "Nhận đơn nháp này". Đơn nháp **không** cộng vào ô
+"Cần xử lý" vì tiệm chưa nhận (`tests/test_staff_draft_inbox.py`, E2E
+`e2e/staff-draft-inbox.spec.ts`).
+
+### 9.5. Test migration tự ghi/xoá đơn thật (đã sửa — quan trọng)
+
+`tests/test_migrations_applied.py` từng **sao chép rồi chèn/xoá một đơn thật**
+trên CSDL Supabase để kiểm enum `draft`. Nghĩa là chạy `pytest` trên máy có
+`.env` là động vào dữ liệu production. Đã thay bằng
+`select id where status='draft' limit 0` (Postgres vẫn kiểm literal enum khi
+không trả dòng nào), và **bắt buộc opt-in**
+`BAKERY_RUN_LIVE_READONLY_TESTS=1` trước khi nạp credentials. Có test tĩnh
+(`tests/test_live_probe_safety.py`) chặn `insert/update/delete/upsert/rpc` quay
+lại file đó.
+
+> Các lần chạy `pytest` trước 31/10 trong lịch sử phiên làm việc **có thể đã
+> kích hoạt** test này. Không có bằng chứng dữ liệu bị hỏng (probe được xoá
+> trong `finally`), nhưng cũng không thể chứng minh là chưa từng chạy.
+
+### 9.6. Fallback 3D nằm sai chỗ trong cây React (đã sửa)
+
+`CakeViewer3D` đặt boundary React **bên trong** `<Canvas>`. R3F render children
+bằng reconciler Three.js, nên khi fallback trả về `<div>`/`<p>` thì reconciler
+coi đó là phần tử THREE không tồn tại và **ném lỗi lần thứ hai** — khách vẫn
+thấy canvas chết. Script `scripts/test-glb-fallback.cjs` chỉ so regex trên
+source nên báo PASS sai.
+
+Đã xác nhận hành vi thật trong `@react-three/fiber` 8.18
+(`if (error) throw error`): lỗi con được ném **ra ngoài** `<Canvas>`. Boundary
+DOM đã chuyển ra ngoài, dùng chung `CanvasErrorBoundary`. Test hành vi mới
+`e2e/cake-3d-fallback.spec.ts` cắt hai đường hỏng thật: `getContext('webgl')`
+trả `null`, và `.glb` trả 404.
+
+**Giới hạn còn lại:** viewer ở trang chi tiết sản phẩm là server component
+(`fetch` chạy phía Next server), nên `page.route` của trình duyệt không chặn
+được. Nhánh đó hiện chỉ được kiểm bằng kiểm tra cấu trúc, **chưa kiểm hành vi**.
+
+### 9.7. Modal xem trước không giữ focus (đã sửa)
+
+Chú thích ghi "trap focus" nhưng code chỉ nghe Escape và khoá cuộn trang: mở
+modal xong focus vẫn ở trang nền, Tab thoát ra ngoài dù `aria-modal="true"`,
+đóng thì mất dấu focus. Hình xem trước còn 3 vùng `role="button"` với
+`onZoneClick` rỗng — tab vào ba nút không có tác dụng. Đã thêm focus trap thật,
+trả focus về nút mở, và `interactive={false}` cho hình chỉ để xem.
+Mutation test (build lại bundle): gỡ phần giữ Tab → **1 test đỏ**, khôi phục →
+**3 xanh** (`e2e/preview-modal-a11y.spec.ts`).
+
+### 9.8. Bộ E2E "cô lập" thực ra không cô lập (đã sửa)
+
+`isolateNetwork` chỉ chặn host **không phải** localhost, nên mọi lời gọi tới
+`localhost:8000` (backend thật) đều lọt qua. Fixture `/cake-3d-models` trả mảng
+trong khi app đọc `response.models`, và test "không có lỗi JS" lại **lọc bỏ**
+đúng thông báo `Cannot read properties of undefined` — tức che chính lỗi mình
+gây ra. Đã chặn theo origin, sửa payload đúng shape, và bỏ chuỗi lọc đó.
+
+### 9.9. Cấu hình triển khai không khớp môi trường đã test (đã sửa một phần)
+
+| Vấn đề | Trạng thái |
+|---|---|
+| `backend/Dockerfile` dùng Python 3.11 trong khi CI/venv là 3.13 | Đã đổi sang 3.13 |
+| Healthcheck compose chỉ `httpx.get(...)` — 500 vẫn "healthy" | Đã kiểm `status_code == 200` |
+| `vercel.json` rewrite `"${NEXT_PUBLIC_API_URL}"` là chuỗi literal | Đã xoá rewrite chết (client gọi thẳng `NEXT_PUBLIC_API_URL`) |
+| Chưa build/chạy thử image Docker trên máy này | **Chưa làm** — không có Docker trong phiên này |
+| Chưa deploy thật lên Vercel/Render | **Chưa làm** |
+
+Vì vậy mục "website đã triển khai chạy ổn định" **vẫn chưa có bằng chứng**.
+Sửa cấu hình không thay thế được một lần chạy thật.
+
+### 9.10. Điều vẫn chưa đóng (không được tick)
+
+- **Xác nhận prospective cho CLIP**: bộ 18 ảnh ứng viên vẫn `label_verified:
+  false`, thiếu 2 chỉ số, và có ứng viên sai nhãn rõ ràng. Ngưỡng 0,5534 vẫn
+  chưa được kiểm trên dữ liệu thu thập sau khi khoá protocol.
+- **Quy tắc "bánh phức tạp 48 giờ"**: hiện chỉ `size == "2-tier"` quyết định.
+  Mô tả công cụ hứa "hình dáng, trang trí thủ công nhiều" cũng 48 giờ nhưng
+  **không có trường dữ liệu nào** thực thi điều đó. Cần quyết định nghiệp vụ
+  (thêm cờ độ phức tạp đã duyệt) chứ không được đoán từ tên bánh.
+- **Luồng bốn vai trò end-to-end trên hệ thống đã triển khai**: test hiện chứng
+  minh quyền và luồng service, chưa phải một phiên chạy thật đủ bốn vai trò.
+- **Đo bằng LLM thật**: chưa chạy; cần kiểm quota nhà cung cấp trước.
+- **Kiểm thử hình ảnh 3D bằng mắt** cho toàn bộ mẫu/kích thước/góc nhìn.
+
