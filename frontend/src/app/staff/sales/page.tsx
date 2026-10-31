@@ -6,7 +6,7 @@ import type { OrderStatus } from "@/types";
 
 interface SalesOrder {
   id: string;
-  status: "pending" | "ready";
+  status: "draft" | "pending" | "ready";
   total_price: number;
   pickup_date: string;
   customer_name: string;
@@ -20,6 +20,9 @@ interface SalesQueueResponse {
   total: number;
   pending_count: number;
   ready_count: number;
+  /** Đơn nháp do trợ lý tạo — tách khỏi hàng đợi đã nhận. */
+  drafts?: SalesOrder[];
+  draft_count?: number;
 }
 
 interface SalesOrderDetail extends SalesOrder {
@@ -32,9 +35,11 @@ interface SalesOrderDetail extends SalesOrder {
   }>;
   ai_summary?: string | null;
   baker_notes?: string | null;
-}
+}/** `draft` là đơn nháp của trợ lý — chỉ quầy bán hàng gặp, nên khai cục bộ. */
+type SalesStatus = OrderStatus | "draft";
 
-const STATUS_LABELS: Record<OrderStatus, string> = {
+const STATUS_LABELS: Record<SalesStatus, string> = {
+  draft: "Đơn nháp từ trợ lý",
   pending: "Chờ xác nhận",
   confirmed: "Đã xác nhận",
   in_production: "Đang làm",
@@ -122,7 +127,15 @@ export default function StaffSalesPage() {
   }
 
   async function completeStep(order: SalesOrderDetail) {
-    const nextStatus = order.status === "pending" ? "confirmed" : "delivered";
+    // Đơn nháp do trợ lý tạo chưa phải đơn tiệm đã nhận: nhân viên phải NHẬN nó
+    // trước (draft → pending). Backend đã cho phép chuyển này từ trước, nhưng
+    // giao diện không có nút nên luồng qua chat bị kẹt.
+    const nextStatus =
+      order.status === "draft"
+        ? "pending"
+        : order.status === "pending"
+          ? "confirmed"
+          : "delivered";
     setUpdating(true);
     setError("");
     try {
@@ -140,6 +153,7 @@ export default function StaffSalesPage() {
 
   const pendingOrders = queue?.orders.filter((order) => order.status === "pending") ?? [];
   const readyOrders = queue?.orders.filter((order) => order.status === "ready") ?? [];
+  const draftOrders = queue?.drafts ?? [];
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-6">
@@ -170,19 +184,29 @@ export default function StaffSalesPage() {
       {loading ? (
         <div className="rounded-2xl bg-white p-10 text-center text-muted">Đang tải hàng đợi...</div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="space-y-6">
+          {/* Đơn nháp của trợ lý: hiện riêng, không cộng vào "Cần xử lý" của quầy
+              vì tiệm chưa nhận. Nhân viên mở ra xem rồi bấm nhận. */}
           <OrderColumn
-            title="Đơn mới chờ xác nhận"
-            emptyText="Không có đơn mới."
-            orders={pendingOrders}
+            title="Đơn nháp từ trợ lý"
+            emptyText="Không có đơn nháp nào từ trợ lý."
+            orders={draftOrders}
             onOpen={openDetail}
           />
-          <OrderColumn
-            title="Bánh sẵn sàng giao khách"
-            emptyText="Không có bánh chờ giao."
-            orders={readyOrders}
-            onOpen={openDetail}
-          />
+          <div className="grid gap-6 lg:grid-cols-2">
+            <OrderColumn
+              title="Đơn mới chờ xác nhận"
+              emptyText="Không có đơn mới."
+              orders={pendingOrders}
+              onOpen={openDetail}
+            />
+            <OrderColumn
+              title="Bánh sẵn sàng giao khách"
+              emptyText="Không có bánh chờ giao."
+              orders={readyOrders}
+              onOpen={openDetail}
+            />
+          </div>
         </div>
       )}
 
@@ -237,9 +261,11 @@ export default function StaffSalesPage() {
                 >
                   {updating
                     ? "Đang cập nhật..."
-                    : selected.status === "pending"
-                      ? "Xác nhận nhận đơn"
-                      : "Xác nhận đã giao và thu tiền"}
+                    : selected.status === "draft"
+                      ? "Nhận đơn nháp này"
+                      : selected.status === "pending"
+                        ? "Xác nhận nhận đơn"
+                        : "Xác nhận đã giao và thu tiền"}
                 </button>
               </div>
             ) : null}

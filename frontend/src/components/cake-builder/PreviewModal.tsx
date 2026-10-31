@@ -57,14 +57,55 @@ export function PreviewModal({
   onOrder,
 }: PreviewModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
+  const previouslyFocused = useRef<HTMLElement | null>(null);
 
-  // Trap focus and handle Escape key
+  // Focus trap + Escape.
+  //
+  // Trước đây khối này chỉ nghe Escape và khoá cuộn trang, nhưng chú thích ghi
+  // là "trap focus". Hệ quả đo được: mở modal thì focus vẫn ở nút phía sau
+  // (ngoài modal), Tab đi tiếp vào nội dung bị che, và đóng modal thì mất dấu
+  // focus. Với `aria-modal="true"` mà không giữ focus bên trong, trình đọc màn
+  // hình còn đọc cả trang nền.
   useEffect(() => {
     if (!isOpen) return;
+
+    previouslyFocused.current = document.activeElement as HTMLElement | null;
+
+    const focusables = () =>
+      Array.from(
+        modalRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      ).filter((node) => node.offsetParent !== null);
+
+    // Đưa focus vào modal ngay khi mở, nếu không thì Tab bắt đầu từ trang nền.
+    focusables()[0]?.focus();
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+
+      const items = focusables();
+      if (items.length === 0) {
+        // Không có gì để focus: giữ focus ở khung modal thay vì để nó thoát ra
+        // ngoài (và trình đọc màn hình đọc nội dung phía sau).
+        e.preventDefault();
+        modalRef.current?.focus();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+
+      if (e.shiftKey && (active === first || !modalRef.current?.contains(active))) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
       }
     };
 
@@ -74,6 +115,8 @@ export function PreviewModal({
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
+      // Trả focus về nơi khách đang đứng trước khi mở modal.
+      previouslyFocused.current?.focus?.();
     };
   }, [isOpen, onClose]);
 
@@ -110,7 +153,8 @@ export function PreviewModal({
       {/* Modal content */}
       <div
         ref={modalRef}
-        className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
+        tabIndex={-1}
+        className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl focus:outline-none"
       >
         {/* Close button */}
         <button
@@ -140,6 +184,7 @@ export function PreviewModal({
               hoveredZone={null}
               onZoneClick={() => {}}
               onZoneHover={() => {}}
+              interactive={false}
             />
           </div>
         </div>

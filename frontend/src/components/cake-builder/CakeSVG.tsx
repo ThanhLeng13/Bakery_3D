@@ -11,6 +11,15 @@ interface CakeSVGProps {
   hoveredZone: CakeZone | null;
   onZoneClick: (zone: CakeZone) => void;
   onZoneHover: (zone: CakeZone | null) => void;
+  /**
+   * `false` khi hình chỉ để XEM (ví dụ trong modal xem trước).
+   *
+   * Mặc định các vùng là `role="button" tabIndex={0}`. Trong modal, ba vùng đó
+   * vẫn nhận focus nhưng `onZoneClick` là hàm rỗng, nên người dùng bàn phím
+   * tab vào ba nút bấm không có tác dụng gì — tệ hơn là không có nút nào.
+   * Tắt tương tác ở đây thay vì bịa hành vi cho modal.
+   */
+  interactive?: boolean;
 }
 
 /** Cream color options */
@@ -128,6 +137,7 @@ export default function CakeSVG({
   hoveredZone,
   onZoneClick,
   onZoneHover,
+  interactive = true,
 }: CakeSVGProps) {
   const getZoneStyle = useCallback(
     (zone: CakeZone) => {
@@ -270,27 +280,43 @@ export default function CakeSVG({
         viewBox="0 0 300 300"
         className="w-full h-full"
         role="img"
-        aria-label="Interactive cake builder. Click on different zones to customize."
+        aria-label={
+          interactive
+            ? "Interactive cake builder. Click on different zones to customize."
+            : "Xem trước thiết kế bánh."
+        }
       >
-        <title>Cake Builder - Click zones to customize</title>
+        <title>
+          {interactive
+            ? "Cake Builder - Click zones to customize"
+            : "Xem trước thiết kế bánh"}
+        </title>
 
         {/* Top Zone - Toppings area */}
         <g
-          className="cursor-pointer transition-all duration-100"
+          className={interactive ? "cursor-pointer transition-all duration-100" : undefined}
           style={{ filter: getZoneStyle("top") }}
-          onClick={handleZoneInteraction("top")}
-          onTouchEnd={handleZoneInteraction("top")}
-          onMouseEnter={handleZoneHoverEnter("top")}
-          onMouseLeave={handleZoneHoverLeave}
-          role="button"
-          aria-label="Top zone: toppings and decorations. Click to customize."
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              onZoneClick("top");
-            }
-          }}
+          onClick={interactive ? handleZoneInteraction("top") : undefined}
+          onTouchEnd={interactive ? handleZoneInteraction("top") : undefined}
+          onMouseEnter={interactive ? handleZoneHoverEnter("top") : undefined}
+          onMouseLeave={interactive ? handleZoneHoverLeave : undefined}
+          role={interactive ? "button" : undefined}
+          aria-label={
+            interactive
+              ? "Top zone: toppings and decorations. Click to customize."
+              : undefined
+          }
+          tabIndex={interactive ? 0 : undefined}
+          onKeyDown={
+            interactive
+              ? (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onZoneClick("top");
+                  }
+                }
+              : undefined
+          }
         >
           {/* Top surface - ellipse */}
           <ellipse
@@ -333,21 +359,29 @@ export default function CakeSVG({
 
         {/* Body Zone - Main cake body */}
         <g
-          className="cursor-pointer transition-all duration-100"
+          className={interactive ? "cursor-pointer transition-all duration-100" : undefined}
           style={{ filter: getZoneStyle("body") }}
-          onClick={handleZoneInteraction("body")}
-          onTouchEnd={handleZoneInteraction("body")}
-          onMouseEnter={handleZoneHoverEnter("body")}
-          onMouseLeave={handleZoneHoverLeave}
-          role="button"
-          aria-label="Body zone: cream color and pattern. Click to customize."
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              onZoneClick("body");
-            }
-          }}
+          onClick={interactive ? handleZoneInteraction("body") : undefined}
+          onTouchEnd={interactive ? handleZoneInteraction("body") : undefined}
+          onMouseEnter={interactive ? handleZoneHoverEnter("body") : undefined}
+          onMouseLeave={interactive ? handleZoneHoverLeave : undefined}
+          role={interactive ? "button" : undefined}
+          aria-label={
+            interactive
+              ? "Body zone: cream color and pattern. Click to customize."
+              : undefined
+          }
+          tabIndex={interactive ? 0 : undefined}
+          onKeyDown={
+            interactive
+              ? (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onZoneClick("body");
+                  }
+                }
+              : undefined
+          }
         >
           {/* Main cake body - rounded rectangle */}
           <path
@@ -380,21 +414,29 @@ export default function CakeSVG({
 
         {/* Border Zone - Bottom decorations */}
         <g
-          className="cursor-pointer transition-all duration-100"
+          className={interactive ? "cursor-pointer transition-all duration-100" : undefined}
           style={{ filter: getZoneStyle("border") }}
-          onClick={handleZoneInteraction("border")}
-          onTouchEnd={handleZoneInteraction("border")}
-          onMouseEnter={handleZoneHoverEnter("border")}
-          onMouseLeave={handleZoneHoverLeave}
-          role="button"
-          aria-label="Border zone: border decorations. Click to customize."
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              onZoneClick("border");
-            }
-          }}
+          onClick={interactive ? handleZoneInteraction("border") : undefined}
+          onTouchEnd={interactive ? handleZoneInteraction("border") : undefined}
+          onMouseEnter={interactive ? handleZoneHoverEnter("border") : undefined}
+          onMouseLeave={interactive ? handleZoneHoverLeave : undefined}
+          role={interactive ? "button" : undefined}
+          aria-label={
+            interactive
+              ? "Border zone: border decorations. Click to customize."
+              : undefined
+          }
+          tabIndex={interactive ? 0 : undefined}
+          onKeyDown={
+            interactive
+              ? (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onZoneClick("border");
+                  }
+                }
+              : undefined
+          }
         >
           {/* Border/base band */}
           <path

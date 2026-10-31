@@ -19,11 +19,5 @@
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
       ]
     }
-  ],
-  "rewrites": [
-    {
-      "source": "/backend-api/:path*",
-      "destination": "${NEXT_PUBLIC_API_URL}/:path*"
-    }
   ]
 }

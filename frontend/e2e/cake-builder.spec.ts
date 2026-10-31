@@ -97,8 +97,11 @@ test("không có lỗi JS khi vào Studio", async ({ page }) => {
   await page.waitForTimeout(3_000);
 
   // Bỏ qua lỗi mạng do chặn API, và cảnh báo WebGL trên máy không có GPU.
+  // KHÔNG bỏ qua "Cannot read properties of undefined": chính dòng đó che một
+  // lỗi thật — fixture trả mảng cho `/cake-3d-models` trong khi app đọc
+  // `response.models`, nên `models.map` nổ ngay khi API bị chặn.
   const real = errors.filter(
-    (m) => !/net::ERR|Failed to fetch|WebGL|Cannot read properties of undefined/i.test(m)
+    (m) => !/net::ERR|Failed to fetch|WebGL/i.test(m)
   );
   expect(real, "Lỗi JS trên trang Studio: " + real.join(" | ")).toEqual([]);
 });
