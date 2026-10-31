@@ -199,7 +199,16 @@ class OrderService:
         # Một quy tắc duy nhất, dùng chung với agent. Trước đây nơi này tự so
         # `is_two_tier` trong khi agent so tên sản phẩm, nên hai bên cho khác
         # nhau; giờ cả hai gọi `lead_hours_for_items`.
-        required = lead_hours_for_items(items)
+        # Match the authoritative design used by _resolve_unit_prices: a loose
+        # size must not shorten the lead time for a saved two-tier design.
+        lead_items = []
+        for item in items:
+            design = item.get("customization_json")
+            if is_custom_cake(catalogue_product_id(item)) and isinstance(design, dict) and design:
+                lead_items.append({**item, "size": design.get("size")})
+            else:
+                lead_items.append(item)
+        required = lead_hours_for_items(lead_items)
 
         if hours_until_pickup < required:
             raise PickupDateValidationError(

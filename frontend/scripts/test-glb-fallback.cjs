@@ -8,13 +8,46 @@
 // Same shape in CakeViewer3D: PreviewFallbackBoundary returned null, so a
 // product whose model 404'd showed nothing at all.
 //
-// These assertions read the source because the failure is "what is absent from
-// the tree", which a rendering test can only confirm by rendering WebGL.
+// Lần sửa sau đó phải đổi KIẾN TRÚC, không chỉ đổi chữ: boundary cũ nằm TRONG
+// <Canvas>. R3F render children bằng reconciler Three.js, nên khi fallback trả
+// về <div>/<svg>/<p> thì reconciler coi tên thẻ là phần tử THREE không tồn tại
+// và ném lỗi lần hai — khách vẫn thấy canvas chết. R3F 8.18 ném lỗi con ra
+// ngoài <Canvas> (`if (error) throw error`), nên boundary DOM phải bọc NGOÀI.
+//
+// Các kiểm tra dưới đây đọc source vì bất biến là "cấu trúc cây", thứ mà test
+// render chỉ xác nhận được khi có WebGL thật. Hành vi thực tế (GLB 404 và mất
+// WebGL context) được kiểm riêng ở `e2e/cake-3d-fallback.spec.ts`.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
 const read = name => fs.readFileSync(path.join(__dirname, '../src/components/cake-builder', name), 'utf8');
+
+/** Bỏ chú thích để chữ trong ghi chú (`<Canvas>`...) không bị tính là JSX thật. */
+function stripComments(source) {
+  return source
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '');
+}
+
+/** Boundary phải mở TRƯỚC <Canvas và đóng SAU </Canvas>. */
+function assertBoundaryWrapsCanvas(rawSource, file) {
+  const source = stripComments(rawSource);
+  // `<Canvas` là tiền tố của `<CanvasErrorBoundary`, nên phải khớp đúng thẻ
+  // (theo sau là khoảng trắng hoặc `>`); nếu không, chỉ số hai bên trùng nhau
+  // và phép so sánh vô nghĩa.
+  const boundary = source.search(/<CanvasErrorBoundary[\s>]/);
+  const canvas = source.search(/<Canvas[\s>]/);
+  const canvasClose = source.indexOf('</Canvas>');
+  const boundaryClose = source.indexOf('</CanvasErrorBoundary>');
+  assert.ok(boundary !== -1, `${file}: needs a DOM-level CanvasErrorBoundary`);
+  assert.ok(
+    boundary < canvas && canvasClose !== -1 && canvasClose < boundaryClose,
+    `${file}: the fallback boundary must wrap <Canvas> from OUTSIDE; inside the ` +
+      'reconciler a DOM fallback throws a second error',
+  );
+}
 
 function main() {
   const cake3d = read('Cake3D.tsx');
@@ -39,20 +72,27 @@ function main() {
     'Cake3D: the fallback boundary must retry on a newly selected model',
   );
 
+  assertBoundaryWrapsCanvas(cake3d, 'Cake3D.tsx');
+
   const viewer = read('CakeViewer3D.tsx');
   assert.ok(
     /return this\.state\.failed \? null : this\.props\.children;/.test(viewer) === false,
     'CakeViewer3D: a failed model must not render as an empty canvas',
   );
+  assertBoundaryWrapsCanvas(viewer, 'CakeViewer3D.tsx');
+
+  // Chính boundary dùng chung phải render phần tử DOM nhìn thấy được và đọc
+  // được bởi trình đọc màn hình.
+  const boundary = read('CanvasErrorBoundary.tsx');
   assert.ok(
-    /if \(this\.state\.failed\)[\s\S]*?return \(\s*<div/.test(viewer),
-    'CakeViewer3D: the failure branch needs a visible element',
+    /role="status"/.test(boundary) && /<div/.test(boundary),
+    'CanvasErrorBoundary: the failure branch needs a visible, announced element',
   );
 
   // The product page must still be usable when the 3D view cannot load, so the
   // message has to be text, not another silent null.
   assert.ok(
-    /failed/.test(viewer) && /Xem mẫu 3D|không tải|Không tải/i.test(viewer),
+    /Không tải được mô hình 3D/.test(viewer),
     'CakeViewer3D: explain to the customer that 3D could not load',
   );
 

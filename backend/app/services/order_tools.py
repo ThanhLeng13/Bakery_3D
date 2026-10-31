@@ -24,6 +24,11 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
+from app.services.orderable_3d import (
+    OrderableModelError,
+    ensure_orderable_model,
+    is_orderable_model,
+)
 from app.services.pricing import (
     DEFAULT_LEAD_HOURS,
     custom_design_lead_hours,
@@ -110,6 +115,28 @@ def _words(text: str) -> list[str]:
     return [w for w in cleaned.split() if len(w) > 1]
 
 
+def _is_orderable_catalogue_row(product: dict) -> bool:
+    """Sản phẩm danh mục này có được phép bán không.
+
+    Chỉ dùng để *lọc gợi ý*: chặn sản phẩm gắn mẫu 3D chỉ-để-xem, khớp với
+    `OrderService._reject_preview_only_model`. Không ném lỗi — hàm này dùng
+    trong biểu thức lọc, nơi ném lỗi sẽ làm cả câu trả lời hỏng.
+    """
+    links = product.get("product_3d_models") or []
+    ordered = [lnk for lnk in links if isinstance(lnk, dict) and lnk.get("is_primary")] or links
+    for link in ordered:
+        if not isinstance(link, dict):
+            continue
+        model = link.get("cake_3d_models") or {}
+        if isinstance(model, list):
+            model = model[0] if model else {}
+        if not isinstance(model, dict):
+            continue
+        if not is_orderable_model(model.get("slug")):
+            return False
+    return True
+
+
 def _nullable(schema: dict) -> dict:
     """Cho một tham số tuỳ chọn nhận thêm `null`.
 
@@ -153,12 +180,43 @@ class OrderTools:
         """
         result = (
             self._supabase.table("products")
-            .select("id, name, description, category, base_price, sizes, flavors, product_type")
+            .select(
+                "id, name, description, category, base_price, sizes, flavors, product_type, "
+                # Cần để biết sản phẩm có gắn mẫu 3D chỉ-để-xem không. Checkout đã
+                # chặn nhóm này; trợ lý phải chặn y như vậy, nếu không cùng một
+                # sản phẩm lại đặt được qua đường chat.
+                "product_3d_models(is_primary, cake_3d_models(id, slug))"
+            )
             .eq("is_active", True)
             .execute()
         )
         rows = result.data or []
         return sorted(rows, key=lambda r: 0 if r.get("product_type") == "cake" else 1)
+
+    def _reject_preview_only(self, product: dict) -> None:
+        """Chặn sản phẩm gắn mẫu 3D chỉ để xem, giống hệt `OrderService`.
+
+        Checkout đã chặn nhóm này trong đường tính giá; trợ lý phải chặn cùng
+        chỗ, nếu không cùng một sản phẩm lại đặt được qua chat rồi mới bị từ
+        chối ở bước sau — hoặc tệ hơn, tạo được nháp cho mẫu chưa duyệt giá.
+        """
+        links = product.get("product_3d_models") or []
+        # Không có cờ `is_primary` thì xét mọi liên kết: bỏ sót một mẫu chỉ-xem
+        # nguy hiểm hơn là chặn nhầm một sản phẩm đã duyệt.
+        ordered = [lnk for lnk in links if isinstance(lnk, dict) and lnk.get("is_primary")] or links
+        for link in ordered:
+            if not isinstance(link, dict):
+                continue
+            model = link.get("cake_3d_models") or {}
+            # PostgREST trả quan hệ many-to-one dạng dict, nhưng có thể là list.
+            if isinstance(model, list):
+                model = model[0] if model else {}
+            if not isinstance(model, dict):
+                model = {}
+            try:
+                ensure_orderable_model(model.get("slug"))
+            except OrderableModelError as exc:
+                raise ToolError(exc.message) from exc
 
     def find_cakes(
         self,
@@ -169,7 +227,12 @@ class OrderTools:
     ) -> dict:
         """Tìm bánh phù hợp. Giá lấy từ CSDL, không do LLM bịa."""
         limit = max(1, min(int(limit or 5), MAX_RESULTS))
-        products = self._active_cakes()
+        # Lọc NGAY từ nguồn, không chỉ ở nhánh gợi ý: sản phẩm gắn mẫu 3D
+        # chỉ-để-xem không đặt được (checkout chặn trong `_catalog_price`), nên
+        # trợ lý cũng không được giới thiệu chúng. Lọc ở đây khiến mọi nhánh phía
+        # sau — từ khoá, dịp, xếp theo ngân sách, và `found` — đều nhất quán,
+        # thay vì chỉ nhánh "không tìm thấy gì" mới lọc.
+        products = [p for p in self._active_cakes() if _is_orderable_catalogue_row(p)]
 
         matched = products
 
@@ -208,7 +271,10 @@ class OrderTools:
 
         if not matched:
             # Không có gì trong ngân sách: gợi ý mẫu rẻ nhất để khách biết mức giá.
-            cheapest = sorted(products, key=lambda p: p.get("base_price") or 0)[:limit]
+            # `products` đã được lọc mẫu chỉ-để-xem ở trên, nên không lọc lại.
+            cheapest = sorted(
+                products, key=lambda p: p.get("base_price") or 0
+            )[:limit]
             return {
                 "found": 0,
                 "message": (
@@ -321,6 +387,11 @@ class OrderTools:
 
             # Đơn giá lấy từ CSDL. Nếu LLM gửi giá khác, ghi log để biết mà sửa
             # prompt — nhưng KHÔNG dùng giá đó.
+            #
+            # Chặn trước khi báo giá: `price_order` là bước mà `create_draft_order`
+            # luôn đi qua, nên đặt kiểm tra ở đây bịt được đường tạo nháp cho mẫu
+            # chỉ-để-xem — cùng điều kiện checkout đã áp trong `_catalog_price`.
+            self._reject_preview_only(product)
             unit = product.get("base_price") or 0
             claimed = item.get("unit_price")
             if claimed is not None and int(claimed) != unit:
@@ -695,12 +766,29 @@ TOOL_SCHEMAS: list[dict] = [
                             "Các món trong đơn. PHẢI kèm `size` là kích cỡ khách "
                             "chọn (16cm, 20cm, 24cm, 2-tier) vì thời gian chuẩn bị "
                             "tính theo kích cỡ, KHÔNG theo tên bánh. Khách chưa nói "
-                            "kích cỡ thì hỏi, hoặc bỏ trống để lấy mức mặc định."
+                            "kích cỡ thì hỏi, hoặc bỏ trống để lấy mức mặc định. "
+                            "Mẫu có sẵn trong danh mục thì PHẢI kèm `cake_id` (hoặc "
+                            "`product_id`) LẤY TỪ KẾT QUẢ CỦA `find_cakes`: có ID "
+                            "thì bán ngay (0 giờ), thiếu ID sẽ bị coi là bánh đặt "
+                            "và cần 24–48 giờ."
                         ),
                         "items": {
                             "type": "object",
                             "properties": {
                                 "name": {"type": "string"},
+                                # Hai khoá này trước đây chỉ có trong code xử lý,
+                                # không khai trong schema. LLM tuân theo schema nên
+                                # không bao giờ gửi ID, và mọi mẫu làm sẵn bị tính
+                                # thành bánh đặt (hai tầng -> 48 giờ) dù tiệm đã có
+                                # sẵn bánh. Test cũ vẫn xanh vì nó tự nhét `cake_id`.
+                                "cake_id": {
+                                    "type": "string",
+                                    "description": "ID sản phẩm danh mục nếu là mẫu làm sẵn.",
+                                },
+                                "product_id": {
+                                    "type": "string",
+                                    "description": "Bí danh của `cake_id`.",
+                                },
                                 "size": {
                                     "type": "string",
                                     "description": "Kích cỡ khách chọn: 16cm, 20cm, 24cm hoặc 2-tier.",

@@ -37,13 +37,19 @@ function payloadFor(path: string): { status: number; body: string } {
   if (path.includes("/cake-3d-models")) {
     return {
       status: 200,
-      body: JSON.stringify([
-        {
-          id: "22222222-2222-2222-2222-222222222222",
-          name: "Tròn 1 tầng",
-          glb_url: "/models/cake-tron-1-tang.glb",
-        },
-      ]),
+      // The endpoint returns `{ models: [...] }`, not a bare array. Serving an
+      // array here made `models.map` throw at runtime, and the JS-error test
+      // filtered that message away — so the fixture hid a real crash.
+      body: JSON.stringify({
+        models: [
+          {
+            id: "22222222-2222-2222-2222-222222222222",
+            name: "Tròn 1 tầng",
+            slug: "tron-1-tang",
+            glb_url: "/models/cake-tron-1-tang.glb",
+          },
+        ],
+      }),
     };
   }
   if (path.includes("/options")) {
@@ -67,11 +73,27 @@ function payloadFor(path: string): { status: number; body: string } {
 /**
  * Chặn mọi request ra ngoài NGAY TỪ ĐẦU, kể cả khi một trang nào đó gọi API thật.
  * Dùng ở `beforeEach` của mỗi test, nên không test nào chạm internet được.
+ *
+ * Phải chặn CẢ `localhost:<port khác>`: app gọi backend ở `localhost:8000`
+ * (`NEXT_PUBLIC_API_URL` lúc build), nên nếu chỉ chặn host không phải localhost
+ * thì đúng các lời gọi API thật lại lọt qua — test "cô lập" vẫn đọc CSDL của
+ * tiệm. Chỉ origin của chính app (`localhost:3100`) và file tĩnh của nó được đi
+ * tiếp.
  */
 export async function isolateNetwork(page: Page) {
-  await page.route(/^https?:\/\/(?!localhost:\d+)/, (route: Route) => {
+  const appOrigin = new URL("http://localhost:3100").origin;
+  await page.route(/^https?:\/\//, (route: Route) => {
     const url = route.request().url();
-    // Cho file tĩnh của Next đi qua (GLB, ảnh) vì nó cùng origin localhost.
+    let origin = "";
+    try {
+      origin = new URL(url).origin;
+    } catch {
+      return route.abort();
+    }
+    if (origin === appOrigin) {
+      // Trang và file tĩnh của Next (GLB, ảnh, font) đi qua bình thường.
+      return route.continue();
+    }
     if (/\.(glb|png|jpe?g|svg|webp|woff2?)$/i.test(url)) {
       return route.continue();
     }

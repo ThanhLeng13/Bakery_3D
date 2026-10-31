@@ -14,6 +14,7 @@ import type { CakeDesign } from "@/types";
 import { type CakeZone } from "./CakeSVG";
 import { Ganache, PipedBorder, RoundedCylinder, useIcingTexture } from "./CakeFinish";
 import GlbCakeBody from "./GlbCakeBody";
+import CanvasErrorBoundary from "./CanvasErrorBoundary";
 import type { CakeDecorationTier } from "./cake-decoration-surface";
 
 interface Cake3DProps {
@@ -827,25 +828,35 @@ export default function Cake3D(props: Cake3DProps) {
       }}
     >
       {/* Canvas. `?view=` đặt camera ở góc cố định để chụp ảnh kiểm tra;
-          không có tham số thì dùng góc 3/4 như trước. */}
-      <Canvas
-        camera={fixedCamera
-          ? { position: fixedCamera, fov: 30 }
-          : { position: [2.2, 2, 3.2] as [number, number, number], fov: 30 }}
-        shadows="variance"
-        dpr={[1, 1.5]}
-        gl={{ antialias: true, alpha: true }}
-        role="img"
-        aria-label="Xem trước bánh kem 3D; dùng các nút tùy chỉnh để chọn vùng bánh"
-        style={{ width:"100%", height:"100%" }}
+          không có tham số thì dùng góc 3/4 như trước.
+
+          Boundary nằm NGOÀI <Canvas>: R3F dùng reconciler Three.js nên boundary
+          DOM đặt bên trong sẽ trả về <div>/<p> mà reconciler coi là phần tử THREE
+          không tồn tại, rồi ném lỗi lần hai. R3F ném lỗi con ra ngoài <Canvas>,
+          nên boundary DOM bọc ngoài bắt được cả lỗi GLB lẫn lỗi tạo WebGL. */}
+      <CanvasErrorBoundary
+        message="Không hiển thị được mô hình 3D"
+        detail="Bạn vẫn có thể tùy chỉnh bánh bằng các nút bên cạnh."
       >
-        {/* Fallback là bánh vẽ bằng code, không phải null: trong lúc thân GLB
-            đang tải trên mạng chậm, khách phải thấy bánh ngay. `fallback={null}`
-            khiến canvas trắng trơn cho tới khi tải xong. */}
-        <Suspense fallback={<CakeMesh {...props} />}>
-          <Scene {...props} />
-        </Suspense>
-      </Canvas>
+        <Canvas
+          camera={fixedCamera
+            ? { position: fixedCamera, fov: 30 }
+            : { position: [2.2, 2, 3.2] as [number, number, number], fov: 30 }}
+          shadows="variance"
+          dpr={[1, 1.5]}
+          gl={{ antialias: true, alpha: true }}
+          role="img"
+          aria-label="Xem trước bánh kem 3D; dùng các nút tùy chỉnh để chọn vùng bánh"
+          style={{ width:"100%", height:"100%" }}
+        >
+          {/* Fallback là bánh vẽ bằng code, không phải null: trong lúc thân GLB
+              đang tải trên mạng chậm, khách phải thấy bánh ngay. `fallback={null}`
+              khiến canvas trắng trơn cho tới khi tải xong. */}
+          <Suspense fallback={<CakeMesh {...props} />}>
+            <Scene {...props} />
+          </Suspense>
+        </Canvas>
+      </CanvasErrorBoundary>
     </div>
   );
 }
