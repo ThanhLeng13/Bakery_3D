@@ -58,6 +58,19 @@ export function PreviewModal({
 }: PreviewModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
+  // `onClose` KHÔNG được nằm trong deps của effect focus.
+  //
+  // Caller truyền arrow inline (`onClose={() => setShowPreview(false)}`), nên mỗi
+  // lần parent render lại là một hàm mới. Nếu để trong deps, effect chạy cleanup
+  // rồi chạy lại: cleanup trả focus về nút mở modal, tức là cướp focus khỏi modal
+  // đang mở và phá luôn cái trap vừa dựng.
+  //
+  // Giữ bản mới nhất trong ref: handler Escape luôn gọi đúng hàm hiện tại mà
+  // không cần effect phụ thuộc vào nó.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   // Focus trap + Escape.
   //
@@ -83,7 +96,7 @@ export function PreviewModal({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== "Tab") return;
@@ -99,11 +112,18 @@ export function PreviewModal({
       const first = items[0];
       const last = items[items.length - 1];
       const active = document.activeElement;
+      // Focus có thể đang ở chính khung modal (`tabIndex={-1}`) hoặc đã lọt ra
+      // ngoài. Coi cả hai như "ngoài danh sách": đi tiếp thì vào phần tử đầu,
+      // lùi thì về phần tử cuối. Nếu không xử lý, Shift+Tab từ khung modal sẽ
+      // thoát ra trang nền — đúng lỗi mà trap này sinh ra để chặn.
+      const outside = !active || active === modalRef.current || !modalRef.current?.contains(active);
 
-      if (e.shiftKey && (active === first || !modalRef.current?.contains(active))) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && active === last) {
+      if (e.shiftKey) {
+        if (outside || active === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (outside || active === last) {
         e.preventDefault();
         first.focus();
       }
@@ -116,9 +136,16 @@ export function PreviewModal({
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
       // Trả focus về nơi khách đang đứng trước khi mở modal.
-      previouslyFocused.current?.focus?.();
+      //
+      // Hoãn một frame: lúc cleanup chạy, React đang tháo modal khỏi cây, nên gọi
+      // focus ngay có thể bị chính lần render kế tiếp ghi đè. `requestAnimationFrame`
+      // chạy sau khi DOM đã ổn định.
+      const target = previouslyFocused.current;
+      if (target) {
+        requestAnimationFrame(() => target.focus?.());
+      }
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

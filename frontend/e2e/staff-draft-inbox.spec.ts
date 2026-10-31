@@ -125,12 +125,16 @@ test("hàng đợi có mục đơn nháp và mở được chi tiết", async ({
 });
 
 test("nhận đơn nháp gửi status=pending lên máy chủ", async ({ page }) => {
-  let patched: { url: string; body: string } | null = null;
+  // Thu vào một mảng, không phải biến `| null`. TypeScript không theo dõi được
+  // phép gán nằm trong callback của `page.route`, nên sau khi đọc
+  // `patched?.body` nó thu hẹp kiểu về `null` rồi `never` — và `patched?.url`
+  // báo lỗi TS2339, làm CI đỏ. Mảng giữ kiểu đúng và đọc được lần gọi đầu.
+  const patched: Array<{ url: string; body: string }> = [];
   await page.route(`**/api/v1/staff/orders/${DRAFT.id}/status`, async (route) => {
-    patched = {
+    patched.push({
       url: route.request().url(),
       body: route.request().postData() ?? "",
-    };
+    });
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -142,6 +146,8 @@ test("nhận đơn nháp gửi status=pending lên máy chủ", async ({ page })
   await page.getByRole("button", { name: /Khách từ trợ lý/ }).click();
   await page.getByRole("button", { name: /Nhận đơn nháp này/i }).click();
 
-  await expect.poll(() => patched?.body ?? "").toContain('"pending"');
-  expect(patched?.url).toContain(`/api/v1/staff/orders/${DRAFT.id}/status`);
+  await expect.poll(() => patched.length).toBe(1);
+  const first = patched[0];
+  expect(first.body).toContain('"pending"');
+  expect(first.url).toContain(`/api/v1/staff/orders/${DRAFT.id}/status`);
 });

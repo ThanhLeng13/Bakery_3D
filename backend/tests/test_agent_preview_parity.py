@@ -97,3 +97,28 @@ class TestListingHidesPreviewOnly:
         result = tools.find_cakes(keyword="dâu")
 
         assert [c["name"] for c in result["cakes"]] == ["Bánh kem dâu"]
+
+    def test_ket_qua_binh_thuong_cung_khong_chua_mau_chi_xem(self):
+        """Không chỉ nhánh gợi ý — danh sách `cakes` cũng phải sạch.
+
+        Trước đây chỉ nhánh "không tìm thấy gì" lọc mẫu chỉ-để-xem, còn kết quả
+        bình thường vẫn trả về chúng. Trợ lý giới thiệu một mẫu khách không đặt
+        được là thông tin sai, và `found` cũng đếm sai.
+        """
+        preview = _product("heart-1-tier", product_id=PREVIEW_ID, name="Bánh hình tim")
+        sellable = _product("round-1-tier", product_id=ORDERABLE_ID, name="Bánh tròn")
+        tools = OrderTools(_client([preview, sellable]))
+
+        result = tools.find_cakes()  # không ngân sách, không từ khoá
+
+        assert [c["name"] for c in result["cakes"]] == ["Bánh tròn"]
+        assert result["found"] == 1, "found phải đếm sau khi lọc, không đếm mẫu chỉ-xem"
+
+    def test_loc_theo_dip_cung_khong_lo_mau_chi_xem(self):
+        preview = _product("square-1-tier", product_id=PREVIEW_ID, name="Bánh vuông")
+        sellable = _product("round-1-tier", product_id=ORDERABLE_ID, name="Bánh tròn")
+        tools = OrderTools(_client([preview, sellable]))
+
+        result = tools.find_cakes(occasion="sinh nhật")
+
+        assert [c["name"] for c in result["cakes"]] == ["Bánh tròn"]

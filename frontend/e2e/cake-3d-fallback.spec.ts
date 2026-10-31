@@ -23,7 +23,18 @@ import { isolateNetwork } from "../playwright.config";
  * kiểm hành vi.
  */
 
-const JS_ERROR_ALLOWLIST = /net::ERR|Failed to fetch|WebGL|context/i;
+/**
+ * Chỉ miễn trừ lỗi MÔI TRƯỜNG đã biết, không miễn trừ theo từ khoá chung.
+ *
+ * Trước đây allowlist là `/net::ERR|Failed to fetch|WebGL|context/i`. Hai chữ
+ * "WebGL" và "context" quá rộng: chúng nuốt mọi lỗi ứng dụng tình cờ nhắc tới
+ * hai từ đó (ví dụ "Cannot read properties of undefined (reading 'context')" —
+ * đúng kiểu lỗi đã từng bị che trong `cake-builder.spec.ts`). Nay chỉ chấp nhận
+ * thông báo cụ thể của three.js khi trình duyệt không cấp được WebGL, và lỗi
+ * mạng của chính request bị chặn.
+ */
+const JS_ERROR_ALLOWLIST =
+  /net::ERR|Failed to fetch|Error creating WebGL context|WebGL context (lost|was lost)/i;
 
 test.beforeEach(async ({ page }) => {
   await isolateNetwork(page);

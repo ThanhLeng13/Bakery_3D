@@ -59,7 +59,13 @@ function ProductCakeModel({ model }: { model: Cake3DModel }) {
  */
 export default function CakeViewer3D({ model }: { model: Cake3DModel }) {
   return (
-    <div className="relative overflow-hidden bg-[radial-gradient(ellipse_at_50%_35%,#FFFFFF_20%,#F3EFE9_100%)]" aria-label={`Xem mẫu 3D ${model.name}`}>
+    // `aspect-square` là bắt buộc, không chỉ để đẹp: fallback của
+    // `CanvasErrorBoundary` dùng `absolute inset-0`, và khi Canvas bị gỡ khỏi
+    // cây thì KHÔNG còn gì tạo chiều cao. Không có tỉ lệ khung, khung co lại
+    // 0px và thông báo "Không tải được mô hình 3D" bị cắt mất — đúng lúc khách
+    // cần đọc nó nhất. Dùng cùng tỉ lệ với placeholder `loading` ở
+    // `ProductDetailClient` để bố cục không nhảy khi mẫu tải xong.
+    <div className="relative aspect-square overflow-hidden bg-[radial-gradient(ellipse_at_50%_35%,#FFFFFF_20%,#F3EFE9_100%)]" aria-label={`Xem mẫu 3D ${model.name}`}>
       <CanvasErrorBoundary
         message="Không tải được mô hình 3D"
         detail="Ảnh và thông tin bánh vẫn hiển thị bình thường."

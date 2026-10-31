@@ -4,12 +4,18 @@ Gói 1 ghi rõ giới hạn: máy chỉ có service-role key, không có đườ
 `CREATE FUNCTION`, nên ba migration phải chạy tay trên Supabase SQL Editor.
 Không có gì trong code hay test nhắc lại điều đó, nên rất dễ tưởng là đã xong.
 
-File này kiểm tra trạng thái thật trên CSDL và **bỏ qua (skip)** khi không có
-khoá. Nhờ vậy CI vẫn xanh, còn trên máy người dùng thì lỗi hiện ra ngay thay vì
-phải nhớ.
+File này kiểm tra trạng thái thật trên CSDL và **bỏ qua (skip)** khi thiếu opt-in
+hoặc thiếu khoá. Nhờ vậy CI vẫn xanh, còn trên máy người dùng muốn kiểm thật thì
+đặt biến môi trường và thấy lỗi ngay thay vì phải nhớ.
 
-Chạy tay:
+Mọi kiểm tra ở đây chỉ ĐỌC. Trước đây `test_draft_is_allowed_as_an_order_status`
+sao chép rồi chèn/xoá một đơn thật để thử enum — chạy `pytest` trên máy có `.env`
+là động vào dữ liệu thật. Đã thay bằng `select ... limit 0` và
+`tests/test_live_probe_safety.py` chặn `insert/update/delete` quay lại.
+
+Chạy tay (phải opt-in, nếu không sẽ skip hết):
     cd backend
+    $env:BAKERY_RUN_LIVE_READONLY_TESTS = "1"
     .\\venv\\Scripts\\python.exe -m pytest tests/test_migrations_applied.py -v
 """
 

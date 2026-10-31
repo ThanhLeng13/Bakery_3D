@@ -227,7 +227,12 @@ class OrderTools:
     ) -> dict:
         """Tìm bánh phù hợp. Giá lấy từ CSDL, không do LLM bịa."""
         limit = max(1, min(int(limit or 5), MAX_RESULTS))
-        products = self._active_cakes()
+        # Lọc NGAY từ nguồn, không chỉ ở nhánh gợi ý: sản phẩm gắn mẫu 3D
+        # chỉ-để-xem không đặt được (checkout chặn trong `_catalog_price`), nên
+        # trợ lý cũng không được giới thiệu chúng. Lọc ở đây khiến mọi nhánh phía
+        # sau — từ khoá, dịp, xếp theo ngân sách, và `found` — đều nhất quán,
+        # thay vì chỉ nhánh "không tìm thấy gì" mới lọc.
+        products = [p for p in self._active_cakes() if _is_orderable_catalogue_row(p)]
 
         matched = products
 
@@ -266,9 +271,9 @@ class OrderTools:
 
         if not matched:
             # Không có gì trong ngân sách: gợi ý mẫu rẻ nhất để khách biết mức giá.
+            # `products` đã được lọc mẫu chỉ-để-xem ở trên, nên không lọc lại.
             cheapest = sorted(
-                (p for p in products if _is_orderable_catalogue_row(p)),
-                key=lambda p: p.get("base_price") or 0,
+                products, key=lambda p: p.get("base_price") or 0
             )[:limit]
             return {
                 "found": 0,
@@ -763,7 +768,7 @@ TOOL_SCHEMAS: list[dict] = [
                             "tính theo kích cỡ, KHÔNG theo tên bánh. Khách chưa nói "
                             "kích cỡ thì hỏi, hoặc bỏ trống để lấy mức mặc định. "
                             "Mẫu có sẵn trong danh mục thì PHẢI kèm `cake_id` (hoặc "
-                            "`product_id`) lấy từ `search_cakes`/`list_cakes`: có ID "
+                            "`product_id`) LẤY TỪ KẾT QUẢ CỦA `find_cakes`: có ID "
                             "thì bán ngay (0 giờ), thiếu ID sẽ bị coi là bánh đặt "
                             "và cần 24–48 giờ."
                         ),

@@ -88,6 +88,30 @@ test("mở modal đưa focus vào trong, Tab không thoát ra ngoài", async ({ 
   }
 });
 
+test("Shift+Tab từ khung modal không thoát ra trang nền", async ({ page }) => {
+  const { dialog } = await openPreview(page);
+
+  // Phải focus đúng `modalRef` — khung có `tabIndex={-1}`, KHÔNG phải div
+  // `role="dialog"` bên ngoài. Focus vào div ngoài không làm gì (không
+  // focusable), và khi đó phép thử vô nghĩa: nó pass kể cả khi đã gỡ phần xử
+  // lý. Đã đo: mutation gỡ `outside` khỏi nhánh Shift+Tab vẫn cho test xanh
+  // khi focus nhầm phần tử.
+  const container = dialog.locator('[tabindex="-1"]').first();
+  await container.evaluate((node) => (node as HTMLElement).focus());
+  await expect
+    .poll(() => container.evaluate((node) => node === document.activeElement))
+    .toBe(true);
+
+  await page.keyboard.press("Shift+Tab");
+  const stillInside = await dialog.evaluate((node) =>
+    node.contains(document.activeElement),
+  );
+  expect(
+    stillInside,
+    "Shift+Tab từ khung modal làm focus thoát ra trang nền",
+  ).toBe(true);
+});
+
 test("Escape đóng modal và trả focus về nút đã mở nó", async ({ page }) => {
   const { dialog, open } = await openPreview(page);
 

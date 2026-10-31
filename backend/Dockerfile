@@ -18,6 +18,20 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# Chạy bằng người dùng KHÔNG phải root.
+#
+# Mặc định container chạy root, nên một lỗ hổng trong ứng dụng hoặc một thư viện
+# là quyền root bên trong container. Tạo user riêng và chuyển quyền sở hữu thư
+# mục ứng dụng để tiến trình chỉ ghi được nơi cần ghi.
+#
+# UID/GID cố định (10001) thay vì để Docker tự cấp: khi chạy với volume, quyền
+# trên host phải khớp một con số biết trước.
+RUN groupadd --gid 10001 app \
+    && useradd --uid 10001 --gid app --create-home --shell /usr/sbin/nologin app \
+    && chown -R app:app /app
+
+USER app
+
 # Expose port
 EXPOSE 8000
 

@@ -28,6 +28,7 @@ interface SalesQueueResponse {
 interface SalesOrderDetail extends SalesOrder {
   items: Array<{
     id: string;
+    product_id?: string | null;
     size?: string | null;
     flavor?: string | null;
     quantity: number;
@@ -237,16 +238,40 @@ export default function StaffSalesPage() {
                 <div>
                   <h4 className="mb-2 text-sm font-semibold text-ink">Sản phẩm</h4>
                   <div className="space-y-2">
-                    {selected.items.map((item) => (
-                      <div key={item.id} className="flex justify-between rounded-xl border border-line p-3 text-sm">
-                        <span className="text-ink">
-                          Bánh {item.size || "theo mẫu"} · {item.flavor || "hương vị đã chọn"} × {item.quantity}
-                        </span>
-                        <span className="font-semibold text-ink">{formatPrice(item.unit_price * item.quantity)}</span>
-                      </div>
-                    ))}
+                    {selected.items.map((item) => {
+                      // Trước đây luôn in "Bánh theo mẫu · hương vị đã chọn" khi
+                      // thiếu size/flavor. Với đơn nháp của trợ lý (món lấy từ
+                      // danh mục) hai trường đó thường trống, nên nhân viên đọc
+                      // một câu vô nghĩa và không biết khách đặt bánh nào.
+                      // `order_items` không join tên sản phẩm, nên hiển thị đúng
+                      // thứ đang có: số lượng + giá, phần mô tả nằm ở ai_summary.
+                      const detail = [item.size, item.flavor].filter(Boolean).join(" · ");
+                      return (
+                        <div
+                          key={item.id}
+                          className="flex justify-between gap-3 rounded-xl border border-line p-3 text-sm"
+                        >
+                          <span className="text-ink">
+                            {detail || `Món #${item.product_id?.slice(0, 8) ?? "—"}`}
+                            {` × ${item.quantity}`}
+                          </span>
+                          <span className="font-semibold text-ink">
+                            {formatPrice(item.unit_price * item.quantity)}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
+
+                {selected.ai_summary && (
+                  <div className="rounded-xl border border-line bg-surface p-4 text-sm text-ink">
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+                      Nội dung đơn do trợ lý ghi lại
+                    </p>
+                    <p className="whitespace-pre-line">{selected.ai_summary}</p>
+                  </div>
+                )}
 
                 {selected.baker_notes && (
                   <div className="rounded-xl bg-subtle p-4 text-sm text-ink">
