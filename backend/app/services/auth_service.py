@@ -177,7 +177,24 @@ class AuthService:
                 .execute()
             )
 
-            user_data = user_result.data if user_result.data else {}
+            # `maybe_single()` trả về None (không phải object có `.data`) khi
+            # không có dòng nào khớp — supabase-py 2.30,
+            # `SyncMaybeSingleRequestBuilder.execute`.
+            #
+            # Thiếu phép kiểm này thì `user_result.data` ném AttributeError, và
+            # `except Exception` bên dưới đổi nó thành "Invalid email or
+            # password" (401). Hệ quả đo được: tài khoản admin/baker tạo tay trên
+            # Supabase Dashboard (chỉ có trong `auth.users`, chưa có dòng
+            # `public.users`) đăng nhập đúng mật khẩu vẫn bị báo sai, và mỗi lần
+            # thử còn bị tính là một lần sai nên bị khoá 15 phút.
+            user_data = user_result.data if (user_result and user_result.data) else {}
+            if not user_data:
+                logger.warning(
+                    "Đăng nhập thành công nhưng không có dòng trong bảng users "
+                    "(auth user id=%s). Tạm dùng vai 'customer'. Cần thêm dòng "
+                    "vào public.users để đúng vai.",
+                    auth_response.user.id,
+                )
 
             session = auth_response.session
             return {
@@ -187,10 +204,21 @@ class AuthService:
                 "expires_in": settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
                 "user": {
                     "id": str(auth_response.user.id),
-                    "email": auth_response.user.email,
-                    "full_name": user_data.get("full_name", ""),
+                    # `or ""` chứ không phải `.get(..., "")`.
+                    #
+                    # `UserResponse.email` và `.full_name` đều khai `str` bắt
+                    # buộc. Giá trị mặc định của `dict.get` CHỈ dùng khi THIẾU
+                    # khoá; cột NULL trả về khoá có mặt với giá trị None, nên
+                    # `.get("full_name", "")` vẫn ra None và FastAPI validate
+                    # response thất bại -> 500. Giao diện in "Email hoặc mật
+                    # khẩu không đúng" cho mọi lỗi, nên dữ liệu NULL bị hiểu
+                    # thành sai mật khẩu. Tài khoản admin/baker tạo bằng SQL hay
+                    # Dashboard rất thường để trống full_name.
+                    "email": auth_response.user.email or "",
+                    "full_name": user_data.get("full_name") or "",
                     "phone": user_data.get("phone"),
-                    "role": user_data.get("role", "customer"),
+                    # Cùng lý do: `role` NULL phải quy về "customer".
+                    "role": user_data.get("role") or "customer",
                 },
             }
 

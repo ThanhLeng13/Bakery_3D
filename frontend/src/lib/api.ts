@@ -11,6 +11,8 @@ const API_BASE_URL =
 export interface ApiError {
   detail: string | Array<{ field: string; message: string }>;
   retry_after?: number;
+  /** Mã HTTP của phản hồi lỗi, để nơi gọi phân biệt 401 với 5xx. */
+  status?: number;
 }
 
 class ApiClient {
@@ -47,8 +49,35 @@ class ApiClient {
     throw new Error("Unauthorized");
   }
 
-  private async handleResponse<T>(response: Response): Promise<T> {
-    if (response.status === 401) {
+  /**
+   * Các endpoint ĐANG xác thực, phải tự xử lý 401 của chính nó.
+   *
+   * Interceptor 401 toàn cục dùng cho phiên hết hạn: xoá token rồi chuyển về
+   * trang đăng nhập. Áp nó cho chính request đăng nhập là sai: mật khẩu sai trả
+   * 401, nên `handle401` chạy `window.location.href = "/auth/login"` — tải lại
+   * trang đăng nhập và xoá thông báo lỗi vừa đặt. Người dùng bấm "Đăng nhập",
+   * thấy trang nhấp nháy rồi quay về form trắng, nên hiểu là "đăng nhập không
+   * được" mà không biết vì sao.
+   *
+   * Nó còn thay lỗi thật bằng `Error("Unauthorized")`, nên nơi gọi mất cả
+   * `detail` lẫn `retry_after` và không thể phân biệt sai mật khẩu với lỗi
+   * server.
+   */
+  private static readonly AUTH_PATHS = [
+    "/api/v1/auth/login",
+    "/api/v1/auth/register",
+    "/api/v1/auth/oauth/google",
+    "/api/v1/auth/refresh",
+    "/api/v1/auth/forgot-password",
+    "/api/v1/auth/reset-password",
+  ];
+
+  private isAuthPath(path: string): boolean {
+    return ApiClient.AUTH_PATHS.some((p) => path.startsWith(p));
+  }
+
+  private async handleResponse<T>(response: Response, path: string): Promise<T> {
+    if (response.status === 401 && !this.isAuthPath(path)) {
       this.handle401();
     }
 
@@ -56,6 +85,9 @@ class ApiClient {
       const error: ApiError = await response.json().catch(() => ({
         detail: "Đã xảy ra lỗi, vui lòng thử lại sau",
       }));
+      // Giữ mã HTTP để nơi gọi phân biệt được 401 (sai thông tin đăng nhập)
+      // với 5xx (lỗi server) thay vì in cùng một câu cho mọi trường hợp.
+      error.status = response.status;
       throw error;
     }
 
@@ -72,7 +104,7 @@ class ApiClient {
       method: "GET",
       headers: this.getHeaders(),
     });
-    return this.handleResponse<T>(response);
+    return this.handleResponse<T>(response, path);
   }
 
   async post<T>(path: string, body?: unknown): Promise<T> {
@@ -81,7 +113,7 @@ class ApiClient {
       headers: this.getHeaders(),
       body: body ? JSON.stringify(body) : undefined,
     });
-    return this.handleResponse<T>(response);
+    return this.handleResponse<T>(response, path);
   }
 
   async put<T>(path: string, body?: unknown): Promise<T> {
@@ -90,7 +122,7 @@ class ApiClient {
       headers: this.getHeaders(),
       body: body ? JSON.stringify(body) : undefined,
     });
-    return this.handleResponse<T>(response);
+    return this.handleResponse<T>(response, path);
   }
 
   async patch<T>(path: string, body?: unknown): Promise<T> {
@@ -99,7 +131,7 @@ class ApiClient {
       headers: this.getHeaders(),
       body: body ? JSON.stringify(body) : undefined,
     });
-    return this.handleResponse<T>(response);
+    return this.handleResponse<T>(response, path);
   }
 
   async delete<T>(path: string): Promise<T> {
@@ -107,7 +139,7 @@ class ApiClient {
       method: "DELETE",
       headers: this.getHeaders(),
     });
-    return this.handleResponse<T>(response);
+    return this.handleResponse<T>(response, path);
   }
 }
 

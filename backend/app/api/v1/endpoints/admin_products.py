@@ -215,6 +215,10 @@ def create_product(
             "sizes": [{"name": s.name, "price": s.price} for s in request.sizes],
             "flavors": request.flavors,
             "is_active": request.is_active,
+            # Handler liệt kê từng trường, nên thêm vào schema và service là
+            # KHÔNG đủ: thiếu dòng này thì giá trị bị bỏ lặng lẽ và admin vẫn
+            # không thêm được mẫu bánh sinh nhật bán ngay.
+            "product_type": request.product_type,
         }
 
         result = service.create_product(product_data)
@@ -256,6 +260,8 @@ def update_product(
             update_data["flavors"] = request.flavors
         if request.is_active is not None:
             update_data["is_active"] = request.is_active
+        if request.product_type is not None:
+            update_data["product_type"] = request.product_type
 
         result = service.update_product(product_id, update_data)
         return result

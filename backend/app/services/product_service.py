@@ -85,6 +85,13 @@ class ProductService:
                 "sizes": sizes_json,
                 "flavors": data.get("flavors", []),
                 "is_active": data.get("is_active", True),
+                # Trước đây không ghi `product_type`, nên mọi sản phẩm admin tạo
+                # đều rơi về mặc định của CSDL. Admin không có cách nào thêm một
+                # mẫu bánh sinh nhật vào danh mục để bán ngay — đúng việc người
+                # dùng cần. Nhánh bán hàng đọc chính cột này: `'cake'` đi
+                # `POST /api/v1/orders` (0 giờ chờ), `'sweet'` đi
+                # `POST /api/v1/purchases` (trừ tồn kho chi nhánh).
+                "product_type": data.get("product_type", "sweet"),
             }
 
             result = (
@@ -149,6 +156,8 @@ class ProductService:
                 update_data["flavors"] = data["flavors"]
             if data.get("is_active") is not None:
                 update_data["is_active"] = data["is_active"]
+            if data.get("product_type") is not None:
+                update_data["product_type"] = data["product_type"]
 
             if not update_data:
                 # Nothing to update, return current product

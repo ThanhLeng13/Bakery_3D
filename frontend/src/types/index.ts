@@ -187,6 +187,18 @@ export interface CartItem {
   branchId: string | null;
   /** Tên chi nhánh để hiển thị */
   branchName: string | null;
+  /**
+   * Loại sản phẩm, quyết định checkout gọi API nào.
+   *
+   * - `"sweet"` -> `POST /api/v1/purchases`: trừ tồn kho theo chi nhánh.
+   * - `"cake"`  -> `POST /api/v1/orders`: bánh sinh nhật LÀM SẴN trong danh
+   *   mục. Server tính 0 giờ chờ cho dòng có `product_id` thật
+   *   (`pricing.lead_hours_for_items`), nên mua liền được.
+   *
+   * Không bắt buộc để giỏ hàng đã lưu trong localStorage từ bản cũ vẫn đọc
+   * được; thiếu thì coi như `"sweet"`, đúng hành vi trước đây.
+   */
+  productType?: "sweet" | "cake";
 }
 
 export interface CartState {

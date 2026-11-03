@@ -50,9 +50,18 @@ const SIZE_LABELS: Record<CakeSize, string> = {
   "2-tier": "2 tầng (20+ người)",
 };
 
-function getMinPickupDate(hasTwoTier: boolean): Date {
+/**
+ * Mốc sớm nhất khách được chọn để nhận bánh.
+ *
+ * `leadHours = 0` dành cho bánh sinh nhật LÀM SẴN trong danh mục: bánh đã có
+ * tại tiệm nên nhận ngay được. Đây đúng là quy tắc server đang áp —
+ * `pricing.lead_hours_for_items` trả 0 cho dòng có `product_id` thật, kể cả
+ * bánh hai tầng. Nếu đây vẫn cộng 24 giờ thì giao diện tự chặn một đơn mà
+ * server sẵn sàng nhận.
+ */
+function getMinPickupDate(hasTwoTier: boolean, leadHours?: number): Date {
   const now = new Date();
-  const hoursAhead = hasTwoTier ? 48 : 24;
+  const hoursAhead = leadHours ?? (hasTwoTier ? 48 : 24);
   return new Date(now.getTime() + hoursAhead * 60 * 60 * 1000);
 }
 
@@ -101,8 +110,24 @@ function CheckoutContent() {
   const [submittedIsCartMode, setSubmittedIsCartMode] = useState(false);
   const [submittedBranchName, setSubmittedBranchName] = useState<string | null>(null);
 
-  // Determine mode
-  const isCartMode = cartItems.length > 0;   // sweet products
+  // Ba chế độ, không phải hai.
+  //
+  // Bản cũ chỉ có "giỏ hàng" (bánh ngọt) và "Studio" (bánh tùy chỉnh). Bánh
+  // sinh nhật LÀM SẴN trong danh mục không thuộc nhóm nào, nên trang chi tiết
+  // bánh chỉ có một <Link> trỏ "/checkout" và khách luôn tới màn hình "Giỏ hàng
+  // trống" — không có cách nào mua một chiếc bánh sinh nhật có sẵn.
+  //
+  // Hai loại trong giỏ đi hai API khác nhau:
+  //   - bánh ngọt      -> POST /api/v1/purchases (trừ tồn kho theo chi nhánh)
+  //   - bánh sinh nhật -> POST /api/v1/orders    (tạo đơn; 0 giờ chờ vì có
+  //                       product_id thật, xem pricing.lead_hours_for_items)
+  // `CartContext` chặn trộn hai loại, nên chỉ cần xem món đầu tiên.
+  const cartProductType = cartItems.length > 0
+    ? (cartItems[0].productType ?? "sweet")
+    : null;
+  const isCartMode = cartItems.length > 0;
+  const isSweetCartMode = isCartMode && cartProductType === "sweet";
+  const isReadyMadeCakeMode = isCartMode && cartProductType === "cake";
   const isCakeMode = !isCartMode;            // cake builder
 
   // Load Cake Builder design only when cart is empty
@@ -158,7 +183,11 @@ function CheckoutContent() {
   // hasTwoTier only applies to cake builder mode
   const hasTwoTier = isCakeMode && cakeDesign?.size === "2-tier";
 
-  const minDate = useMemo(() => getMinPickupDate(!!hasTwoTier), [hasTwoTier]);
+  const minDate = useMemo(
+    // Mẫu làm sẵn: 0 giờ chờ, khớp `lead_hours_for_items` ở server.
+    () => getMinPickupDate(!!hasTwoTier, isReadyMadeCakeMode ? 0 : undefined),
+    [hasTwoTier, isReadyMadeCakeMode],
+  );
   const maxDate = useMemo(() => getMaxPickupDate(), []);
 
   function validateForm(): boolean {
@@ -178,23 +207,28 @@ function CheckoutContent() {
       newErrors.email = "Email không hợp lệ";
     }
 
-    // Pickup date is only required for cake orders (not sweet purchase)
-    if (isCakeMode) {
+    // Ngày nhận: bắt buộc cho đơn bánh kem (Studio và mẫu làm sẵn), không bắt
+    // buộc khi mua bánh ngọt.
+    if (isCakeMode || isReadyMadeCakeMode) {
       if (!pickupDate) {
         newErrors.pickup_date = "Vui lòng chọn ngày nhận bánh";
       } else {
         const selectedDate = new Date(pickupDate);
         if (selectedDate < minDate) {
-          const hours = hasTwoTier ? 48 : 24;
-          newErrors.pickup_date = `Ngày nhận phải cách ít nhất ${hours} giờ từ bây giờ`;
+          // Mẫu làm sẵn không cần chờ, nên chỉ chặn ngày trong quá khứ.
+          newErrors.pickup_date = isReadyMadeCakeMode
+            ? "Ngày nhận không được ở quá khứ"
+            : `Ngày nhận phải cách ít nhất ${hasTwoTier ? 48 : 24} giờ từ bây giờ`;
         } else if (selectedDate > maxDate) {
           newErrors.pickup_date = "Ngày nhận không được quá 30 ngày kể từ hôm nay";
         }
       }
     }
 
-    // branch_id required for sweet purchases (must pick up from a specific branch)
-    if (isCartMode && !selectedBranchId) {
+    // Chi nhánh chỉ bắt buộc khi mua bánh ngọt: tồn kho theo chi nhánh chỉ có
+    // cho `product_type = 'sweet'` (xem inventory_service), nên bánh sinh nhật
+    // không có chi nhánh để chọn và yêu cầu nó sẽ chặn đơn vĩnh viễn.
+    if (isSweetCartMode && !selectedBranchId) {
       newErrors.branch = "Vui lòng chọn chi nhánh nhận bánh";
     }
 
@@ -223,7 +257,57 @@ function CheckoutContent() {
     setErrors({});
 
     try {
-      if (isCartMode) {
+      if (isReadyMadeCakeMode) {
+        // ====== BÁNH SINH NHẬT LÀM SẴN ======
+        // POST /api/v1/orders với `product_id` THẬT của sản phẩm danh mục.
+        //
+        // Không dùng /purchases: endpoint đó chặn mọi sản phẩm có
+        // `product_type != 'sweet'` (purchases.py), nên bánh sinh nhật sẽ bị
+        // từ chối. Dùng /orders thì server tra giá từ `products.base_price` và
+        // tính 0 giờ chờ, đúng nghĩa "mẫu có sẵn, mua liền".
+        //
+        // Không gửi `customization_json`: đây là bánh làm sẵn, không có thiết
+        // kế riêng. Gửi vào sẽ khiến server coi là mẫu đặt và đòi 24/48 giờ.
+        const orderData = {
+          full_name: fullName.trim(),
+          phone: phone.trim(),
+          email: email.trim() || null,
+          pickup_date: new Date(pickupDate).toISOString(),
+          items: cartItems.map((item) => ({
+            product_id: item.productId,
+            quantity: item.quantity,
+            unit_price: item.unitPrice,
+          })),
+          ai_summary: null,
+          voucher_code: voucherCode.trim() || null,
+          idempotency_key: idempotencyKey,
+        };
+
+        const response = await apiClient.post<OrderConfirmation>(
+          "/api/v1/orders",
+          orderData
+        );
+        // `false` vì đây là ĐƠN (`/orders`), không phải lượt mua bánh ngọt.
+        //
+        // Cờ này chọn văn bản màn hình xác nhận. Đặt `true` sẽ in "Mua hàng
+        // thành công" và "+N điểm đã được cộng" lấy từ `confirmation.points_earned`
+        // — trường chỉ có ở phản hồi của `/purchases`. Phản hồi của `/orders`
+        // không có nó, nên khách sẽ đọc "+0 điểm đã được cộng" dù điểm thực ra
+        // được cộng khi nhận bánh.
+        setSubmittedIsCartMode(false);
+        setSubmittedBranchName(null);
+        setConfirmation(response);
+        setIdempotencyKey(
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `k-${Date.now()}-${Math.random().toString(36).slice(2)}`
+        );
+        clearCart();
+        refreshLoyalty().catch((refreshError) => {
+          console.warn("[Checkout] Loyalty refresh failed:", refreshError);
+        });
+
+      } else if (isCartMode) {
         // ====== SWEET PURCHASE MODE ======
         // POST /api/v1/purchases — trừ stock ngay, thanh toán offline
         const purchaseData = {
@@ -514,7 +598,16 @@ function CheckoutContent() {
               <h2 className="font-heading text-lg font-bold text-mocha mb-1">
                 Sản phẩm đã chọn
               </h2>
-              {selectedBranchName ? (
+              {/* Cảnh báo chi nhánh chỉ dành cho bánh ngọt.
+                  Tồn kho theo chi nhánh chỉ tồn tại cho `product_type='sweet'`,
+                  nên bánh sinh nhật không bao giờ có `branchName`. Hiện dòng
+                  "Vui lòng chọn chi nhánh" ở đây là bắt khách đi tìm một thứ
+                  không có trên trang bánh sinh nhật. */}
+              {isReadyMadeCakeMode ? (
+                <p className="text-sm text-mocha/60 mb-4">
+                  Mẫu có sẵn tại tiệm — nhận trực tiếp theo ngày bạn chọn bên dưới.
+                </p>
+              ) : selectedBranchName ? (
                 <p className="text-sm text-mocha/60 mb-4 flex items-center gap-1.5">
                   <svg className="w-3.5 h-3.5 text-pink-pastel flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -724,15 +817,22 @@ function CheckoutContent() {
           </section>
 
           {/* Pickup Date - Only show for custom cake builder orders */}
-          {isCakeMode && (
+          {/* Ngày nhận: cần cho cả đơn Studio và bánh làm sẵn.
+              Trước đây chỉ `isCakeMode` mới render ô này. Khi mua bánh sinh
+              nhật làm sẵn, phần kiểm tra vẫn đòi ngày nhận nhưng không có ô nào
+              để nhập, nên khách bị chặn ở lỗi "Vui lòng chọn ngày nhận bánh"
+              mà không có cách nào sửa. */}
+          {(isCakeMode || isReadyMadeCakeMode) && (
             <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
               <h2 className="font-heading text-lg font-bold text-mocha mb-4">
                 Ngày nhận bánh
               </h2>
               <p className="text-sm text-mocha/60 mb-3">
-                {hasTwoTier
-                  ? "Bánh 2 tầng cần ít nhất 48 giờ để chuẩn bị"
-                  : "Cần ít nhất 24 giờ để chuẩn bị bánh"}
+                {isReadyMadeCakeMode
+                  ? "Mẫu có sẵn tại tiệm nên bạn nhận được ngay hôm nay"
+                  : hasTwoTier
+                    ? "Bánh 2 tầng cần ít nhất 48 giờ để chuẩn bị"
+                    : "Cần ít nhất 24 giờ để chuẩn bị bánh"}
                 . Đặt trước tối đa 30 ngày.
               </p>
               <input

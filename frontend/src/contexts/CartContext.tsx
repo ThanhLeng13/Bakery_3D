@@ -124,6 +124,30 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const existingBranchId = currentItems.length > 0 ? (currentItems[0].branchId ?? null) : null;
       const incomingBranchId = newItem.branchId ?? null;
 
+      // Không trộn bánh sinh nhật với bánh ngọt trong cùng một giỏ.
+      //
+      // Hai loại đi hai API khác nhau khi thanh toán: bánh ngọt gọi
+      // `POST /api/v1/purchases` (trừ tồn kho theo chi nhánh), bánh sinh nhật
+      // làm sẵn gọi `POST /api/v1/orders` (tạo đơn, 0 giờ chờ). Một lần bấm
+      // "Đặt hàng" không gửi được cả hai, nên chặn ngay lúc thêm vào giỏ thay
+      // vì để khách điền xong form rồi mới báo lỗi.
+      const existingType = currentItems.length > 0
+        ? (currentItems[0].productType ?? "sweet")
+        : null;
+      const incomingType = newItem.productType ?? "sweet";
+      if (existingType !== null && existingType !== incomingType) {
+        const confirmed = window.confirm(
+          existingType === "cake"
+            ? "Giỏ hàng đang có bánh sinh nhật. Bánh sinh nhật và bánh ngọt " +
+              "phải đặt thành hai đơn riêng.\nXoá giỏ hiện tại để thêm món này?"
+            : "Giỏ hàng đang có bánh ngọt. Bánh sinh nhật và bánh ngọt phải " +
+              "đặt thành hai đơn riêng.\nXoá giỏ hiện tại để thêm món này?",
+        );
+        if (!confirmed) return;
+        setItems([{ ...newItem, cartKey, quantity: qty }]);
+        return;
+      }
+
       // Branch mismatch — confirm BEFORE touching state (keeps updater pure)
       if (
         currentItems.length > 0 &&
