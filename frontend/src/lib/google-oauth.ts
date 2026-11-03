@@ -58,9 +58,51 @@ export function readOAuthFragment(hash: string): OAuthFragmentTokens {
 }
 
 /**
+ * Khoá lưu giá trị `state` dùng một lần, để chống đăng nhập bị giả mạo.
+ *
+ * Luồng implicit trả token trong fragment, nên trang callback nhận token từ
+ * bất cứ ai mở được URL đó. Không có `state`, kẻ tấn công chỉ cần dụ khách mở
+ * `/auth/callback#access_token=<token của kẻ tấn công>` là khách bị đăng nhập
+ * vào tài khoản của họ — mọi đơn khách đặt sau đó nằm trong tài khoản kẻ tấn
+ * công.
+ *
+ * `sessionStorage` chứ không phải `localStorage`: giá trị chỉ cần sống trong
+ * một tab, một lần đăng nhập.
+ */
+const OAUTH_STATE_KEY = "bakery_oauth_state";
+
+/** Sinh giá trị `state` khó đoán và lưu lại để đối chiếu khi Supabase trả về. */
+function createOAuthState(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  const state = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  sessionStorage.setItem(OAUTH_STATE_KEY, state);
+  return state;
+}
+
+/**
+ * Đối chiếu `state` rồi XOÁ ngay, nên mỗi giá trị chỉ dùng được một lần.
+ *
+ * @returns true khi khớp. Thiếu hoặc lệch đều trả false.
+ */
+export function consumeOAuthState(received: string | null): boolean {
+  let expected: string | null = null;
+  try {
+    expected = sessionStorage.getItem(OAUTH_STATE_KEY);
+    sessionStorage.removeItem(OAUTH_STATE_KEY);
+  } catch {
+    return false;
+  }
+  if (!expected || !received) return false;
+  return expected === received;
+}
+
+/**
  * URL để bắt đầu đăng nhập Google.
  *
- * @param callbackUrl URL tuyệt đối mà Supabase sẽ chuyển về sau khi xong.
+ * @param callbackUrl URL tuyệt đối mà Supabase sẽ chuyển về sau khi xong. Hàm
+ *   này tự gắn thêm `state` vào đó; Supabase giữ nguyên query string của
+ *   `redirect_to` khi chuyển về.
  * @throws Error khi thiếu `NEXT_PUBLIC_SUPABASE_URL` — hỏng cấu hình thì phải
  *   nói rõ, thay vì chuyển hướng tới `undefined/auth/v1/authorize`.
  */
@@ -72,10 +114,13 @@ export function buildGoogleOAuthUrl(callbackUrl: string): string {
     );
   }
 
+  const callback = new URL(callbackUrl);
+  callback.searchParams.set("state", createOAuthState());
+
   const base = supabaseUrl.replace(/\/+$/, "");
   const params = new URLSearchParams({
     provider: "google",
-    redirect_to: callbackUrl,
+    redirect_to: callback.toString(),
   });
 
   return `${base}/auth/v1/authorize?${params.toString()}`;

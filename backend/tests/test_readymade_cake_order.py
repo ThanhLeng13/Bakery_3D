@@ -20,6 +20,7 @@ phần sửa giao diện có chỗ dựa, và canh hai điều kiện đi kèm:
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from pydantic import ValidationError
 
 from app.schemas.admin_products import CreateProductRequest, UpdateProductRequest
 from app.services.pricing import lead_hours_for_items
@@ -98,7 +99,9 @@ class TestAdminCanSetProductType:
         assert req.product_type == "sweet"
 
     def test_tu_choi_gia_tri_la(self):
-        with pytest.raises(Exception):
+        # `ValidationError` chứ không phải `Exception`: bắt rộng thì một lỗi gõ
+        # sai tên trường trong `_payload` cũng làm test xanh.
+        with pytest.raises(ValidationError):
             CreateProductRequest.model_validate(self._payload(product_type="banh-mi"))
 
     def test_cap_nhat_doi_duoc_loai(self):
@@ -108,6 +111,77 @@ class TestAdminCanSetProductType:
     def test_cap_nhat_khong_truyen_thi_giu_nguyen(self):
         req = UpdateProductRequest.model_validate({"name": "Tên mới"})
         assert req.product_type is None
+
+
+class TestEndpointForwardsProductType:
+    """Endpoint phải CHUYỂN `product_type` xuống service.
+
+    Kiểm ở tầng endpoint, không chỉ tầng schema. Hai handler tự dựng dict rồi
+    liệt kê từng trường, nên thêm trường vào schema và service là KHÔNG đủ: nếu
+    handler không liệt kê thì giá trị bị bỏ lặng lẽ và admin vẫn không đổi được
+    loại sản phẩm. Đúng lỗi đã xảy ra lần đầu — test chỉ kiểm schema nên không
+    thấy.
+    """
+
+    def _service_spy(self, monkeypatch):
+        """Thay ProductService bằng bản ghi lại tham số."""
+        from app.api.v1.endpoints import admin_products as module
+
+        captured: dict = {}
+
+        class _Spy:
+            def create_product(self, data):
+                captured["create"] = data
+                return {"id": "p1", **data}
+
+            def update_product(self, product_id, data):
+                captured["update"] = data
+                return {"id": product_id, **data}
+
+        monkeypatch.setattr(module, "_get_product_service", lambda: _Spy())
+        return module, captured
+
+    def test_tao_san_pham_chuyen_product_type(self, monkeypatch):
+        module, captured = self._service_spy(monkeypatch)
+
+        request = CreateProductRequest.model_validate(
+            {
+                "name": "Bánh sinh nhật mẫu mới",
+                "description": "Mẫu làm sẵn.",
+                "category": "bánh âu",
+                "base_price": 350_000,
+                "sizes": [{"name": "20cm", "price": 350_000}],
+                "product_type": "cake",
+            }
+        )
+
+        module.create_product(request=request, current_user={"role": "admin"})
+
+        assert captured["create"]["product_type"] == "cake", (
+            "handler bỏ product_type nên admin không tạo được mẫu bán ngay"
+        )
+
+    def test_cap_nhat_chuyen_product_type(self, monkeypatch):
+        module, captured = self._service_spy(monkeypatch)
+
+        request = UpdateProductRequest.model_validate({"product_type": "cake"})
+        module.update_product(
+            product_id="p1", request=request, current_user={"role": "admin"}
+        )
+
+        assert captured["update"]["product_type"] == "cake"
+
+    def test_cap_nhat_khong_truyen_thi_khong_ghi_de(self, monkeypatch):
+        module, captured = self._service_spy(monkeypatch)
+
+        request = UpdateProductRequest.model_validate({"name": "Tên mới"})
+        module.update_product(
+            product_id="p1", request=request, current_user={"role": "admin"}
+        )
+
+        assert "product_type" not in captured["update"], (
+            "không truyền thì không được ghi đè loại sản phẩm đang có"
+        )
 
 
 class TestFrontendRoutesCakesToOrders:
@@ -127,9 +201,19 @@ class TestFrontendRoutesCakesToOrders:
         src = self._read("frontend/src/app/checkout/page.tsx")
 
         assert "isReadyMadeCakeMode" in src, "checkout phải có chế độ bánh làm sẵn"
+
         # Nhánh bánh làm sẵn phải đứng TRƯỚC nhánh giỏ bánh ngọt, nếu không
         # `isCartMode` bắt hết và bánh sinh nhật lại đi vào /purchases.
-        idx_ready = src.index("isReadyMadeCakeMode) {")
+        #
+        # Phải khớp ĐÚNG điều kiện của nhánh gửi đơn. Mẫu lỏng
+        # `"isReadyMadeCakeMode) {"` còn khớp cả `if (isCakeMode ||
+        # isReadyMadeCakeMode) {` trong `validateForm` — dòng đó nằm trước, nên
+        # phép so sánh luôn đúng và test không kiểm được gì.
+        submit_branch = "if (isReadyMadeCakeMode) {"
+        assert src.count(submit_branch) == 1, (
+            "cần đúng một nhánh gửi đơn cho bánh làm sẵn"
+        )
+        idx_ready = src.index(submit_branch)
         idx_cart = src.index("else if (isCartMode) {")
         assert idx_ready < idx_cart, "nhánh bánh làm sẵn phải được kiểm tra trước"
 
@@ -142,4 +226,27 @@ class TestFrontendRoutesCakesToOrders:
         )
         assert "productType: product.product_type" in src, (
             "món thêm vào giỏ phải mang theo loại sản phẩm"
+        )
+
+    def test_banh_sinh_nhat_khong_co_o_chon_kich_co_doi_gia(self):
+        """Giá hiển thị phải bằng giá bị tính.
+
+        Khi mở bán bánh sinh nhật, ô chọn kích cỡ vẫn còn và khối "Chi tiết giá"
+        vẫn cộng theo kích cỡ + hương vị, trong khi `buildCartItem` gửi
+        `base_price` và server cũng tính `base_price`
+        (`order_service._catalog_price` chỉ đọc cột đó, không xét kích cỡ).
+        Khách chọn 24cm thấy 450.000đ rồi bị tính 320.000đ — đúng loại lỗi mà
+        `pricing.py` ghi là đã gây lệch 130.000đ mỗi đơn.
+
+        Mua liền là mua đúng chiếc đang bày bán. Đổi kích cỡ là làm bánh mới,
+        tức mẫu đặt qua Studio với mốc chờ 24/48 giờ.
+        """
+        src = self._read("frontend/src/components/ProductDetailClient.tsx")
+
+        assert "isCake && product.sizes.length > 0" in src, (
+            "bánh sinh nhật phải hiện kích cỡ ở dạng CHỈ ĐỌC, không phải ô chọn "
+            "làm đổi giá"
+        )
+        assert "!isCake && product.sizes.length > 0" in src, (
+            "ô chọn kích cỡ đổi giá chỉ dành cho sản phẩm không phải bánh kem"
         )

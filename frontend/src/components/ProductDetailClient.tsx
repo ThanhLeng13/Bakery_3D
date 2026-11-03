@@ -551,21 +551,16 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
     setImgErrors((prev) => new Set(prev).add(index));
   };
 
-  const getSelectedSizePrice = (): number => {
-    if (!selectedSize) return product.base_price;
-    const size = product.sizes.find((s) => s.name === selectedSize);
-    return size?.price ?? product.base_price;
-  };
-
-  const getSelectedFlavorCost = (): number => {
-    if (!selectedFlavor) return 0;
-    const flavor = product.flavors.find((f) => f.name === selectedFlavor);
-    return flavor?.additional_cost ?? 0;
-  };
-
-  const totalPrice = isSweet
-    ? product.base_price
-    : getSelectedSizePrice() + getSelectedFlavorCost();
+  // Đã bỏ `getSelectedSizePrice` / `getSelectedFlavorCost` / `totalPrice`.
+  //
+  // Chúng là một BẢNG GIÁ THỨ HAI nằm ở giao diện: cộng kích cỡ và hương vị
+  // khách chọn, trong khi giỏ hàng và server đều tính theo
+  // `products.base_price` (`order_service._catalog_price` không xét kích cỡ).
+  // Giữ lại là giữ hai con số khác nhau cho cùng một chiếc bánh — đúng lỗi mà
+  // `backend/app/services/pricing.py` ghi là đã gây lệch 130.000đ mỗi đơn.
+  //
+  // Muốn đổi kích cỡ hay hương vị thì đi qua Studio, nơi server báo giá bằng
+  // `POST /api/v1/orders/quote`.
 
   const primary3DModel = product.three_d_models?.find((model) => model.is_primary)
     ?? product.three_d_models?.[0]
@@ -755,8 +750,37 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
               <p className="text-mocha/80 leading-relaxed">{product.description}</p>
             )}
 
-            {/* Size Selector */}
-            {product.sizes.length > 0 && (
+            {/* Bánh sinh nhật: kích cỡ là THÔNG TIN, không phải ô chọn đổi giá.
+                Mua liền là mua đúng chiếc đang bày bán, và server tính theo
+                `products.base_price` — `order_service._catalog_price` không xét
+                kích cỡ. Nếu để ô chọn ở đây thì khách bấm 24cm, thấy 450.000đ,
+                rồi bị tính 320.000đ: đúng loại lỗi hai bảng giá mà `pricing.py`
+                ghi là đã gây lệch 130.000đ mỗi đơn. Đổi kích cỡ nghĩa là làm
+                bánh mới, tức mẫu đặt qua Studio với mốc chờ 24/48 giờ. */}
+            {isCake && product.sizes.length > 0 && (
+              <div>
+                <h2 className="text-sm font-semibold text-mocha mb-3">
+                  Kích cỡ đặt riêng được
+                </h2>
+                <ul className="flex flex-wrap gap-2">
+                  {product.sizes.map((size) => (
+                    <li
+                      key={size.name}
+                      className="px-3 py-1.5 rounded-full text-sm bg-white text-mocha border border-mocha/10"
+                    >
+                      {size.name} — {formatPrice(size.price)}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-xs text-mocha/60">
+                  Mẫu bày tại tiệm bán theo giá bên dưới. Muốn kích cỡ khác thì
+                  đặt qua Studio, cần 24 giờ (bánh 2 tầng 48 giờ).
+                </p>
+              </div>
+            )}
+
+            {/* Size Selector — sản phẩm không phải bánh kem */}
+            {!isCake && product.sizes.length > 0 && (
               <div>
                 <h2 className="text-sm font-semibold text-mocha mb-3">Kích thước</h2>
                 <div className="flex flex-wrap gap-2">
@@ -777,8 +801,9 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
               </div>
             )}
 
-            {/* Flavor Options */}
-            {product.flavors.length > 0 && (
+            {/* Flavor Options — cùng lý do: hương vị có phụ phí nên chỉ hiện ô
+                chọn cho sản phẩm không phải bánh kem. */}
+            {!isCake && product.flavors.length > 0 && (
               <div>
                 <h2 className="text-sm font-semibold text-mocha mb-3">Hương vị</h2>
                 <div className="flex flex-wrap gap-2">
@@ -889,35 +914,18 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
             )}
 
 
-            {/* Price Breakdown — only for cake (has sizes/flavors) */}
-            {isCake && (
-              <div className="bg-white rounded-xl p-4 sm:p-6 space-y-3 border border-mocha/5">
-                <h2 className="text-sm font-semibold text-mocha mb-2">Chi tiết giá</h2>
-                <div className="flex justify-between text-sm text-mocha/70">
-                  <span>Giá cơ bản ({selectedSize || "—"})</span>
-                  <span>{formatPrice(getSelectedSizePrice())}</span>
-                </div>
-                {getSelectedFlavorCost() > 0 && (
-                  <div className="flex justify-between text-sm text-mocha/70">
-                    <span>Hương vị ({selectedFlavor})</span>
-                    <span>+{formatPrice(getSelectedFlavorCost())}</span>
-                  </div>
-                )}
-                <div className="border-t border-mocha/10 pt-3 flex justify-between">
-                  <span className="font-semibold text-mocha">Tổng cộng</span>
-                  <span className="font-bold text-lg text-pink-pastel">{formatPrice(totalPrice)}</span>
-                </div>
-              </div>
-            )}
-
-
-            {/* Sweet product: show price simply */}
-            {isSweet && (
-              <div className="flex items-baseline gap-3">
-                <span className="font-heading text-3xl font-bold text-pink-pastel">{formatPrice(product.base_price)}</span>
-                <span className="text-mocha/50 text-sm">/ cái</span>
-              </div>
-            )}
+            {/* Một giá duy nhất trên trang, bằng đúng giá server tính.
+                Khối "Chi tiết giá" cũ cộng theo kích cỡ + hương vị khách chọn,
+                nhưng cả giỏ hàng và server đều dùng `products.base_price`, nên
+                con số đó không phải số khách sẽ trả. */}
+            <div className="flex items-baseline gap-3">
+              <span className="font-heading text-3xl font-bold text-pink-pastel">
+                {formatPrice(product.base_price)}
+              </span>
+              <span className="text-mocha/50 text-sm">
+                {isCake ? "/ mẫu có sẵn" : "/ cái"}
+              </span>
+            </div>
 
             {/* Nút mua.
                 Trước đây cả khối này bọc trong `isSweet`, nên bánh sinh nhật

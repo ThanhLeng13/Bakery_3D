@@ -287,7 +287,14 @@ function CheckoutContent() {
           "/api/v1/orders",
           orderData
         );
-        setSubmittedIsCartMode(true);
+        // `false` vì đây là ĐƠN (`/orders`), không phải lượt mua bánh ngọt.
+        //
+        // Cờ này chọn văn bản màn hình xác nhận. Đặt `true` sẽ in "Mua hàng
+        // thành công" và "+N điểm đã được cộng" lấy từ `confirmation.points_earned`
+        // — trường chỉ có ở phản hồi của `/purchases`. Phản hồi của `/orders`
+        // không có nó, nên khách sẽ đọc "+0 điểm đã được cộng" dù điểm thực ra
+        // được cộng khi nhận bánh.
+        setSubmittedIsCartMode(false);
         setSubmittedBranchName(null);
         setConfirmation(response);
         setIdempotencyKey(

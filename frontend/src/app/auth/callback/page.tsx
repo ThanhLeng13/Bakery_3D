@@ -18,10 +18,10 @@
  */
 
 import { Suspense, useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { apiClient } from "@/lib/api";
 import { AuthUser } from "@/lib/auth";
-import { readOAuthFragment } from "@/lib/google-oauth";
+import { consumeOAuthState, readOAuthFragment } from "@/lib/google-oauth";
 import { resolveLoginDestination } from "@/lib/roles";
 
 export default function AuthCallbackPage() {
@@ -39,7 +39,6 @@ export default function AuthCallbackPage() {
 }
 
 function CallbackContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState("");
   // Chạy một lần. `searchParams` đổi tham chiếu giữa các lần render, nên để nó
@@ -55,10 +54,36 @@ function CallbackContent() {
       const { accessToken, refreshToken, error: oauthError } =
         readOAuthFragment(window.location.hash);
 
+      // Xoá fragment NGAY sau khi đọc, trước mọi `await`.
+      //
+      // Làm sau khi gọi /auth/me thì token còn nằm trên thanh địa chỉ suốt thời
+      // gian chờ, và nếu lỗi thì nằm lại vĩnh viễn — vào lịch sử trình duyệt và
+      // dễ bị chia sẻ qua ảnh chụp màn hình. Giữ nguyên path + query để
+      // `searchParams` phía trên vẫn đúng.
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + window.location.search,
+      );
+
       if (oauthError) {
         // Nói đúng lỗi Supabase trả về (ví dụ provider Google chưa bật trong
         // Dashboard) thay vì một câu chung không giúp sửa được gì.
         setError(`Google trả về lỗi: ${oauthError}`);
+        return;
+      }
+
+      // Đối chiếu `state` TRƯỚC khi lưu bất kỳ token nào.
+      //
+      // Luồng implicit nhận token từ fragment, nên trang này tin bất cứ ai mở
+      // được URL. Không kiểm `state` thì kẻ tấn công dụ khách mở
+      // `/auth/callback#access_token=<token của họ>` là khách bị đăng nhập vào
+      // tài khoản của họ, và mọi đơn khách đặt sau đó nằm ở tài khoản đó.
+      if (!consumeOAuthState(searchParams.get("state"))) {
+        setError(
+          "Yêu cầu đăng nhập không hợp lệ hoặc đã hết hiệu lực. " +
+            "Vui lòng bấm đăng nhập Google lại từ trang đăng nhập.",
+        );
         return;
       }
 
@@ -80,10 +105,18 @@ function CallbackContent() {
         const user = await apiClient.get<AuthUser>("/api/v1/auth/me");
         localStorage.setItem("auth_user", JSON.stringify(user));
 
-        // Xoá token khỏi thanh địa chỉ để không vào lịch sử trình duyệt.
-        window.history.replaceState(null, "", window.location.pathname);
-
-        router.replace(resolveLoginDestination(user.role, redirectUrl));
+        // Điều hướng CỨNG, không dùng `router.replace`.
+        //
+        // `AuthContext` chỉ đặt `user` khi khởi tạo, khi gọi `login`/`register`,
+        // hoặc khi nhận sự kiện `storage` — mà sự kiện đó KHÔNG kích hoạt trong
+        // chính tab đã ghi. Trang này ghi localStorage trực tiếp, nên sau một
+        // lần `router.replace` (điều hướng phía client) provider không remount
+        // và `user` vẫn là null: `ProtectedRoute` thấy chưa đăng nhập và đẩy
+        // khách về trang đăng nhập — đăng nhập Google trông như thất bại.
+        //
+        // Tải lại trang làm `initAuth` đọc lại localStorage, dựng phiên và bật
+        // tự động làm mới token.
+        window.location.assign(resolveLoginDestination(user.role, redirectUrl));
       } catch {
         // Dọn token nửa vời: giữ lại sẽ làm các trang sau tưởng đã đăng nhập.
         localStorage.removeItem("access_token");
@@ -102,6 +135,7 @@ function CallbackContent() {
       <div className="min-h-screen flex items-center justify-center bg-surface px-4">
         <div className="text-center">
           <div
+            id="callback-error"
             role="alert"
             className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 font-body"
           >
