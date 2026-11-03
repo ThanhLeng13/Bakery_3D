@@ -23,6 +23,8 @@ interface FormData {
   sizes: SizeOption[];
   flavors: string[];
   is_active: boolean;
+  /** `"cake"` = bánh sinh nhật bán ngay; `"sweet"` = bánh ngọt theo tồn kho. */
+  product_type: "sweet" | "cake";
 }
 
 interface FieldErrors {
@@ -49,6 +51,7 @@ interface ProductResponse {
   sizes: Array<{ name: string; price: number }>;
   flavors: string[];
   is_active: boolean;
+  product_type?: "sweet" | "cake" | null;
   images: ExistingImage[];
   created_at: string;
   updated_at: string;
@@ -86,6 +89,7 @@ export default function AdminProductEditPage() {
     sizes: [{ name: "", price: "" }],
     flavors: [""],
     is_active: true,
+    product_type: "sweet",
   });
 
   const formatPriceDisplay = (price: number): string => {
@@ -110,6 +114,8 @@ export default function AdminProductEditPage() {
           })),
           flavors: product.flavors.length > 0 ? product.flavors : [""],
           is_active: product.is_active,
+          // Cột cho phép NULL, nên quy về "sweet" — đúng mặc định cũ.
+          product_type: product.product_type ?? "sweet",
         });
         setExistingImages(product.images);
       } catch {
@@ -332,6 +338,7 @@ export default function AdminProductEditPage() {
         sizes: validSizes,
         flavors: validFlavors,
         is_active: formData.is_active,
+        product_type: formData.product_type,
       };
 
       await apiClient.put(`/api/v1/admin/products/${productId}`, payload);
@@ -476,6 +483,32 @@ export default function AdminProductEditPage() {
             {errors.category && (
               <p className="mt-1 text-xs text-red-500 font-body">{errors.category}</p>
             )}
+          </div>
+
+          {/* Loại sản phẩm — đổi được để chuyển một mẫu sang nhóm bán ngay */}
+          <div>
+            <label
+              htmlFor="product-type"
+              className="block text-sm font-body text-mocha/80 mb-1.5"
+            >
+              Loại sản phẩm <span className="text-red-500">*</span>
+            </label>
+            <select
+              id="product-type"
+              value={formData.product_type}
+              onChange={(e) => updateField("product_type", e.target.value)}
+              className="w-full px-4 py-2.5 rounded-lg border border-mocha/10 bg-cream/30 font-body text-sm text-mocha focus:outline-none focus:ring-2 focus:ring-pink-pastel/30"
+            >
+              <option value="sweet">Bánh ngọt — bán theo tồn kho chi nhánh</option>
+              <option value="cake">
+                Bánh sinh nhật — mẫu có sẵn, khách mua và nhận ngay
+              </option>
+            </select>
+            <p className="mt-1 text-xs text-mocha/50 font-body">
+              {formData.product_type === "cake"
+                ? "Mẫu này bán ngay được, không cần chờ 24 giờ."
+                : "Bánh ngọt cần có tồn kho ở chi nhánh mới bán được."}
+            </p>
           </div>
 
           {/* Base price */}

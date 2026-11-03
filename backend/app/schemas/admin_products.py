@@ -1,6 +1,6 @@
 """Pydantic schemas for admin product management endpoints."""
 
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -22,6 +22,13 @@ class CreateProductRequest(BaseModel):
     sizes: list[SizeOption] = Field(..., min_length=1, max_length=10, description="Available size options")
     flavors: list[str] = Field(default=[], description="Available flavors")
     is_active: bool = Field(default=True, description="Whether product is active")
+    product_type: Literal["sweet", "cake"] = Field(
+        default="sweet",
+        description=(
+            "'cake' = bánh sinh nhật, hiện ở danh mục và BÁN NGAY được (0 giờ "
+            "chờ). 'sweet' = bánh ngọt, bán theo tồn kho từng chi nhánh."
+        ),
+    )
 
     @field_validator("name")
     @classmethod
@@ -55,6 +62,9 @@ class UpdateProductRequest(BaseModel):
     sizes: Optional[list[SizeOption]] = Field(None, min_length=1, max_length=10, description="Available size options")
     flavors: Optional[list[str]] = Field(None, description="Available flavors")
     is_active: Optional[bool] = Field(None, description="Whether product is active")
+    product_type: Optional[Literal["sweet", "cake"]] = Field(
+        None, description="Đổi loại sản phẩm giữa 'sweet' và 'cake'."
+    )
 
     @field_validator("name")
     @classmethod

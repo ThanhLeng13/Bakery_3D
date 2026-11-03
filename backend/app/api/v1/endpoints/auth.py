@@ -8,12 +8,17 @@ Endpoints:
 - POST /api/v1/auth/logout - Logout
 - POST /api/v1/auth/forgot-password - Send password reset email
 - POST /api/v1/auth/reset-password - Reset password with token
+- GET  /api/v1/auth/me - Thông tin người dùng của token hiện tại
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
-from app.core.dependencies import get_supabase_client
+from app.core.dependencies import (
+    get_current_user,
+    get_supabase_client,
+    security_scheme,
+)
 from app.schemas.auth import (
     AuthResponse,
     ForgotPasswordRequest,
@@ -24,6 +29,7 @@ from app.schemas.auth import (
     RefreshTokenRequest,
     RegisterRequest,
     ResetPasswordRequest,
+    UserResponse,
 )
 from app.services.auth_service import (
     AuthService,
@@ -120,6 +126,36 @@ async def oauth_google(request: GoogleOAuthRequest):
         return result
     except (ValidationError, RateLimitError, AuthServiceError) as e:
         return _handle_auth_error(e)
+
+
+@router.get(
+    "/me",
+    response_model=UserResponse,
+    dependencies=[Depends(security_scheme)],
+)
+async def get_me(user: dict = Depends(get_current_user)):
+    """Thông tin người dùng ứng với token đang gửi.
+
+    Dùng cho luồng đăng nhập Google: Supabase trả về phiên (access_token,
+    refresh_token) nhưng KHÔNG trả về vai, vì vai nằm ở bảng `public.users` của
+    tiệm. Trang callback gọi endpoint này để biết điều hướng khách về trang
+    nào.
+
+    `get_current_user` cũng tự tạo dòng `public.users` khi còn thiếu, nên người
+    đăng nhập Google lần đầu có ngay hồ sơ và các khoá ngoại (orders.customer_id)
+    không bị vỡ.
+
+    `or ""` ở đây là bắt buộc: `UserResponse.email`/`full_name` khai `str`, mà
+    cột trong CSDL cho phép NULL — thiếu nó thì validate response thất bại và
+    trả 500.
+    """
+    return {
+        "id": str(user["id"]),
+        "email": user.get("email") or "",
+        "full_name": user.get("full_name") or "",
+        "phone": user.get("phone"),
+        "role": user.get("role") or "customer",
+    }
 
 
 @router.post("/refresh", response_model=AuthResponse)

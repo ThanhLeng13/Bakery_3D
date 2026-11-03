@@ -579,17 +579,33 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
   // gọi handler bằng cách khác vẫn đi được, và server sẽ trả lỗi 400.
   const cannotOrder = isOutOfStock || isPreviewOnly;
 
+  /**
+   * Món để đưa vào giỏ.
+   *
+   * Dùng chung cho cả bánh ngọt và bánh sinh nhật LÀM SẴN. `productType` quyết
+   * định checkout gọi API nào, nên không được bỏ: thiếu nó thì bánh sinh nhật
+   * bị gửi vào `POST /api/v1/purchases` và server từ chối, vì endpoint đó chỉ
+   * nhận `product_type = 'sweet'`.
+   *
+   * Giá luôn là `base_price` — đúng thứ server sẽ tính cho dòng có
+   * `product_id` thật (`order_service._catalog_price`). Kích cỡ khách chọn
+   * KHÔNG đổi giá ở đây: mua liền là mua đúng chiếc đang bày bán. Muốn đổi
+   * kích cỡ hay trang trí thì sang Studio, và khi đó mới áp mốc chờ 24/48 giờ.
+   */
+  const buildCartItem = () => ({
+    productId: product.id,
+    productName: product.name,
+    imageUrl: product.images.length > 0 ? product.images[0].url : null,
+    unitPrice: product.base_price,
+    expiresAt: selectedBranch?.expires_soonest ?? stockInfo?.expires_soonest ?? null,
+    branchId: selectedBranch?.branch_id ?? null,
+    branchName: selectedBranch?.branch_name ?? null,
+    productType: product.product_type,
+  });
+
   const handleAddToCart = () => {
     if (cannotOrder) return;
-    addItem({
-      productId: product.id,
-      productName: product.name,
-      imageUrl: product.images.length > 0 ? product.images[0].url : null,
-      unitPrice: product.base_price,
-      expiresAt: selectedBranch?.expires_soonest ?? stockInfo?.expires_soonest ?? null,
-      branchId: selectedBranch?.branch_id ?? null,
-      branchName: selectedBranch?.branch_name ?? null,
-    });
+    addItem(buildCartItem());
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 2500);
   };
@@ -601,15 +617,7 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
     // BEFORE router.push navigates. localStorage persistence of bakery_cart
     // still happens asynchronously via CartProvider's useEffect.
     flushSync(() => {
-      addItem({
-        productId: product.id,
-        productName: product.name,
-        imageUrl: product.images.length > 0 ? product.images[0].url : null,
-        unitPrice: product.base_price,
-        expiresAt: selectedBranch?.expires_soonest ?? stockInfo?.expires_soonest ?? null,
-        branchId: selectedBranch?.branch_id ?? null,
-        branchName: selectedBranch?.branch_name ?? null,
-      });
+      addItem(buildCartItem());
     });
     router.push("/checkout");
   };
@@ -911,7 +919,14 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
               </div>
             )}
 
-            {/* Action Buttons — split by product type */}
+            {/* Nút mua.
+                Trước đây cả khối này bọc trong `isSweet`, nên bánh sinh nhật
+                KHÔNG có nút mua nào: nhánh `isCake` chỉ có một <Link> trỏ
+                "/checkout" mà không thêm gì vào giỏ, nên khách bấm "Đặt hàng
+                ngay" là tới trang checkout trống với dòng "Giỏ hàng trống".
+                Bánh sinh nhật làm sẵn trong danh mục bán ngay được (server
+                tính 0 giờ chờ cho dòng có product_id thật), nên dùng chung nút
+                với bánh ngọt. Chỉ phần tồn kho mới riêng cho bánh ngọt. */}
             <div className="space-y-3">
               {isSweet && (
                 <>
@@ -935,9 +950,12 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
                       <span>Sắp hết! Chỉ còn {selectedBranchStock} cái tại {selectedBranch?.branch_name ?? "chi nhánh này"}</span>
                     </div>
                   )}
+                </>
+              )}
 
-                  {/* Mua ngay — trực tiếp checkout không cần admin duyệt.
-                      Cùng chặn như nút thêm giỏ: mẫu chỉ xem thì không bán. */}
+                  {/* Mua ngay — dùng chung cho bánh ngọt và bánh sinh nhật làm
+                      sẵn. Cùng chặn như nút thêm giỏ: mẫu chỉ xem thì không
+                      bán. */}
                   <button
                     id={`buy-now-${product.id}`}
                     onClick={handleBuyNow}
@@ -1024,23 +1042,17 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
                       Xem giỏ hàng →
                     </button>
                   )}
-                </>
-              )}
 
+              {/* Bánh sinh nhật: nói rõ mua liền được, và mở đường sang Studio
+                  nếu khách muốn đổi kích cỡ hay trang trí — lúc đó mới áp mốc
+                  chờ 24 giờ (hoặc 48 giờ với bánh hai tầng). */}
               {isCake && (
                 <>
-                  <Link
-                    href="/checkout"
-                    id={`order-cake-${product.id}`}
-                    className="w-full block text-center py-3 px-6 font-semibold rounded-full bg-pink-pastel text-white hover:bg-pink-pastel/90 transition-all shadow-sm hover:shadow-md active:scale-[0.98]"
-                  >
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                      </svg>
-                      Đặt hàng ngay
-                    </span>
-                  </Link>
+                  {!cannotOrder && (
+                    <p className="text-xs text-mocha/60 text-center">
+                      Mẫu có sẵn tại tiệm — nhận ngay hôm nay.
+                    </p>
+                  )}
                   <Link
                     href={primary3DModel ? `/cake-builder?model=${encodeURIComponent(primary3DModel.slug)}` : "/cake-builder"}
                     id={`design-cake-${product.id}`}

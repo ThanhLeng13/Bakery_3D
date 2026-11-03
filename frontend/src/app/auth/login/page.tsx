@@ -6,11 +6,15 @@
  * Shows generic error for invalid credentials, rate limit message with timer.
  */
 
-import { Suspense, useState, FormEvent } from "react";
+import { Suspense, useEffect, useState, FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { ApiError } from "@/lib/api";
+import { buildGoogleOAuthUrl } from "@/lib/google-oauth";
+
+/** Nơi lưu email đã nhớ. Chỉ email — KHÔNG bao giờ lưu mật khẩu. */
+const REMEMBERED_EMAIL_KEY = "bakery_remembered_email";
 
 export default function LoginPage() {
   return (
@@ -37,10 +41,24 @@ function LoginContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const redirectUrl = searchParams.get("redirect") || "/";
+
+  // Điền lại email đã nhớ từ lần trước.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(REMEMBERED_EMAIL_KEY);
+      if (saved) {
+        setEmail(saved);
+        setRememberMe(true);
+      }
+    } catch {
+      // localStorage bị chặn (chế độ riêng tư): bỏ qua, không làm hỏng form.
+    }
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -49,15 +67,44 @@ function LoginContent() {
 
     try {
       await login({ email, password });
+
+      // Chỉ nhớ EMAIL. Lưu mật khẩu vào localStorage là để lộ mật khẩu cho mọi
+      // script chạy trên cùng origin, nên trình duyệt tự quản phần mật khẩu qua
+      // `autoComplete="current-password"`.
+      try {
+        if (rememberMe) {
+          localStorage.setItem(REMEMBERED_EMAIL_KEY, email.trim());
+        } else {
+          localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+        }
+      } catch {
+        // Không lưu được thì vẫn cho đăng nhập.
+      }
+
       router.replace(redirectUrl);
     } catch (err: unknown) {
       const apiError = err as ApiError;
 
-      if (apiError.retry_after) {
+      // Phân biệt theo mã HTTP thay vì in cùng một câu cho mọi lỗi.
+      //
+      // Trước đây mọi lỗi đều ra "Email hoặc mật khẩu không đúng", nên lỗi
+      // server (500 do dữ liệu NULL trong bảng users) bị hiểu thành sai mật
+      // khẩu. Người dùng nhập đúng mật khẩu vẫn thấy báo sai và không có cách
+      // nào biết thật ra server mới là chỗ lỗi.
+      if (apiError?.retry_after) {
         const minutes = Math.ceil(apiError.retry_after / 60);
         setError(`Quá nhiều lần thử. Vui lòng thử lại sau ${minutes} phút`);
-      } else {
+      } else if (apiError?.status === 401) {
         setError("Email hoặc mật khẩu không đúng");
+      } else if (apiError?.status && apiError.status >= 500) {
+        setError(
+          "Máy chủ đang gặp sự cố nên chưa đăng nhập được. " +
+            "Mật khẩu của bạn có thể vẫn đúng — vui lòng thử lại sau.",
+        );
+      } else if (typeof apiError?.detail === "string" && apiError.detail) {
+        setError(apiError.detail);
+      } else {
+        setError("Không đăng nhập được. Vui lòng thử lại.");
       }
     } finally {
       setLoading(false);
@@ -65,10 +112,19 @@ function LoginContent() {
   }
 
   function handleGoogleLogin() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
     const callbackUrl = `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirectUrl)}`;
-    // Redirect to backend Google OAuth initiation endpoint
-    window.location.href = `${apiUrl}/api/v1/auth/oauth/google/redirect?callback_url=${encodeURIComponent(callbackUrl)}`;
+    try {
+      // Đi thẳng tới Supabase. Đường cũ gọi
+      // `${API_URL}/api/v1/auth/oauth/google/redirect` — endpoint không tồn tại
+      // trong router backend, nên nút luôn ra 404.
+      window.location.href = buildGoogleOAuthUrl(callbackUrl);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Chưa cấu hình được đăng nhập Google.",
+      );
+    }
   }
 
   return (
@@ -87,6 +143,7 @@ function LoginContent() {
           {/* Error Message */}
           {error && (
             <div
+              id="login-error"
               className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm font-body"
               role="alert"
             >
@@ -155,6 +212,23 @@ function LoginContent() {
                   )}
                 </button>
               </div>
+            </div>
+
+            {/* Nhớ đăng nhập — chỉ nhớ email, mật khẩu do trình duyệt tự quản */}
+            <div className="flex items-center gap-2.5">
+              <input
+                id="remember-me"
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-line text-pink-pastel focus:ring-2 focus:ring-pink-pastel/40 cursor-pointer"
+              />
+              <label
+                htmlFor="remember-me"
+                className="text-sm text-mocha font-body cursor-pointer select-none"
+              >
+                Nhớ đăng nhập
+              </label>
             </div>
 
             {/* Submit Button */}

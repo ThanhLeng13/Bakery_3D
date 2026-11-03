@@ -24,6 +24,16 @@ interface FormData {
   sizes: SizeOption[];
   flavors: string[];
   is_active: boolean;
+  /**
+   * Quyết định sản phẩm bán theo đường nào.
+   *
+   * - `"cake"`  — bánh sinh nhật: mẫu LÀM SẴN, khách mua và nhận ngay (0 giờ).
+   * - `"sweet"` — bánh ngọt: bán theo tồn kho từng chi nhánh.
+   *
+   * Form cũ không có trường này nên mọi sản phẩm admin tạo đều rơi về mặc định
+   * của CSDL, và không có cách nào thêm một mẫu bánh sinh nhật bán ngay.
+   */
+  product_type: "sweet" | "cake";
 }
 
 interface FieldErrors {
@@ -63,6 +73,7 @@ export default function AdminProductNewPage() {
     sizes: [{ name: "", price: "" }],
     flavors: [""],
     is_active: true,
+    product_type: "sweet",
   });
 
   const updateField = (field: keyof FormData, value: unknown) => {
@@ -279,6 +290,7 @@ export default function AdminProductNewPage() {
         sizes: validSizes,
         flavors: validFlavors,
         is_active: formData.is_active,
+        product_type: formData.product_type,
       };
 
       const product = await apiClient.post<{ id: string }>(
@@ -432,6 +444,32 @@ export default function AdminProductNewPage() {
                 {errors.category}
               </p>
             )}
+          </div>
+
+          {/* Loại sản phẩm — quyết định cách bán, không chỉ cách hiển thị */}
+          <div>
+            <label
+              htmlFor="product-type"
+              className="block text-sm font-body text-mocha/80 mb-1.5"
+            >
+              Loại sản phẩm <span className="text-red-500">*</span>
+            </label>
+            <select
+              id="product-type"
+              value={formData.product_type}
+              onChange={(e) => updateField("product_type", e.target.value)}
+              className="w-full px-4 py-2.5 rounded-lg border border-mocha/10 bg-cream/30 font-body text-sm text-mocha focus:outline-none focus:ring-2 focus:ring-pink-pastel/30"
+            >
+              <option value="sweet">Bánh ngọt — bán theo tồn kho chi nhánh</option>
+              <option value="cake">
+                Bánh sinh nhật — mẫu có sẵn, khách mua và nhận ngay
+              </option>
+            </select>
+            <p className="mt-1 text-xs text-mocha/50 font-body">
+              {formData.product_type === "cake"
+                ? "Mẫu này hiện trong danh mục bánh sinh nhật và bán ngay được (không cần chờ 24 giờ). Khách muốn đổi kích cỡ hay trang trí thì dùng Studio và khi đó mới áp mốc chờ."
+                : "Bánh ngọt cần có tồn kho ở chi nhánh mới bán được."}
+            </p>
           </div>
 
           {/* Base price */}
