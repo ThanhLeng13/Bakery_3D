@@ -20,10 +20,36 @@
  * Không thêm thư viện nào: `@supabase/supabase-js` không có trong package.json,
  * và luồng này chỉ là một lần chuyển hướng.
  *
- * ĐIỀU KIỆN BÊN NGOÀI CODE: provider Google phải được bật trong Supabase
- * Dashboard (Authentication -> Providers -> Google) và URL callback phải nằm
- * trong danh sách Redirect URLs. Không bật thì Supabase trả lỗi
- * `provider is not enabled` — code không thể tự làm thay.
+ * ĐIỀU KIỆN BÊN NGOÀI CODE
+ * ------------------------
+ * 1. Bật provider Google: Supabase Dashboard -> Authentication -> Providers ->
+ *    Google. Chưa bật thì Supabase trả `provider is not enabled`, và trang
+ *    callback in đúng lỗi đó.
+ *
+ * 2. Khai Redirect URLs có WILDCARD. Đây là chỗ dễ sai nhất và hỏng **im
+ *    lặng**: `redirect_to` phải khớp danh sách Redirect URLs, và khi không
+ *    khớp Supabase KHÔNG báo lỗi — nó chuyển về Site URL. Khách bấm đăng nhập
+ *    Google, quay về trang chủ trong trạng thái chưa đăng nhập, và không có
+ *    thông báo nào để lần ra nguyên nhân.
+ *
+ *    `redirect_to` do hàm này sinh LUÔN có query string (`redirect` và
+ *    `state`), nên một entry khớp chính xác `/auth/callback` là KHÔNG đủ.
+ *    Theo tài liệu Supabase, ký tự phân tách là `.` và `/`; `*` chỉ khớp chuỗi
+ *    không chứa ký tự phân tách, còn `**` khớp mọi chuỗi. Vì vậy phải dùng
+ *    `**`:
+ *
+ *      Site URL (để riêng, dùng cho link trong email):
+ *        https://ten-mien-that.com
+ *
+ *      Redirect URLs — mỗi origin có thể nhận callback đều cần một dòng:
+ *        https://ten-mien-that.com/auth/callback**
+ *        http://localhost:3000/auth/callback**
+ *        https://*-<team-slug>.vercel.app/auth/callback**   (bản preview)
+ *
+ *    Cổng localhost phải khớp cổng đang chạy. Bản preview của Vercel đổi tên
+ *    miền mỗi lần deploy nên bắt buộc dùng wildcard, không khai tay từng bản.
+ *
+ * Tài liệu: https://supabase.com/docs/guides/auth/redirect-urls
  */
 
 /** Token Supabase trả về trong fragment sau khi đăng nhập Google xong. */
