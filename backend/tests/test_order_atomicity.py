@@ -105,6 +105,34 @@ class _RpcStub:
 
 
 class TestOrderIsAtomic:
+    def test_endpoint_wires_authenticated_and_service_role_clients(self, monkeypatch):
+        """Route keeps user-scoped queries separate from the privileged RPC."""
+        from app.api.v1.endpoints import orders as order_endpoint
+
+        auth_client = _ClientStub()
+        rpc_client = _ClientStub()
+        calls: list[tuple[object, bool]] = []
+
+        def get_client(token=None, use_service_role=False):
+            calls.append((token, use_service_role))
+            return rpc_client if use_service_role else auth_client
+
+        monkeypatch.setattr(order_endpoint, "get_supabase_client", get_client)
+        service = order_endpoint._get_order_service("customer-jwt")
+
+        assert service._supabase is auth_client
+        assert service._rpc_client is rpc_client
+        assert calls == [("customer-jwt", False), (None, True)]
+
+    def test_uses_separate_rpc_client_for_privileged_function(self):
+        """The atomic RPC uses the injected service-role client only."""
+        auth_client = _ClientStub()
+        rpc_client = _ClientStub()
+        service = OrderService(auth_client, rpc_client=rpc_client)
+        service.create_order(_order_data(), {"id": str(uuid4())})
+        assert not [call for call in auth_client.calls if call[0] == "rpc"]
+        assert [call for call in rpc_client.calls if call[0] == "rpc"]
+
     def test_du_dung_mot_rpc_deu_nhat(self):
         """Mọi bảng phải được ghi trong MỘT lệnh, không ghi tay từng bảng."""
         client = _ClientStub()

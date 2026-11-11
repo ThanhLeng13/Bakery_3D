@@ -221,6 +221,17 @@ class TestFrontendRoutesCakesToOrders:
         ready_block = src[idx_ready:idx_cart]
         assert "branch_id: selectedBranchId!" in ready_block
 
+    def test_mua_ngay_chi_chuyen_checkout_khi_add_item_thanh_cong(self):
+        src = self._read("frontend/src/components/ProductDetailClient.tsx")
+        assert "added = addItem(buildCartItem())" in src
+        assert "if (added) router.push(\"/checkout\")" in src
+
+    def test_cart_add_item_co_the_bao_tu_choi(self):
+        src = self._read("frontend/src/contexts/CartContext.tsx")
+        assert "addItem:" in src
+        assert "=> boolean" in src
+        assert "if (!confirmed) return false" in src
+
     def test_trang_chi_tiet_khong_con_link_checkout_rong(self):
         """Nút cũ là <Link href="/checkout"> không thêm gì vào giỏ."""
         src = self._read("frontend/src/components/ProductDetailClient.tsx")
@@ -239,6 +250,12 @@ class TestFrontendRoutesCakesToOrders:
         )
         assert "if (!isReadyMadeCatalogueProduct) return;" in src, (
             "không được chỉ fetch tồn kho cho sweet"
+        )
+        assert "branch.branch_id !== null && branch.quantity_available > 0" in src, (
+            "Kho chung không có branch UUID không được phép mua nhận tại chi nhánh"
+        )
+        assert "setStockByBranch(initialStockByBranch ?? null)" in src, (
+            "refresh lỗi phải giữ snapshot SSR thay vì làm mất tồn kho đã biết"
         )
 
     def test_product_detail_fetches_stock_for_cake_catalogue_too(self):

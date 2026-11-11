@@ -62,6 +62,7 @@ class OrderServiceError(Exception):
     """Base exception for order service errors."""
 
     def __init__(self, message: str, status_code: int = 400):
+        """Create an order-service error with its HTTP status code."""
         self.message = message
         self.status_code = status_code
         super().__init__(message)
@@ -71,6 +72,7 @@ class OrderNotFoundError(OrderServiceError):
     """Order not found."""
 
     def __init__(self, order_id: str):
+        """Create a not-found error for an order ID."""
         super().__init__(f"Order not found: {order_id}", status_code=404)
 
 
@@ -78,6 +80,7 @@ class InvalidStatusTransitionError(OrderServiceError):
     """Invalid order status transition."""
 
     def __init__(self, current_status: str, requested_status: str, valid_next: list[str]):
+        """Create an error describing the allowed next states."""
         valid_str = ", ".join(valid_next) if valid_next else "none"
         super().__init__(
             f"Cannot transition from '{current_status}' to '{requested_status}'. "
@@ -90,6 +93,7 @@ class InsufficientPermissionError(OrderServiceError):
     """User does not have permission for this status transition."""
 
     def __init__(self, role: str, transition: str):
+        """Create an authorization error for a forbidden transition."""
         super().__init__(
             f"Role '{role}' is not allowed to perform transition: {transition}",
             status_code=403,
@@ -100,6 +104,7 @@ class PickupDateValidationError(OrderServiceError):
     """Pickup date does not meet requirements."""
 
     def __init__(self, message: str):
+        """Create a pickup-date validation error."""
         super().__init__(message, status_code=400)
 
 
@@ -134,9 +139,18 @@ def get_allowed_roles_for_transition(current_status: str, new_status: str) -> li
 class OrderService:
     """Order service for managing orders in Supabase."""
 
-    def __init__(self, supabase_client: Any):
-        """Initialize with a Supabase client instance."""
+    def __init__(self, supabase_client: Any, rpc_client: Any | None = None):
+        """Initialize customer-scoped and privileged clients.
+
+        ``supabase_client`` keeps the authenticated customer's context for
+        voucher lookup and other customer-scoped reads. ``rpc_client`` is
+        intentionally separate because ``rpc_create_order`` is a SECURITY
+        DEFINER function whose execute privilege is granted only to the
+        service role; accepting a browser/authenticated client here would make
+        ready-made inventory orders fail with a permission error in production.
+        """
         self._supabase = supabase_client
+        self._rpc_client = rpc_client or supabase_client
 
     def _check_baker_authorization(self, order_id: str, order: dict, baker: dict, read_only: bool = False) -> None:
         """
@@ -384,7 +398,7 @@ class OrderService:
 
         try:
             rpc_result = (
-                self._supabase.rpc(
+                self._rpc_client.rpc(
                     "rpc_create_order",
                     {
                         "p_customer_id": str(customer["id"]),

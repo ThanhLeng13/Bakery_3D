@@ -33,9 +33,17 @@ router = APIRouter()
 
 
 def _get_order_service(token: str | None = None) -> OrderService:
-    """Create OrderService with standard authenticated Supabase client."""
+    """Create OrderService with separate auth and RPC clients.
+
+    Customer-scoped reads use the request token, while the atomic order RPC is
+    called through the service-role client because the migration deliberately
+    grants EXECUTE only to ``service_role``. The RPC still receives all
+    server-resolved prices and validated IDs; using service role does not trust
+    browser input or bypass the service's business checks.
+    """
     client = get_supabase_client(token, use_service_role=False)
-    return OrderService(client)
+    rpc_client = get_supabase_client(use_service_role=True)
+    return OrderService(client, rpc_client=rpc_client)
 
 
 @router.post("/quote", response_model=QuoteResponse)

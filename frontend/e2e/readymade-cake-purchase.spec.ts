@@ -25,6 +25,7 @@ import { isolateNetwork } from "../playwright.config";
 const CAKE_ID = "cccccccc-0000-0000-0000-000000000001";
 const CAKE_NAME = "Bánh sinh nhật hoa tươi";
 const CAKE_PRICE = 420000;
+const BRANCH_ID = "11111111-1111-4111-8111-111111111111";
 
 /** Món bánh sinh nhật trong giỏ, đúng hình dạng `CartItem` đã lưu. */
 const CAKE_CART_ITEM = {
@@ -35,7 +36,7 @@ const CAKE_CART_ITEM = {
   unitPrice: CAKE_PRICE,
   quantity: 1,
   expiresAt: null,
-  branchId: "branch-co-banh",
+  branchId: BRANCH_ID,
   branchName: "Chi nhánh còn bánh",
   productType: "cake",
 };
@@ -175,7 +176,7 @@ test("đặt bánh làm sẵn gọi /api/v1/orders và cho nhận trong ngày", 
   const payload = JSON.parse(posts[0].body);
   expect(payload.items).toHaveLength(1);
   expect(payload.items[0].product_id).toBe(CAKE_ID);
-  expect(payload.branch_id).toBe("branch-co-banh");
+  expect(payload.branch_id).toBe(BRANCH_ID);
   // Mẫu làm sẵn không có thiết kế riêng. Gửi `customization_json` vào sẽ khiến
   // server coi là mẫu đặt và đòi 24/48 giờ.
   expect(payload.items[0].customization_json).toBeUndefined();

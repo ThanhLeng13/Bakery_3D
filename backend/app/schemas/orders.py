@@ -57,6 +57,7 @@ class CreateOrderRequest(BaseModel):
     @field_validator("phone")
     @classmethod
     def validate_phone(cls, v: str) -> str:
+        """Require exactly ten numeric digits for Vietnamese phone numbers."""
         if not v.isdigit() or len(v) != 10:
             raise ValueError("Phone must be exactly 10 digits")
         return v
@@ -79,6 +80,7 @@ class UpdateStatusRequest(BaseModel):
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: str) -> str:
+        """Allow only statuses represented by the order state machine."""
         # 'draft' is a valid stored status but nothing transitions *into* it:
         # only the agent creates drafts, and it creates them directly. Staff
         # move a draft to 'pending' to accept it.

@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 class InventoryServiceError(Exception):
     def __init__(self, message: str, status_code: int = 400):
+        """Create a user-facing inventory error with its HTTP status."""
         self.message = message
         self.status_code = status_code
         super().__init__(message)
@@ -25,7 +26,9 @@ class InventoryServiceError(Exception):
 
 class InsufficientStockError(InventoryServiceError):
     def __init__(self, available: int, requested: int):
+        """Create a conflict error containing available and requested counts."""
         super().__init__(
+
             f"Không đủ hàng. Còn {available} cái, yêu cầu {requested} cái.",
             status_code=409,
         )
@@ -35,13 +38,15 @@ class InsufficientStockError(InventoryServiceError):
 
 class BatchNotFoundError(InventoryServiceError):
     def __init__(self):
+        """Create a not-found error for a missing inventory batch."""
         super().__init__("Không tìm thấy lô hàng.", status_code=404)
 
 
 class InventoryService:
-    """Service quản lý lô hàng bánh ngọt."""
+    """Service quản lý lô mẫu bánh có sẵn."""
 
     def __init__(self, supabase_client: Any):
+        """Initialize the service with a Supabase client."""
         self._db = supabase_client
 
     # ─── Public ────────────────────────────────────────────────────────────────

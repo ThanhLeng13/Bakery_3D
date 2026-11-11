@@ -37,7 +37,8 @@ interface CartContextValue {
   selectedBranchName: string | null;
   openCart: () => void;
   closeCart: () => void;
-  addItem: (item: Omit<CartItem, "cartKey" | "quantity"> & { quantity?: number }) => void;
+  /** Returns true when the item was accepted into the cart, false when a confirmation was declined. */
+  addItem: (item: Omit<CartItem, "cartKey" | "quantity"> & { quantity?: number }) => boolean;
   removeItem: (cartKey: string) => void;
   updateQuantity: (cartKey: string, quantity: number) => void;
   clearCart: () => void;
@@ -143,9 +144,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
             : "Giỏ hàng đang có bánh ngọt. Bánh sinh nhật và bánh ngọt phải " +
               "đặt thành hai đơn riêng.\nXoá giỏ hiện tại để thêm món này?",
         );
-        if (!confirmed) return;
+        if (!confirmed) return false;
         setItems([{ ...newItem, cartKey, quantity: qty }]);
-        return;
+        return true;
       }
 
       // Branch mismatch — confirm BEFORE touching state (keeps updater pure)
@@ -159,10 +160,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
           `Giỏ hàng đang có sản phẩm từ "${existingBranchName}".\n` +
           `Bạn có muốn đổi sang "${newBranchName}" và xoá các sản phẩm cũ không?`
         );
-        if (!confirmed) return;
+        if (!confirmed) return false;
         // Replace entire cart with just this new item
         setItems([{ ...newItem, cartKey, quantity: qty }]);
-        return;
+        return true;
       }
 
       // Normal add / quantity bump — pure state updater
@@ -175,6 +176,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
         return [...prev, { ...newItem, cartKey, quantity: qty }];
       });
+      return true;
     },
     []
   );
@@ -255,7 +257,7 @@ export function useCart(): CartContextValue {
       selectedBranchName: null,
       openCart: () => {},
       closeCart: () => {},
-      addItem: () => {},
+      addItem: () => false,
       removeItem: () => {},
       updateQuantity: () => {},
       clearCart: () => {},

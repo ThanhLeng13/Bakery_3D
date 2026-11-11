@@ -30,6 +30,7 @@ public_router = APIRouter()
 # ─── Dependency ────────────────────────────────────────────────────────────────
 
 def _get_inventory_service() -> InventoryService:
+    """Build the service-role inventory client used by manager routes."""
     # Uses threading.local()-cached client from get_supabase_client()
     client = get_supabase_client(use_service_role=True)
     return InventoryService(client)
@@ -47,6 +48,7 @@ class AddBatchRequest(BaseModel):
 
     @model_validator(mode="after")
     def expires_after_produced(self) -> "AddBatchRequest":
+        """Reject a batch whose expiry is not after its production date."""
         if self.expires_at <= self.produced_at:
             raise ValueError("expires_at phải sau produced_at")
         return self
@@ -70,6 +72,7 @@ class BulkAddBatchRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_bulk(self) -> "BulkAddBatchRequest":
+        """Validate dates and remove duplicate branch IDs while preserving order."""
         # Validate date range
         if self.expires_at <= self.produced_at:
             raise ValueError("expires_at phải sau produced_at")
