@@ -257,6 +257,13 @@ class TestFrontendRoutesCakesToOrders:
         assert "setStockByBranch(initialStockByBranch ?? null)" in src, (
             "refresh lỗi phải giữ snapshot SSR thay vì làm mất tồn kho đã biết"
         )
+        assert "const [selectedBranchId, setSelectedBranchId]" in src, (
+            "chỉ ID chi nhánh mới được lưu state; object tồn kho phải suy ra từ dữ liệu mới"
+        )
+        assert "allBranches.find((branch) => branch.branch_id === selectedBranchId)" in src, (
+            "selected branch phải được suy ra từ stockByBranch mới nhất"
+        )
+        assert "setSelectedBranchId(branch.branch_id)" in src
 
     def test_product_detail_fetches_stock_for_cake_catalogue_too(self):
         src = self._read("frontend/src/app/products/[id]/page.tsx")

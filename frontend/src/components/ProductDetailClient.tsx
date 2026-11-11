@@ -507,10 +507,13 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
     // active flag: if the effect re-runs (product.id changed) the cleanup sets
     // active=false so any in-flight response for the previous product is ignored
     let active = true;
-    // Reset selection, but retain the server-rendered snapshot while refreshing.
+    // Reset the selected ID, but retain the server-rendered snapshot while
+    // refreshing. The selected branch object is always DERIVED from the latest
+    // `stockByBranch` below; keeping an old object here would let stale stock
+    // enter the cart after a refresh changed its quantity to zero.
     // If the refresh fails, the known initial stock remains usable; if neither
     // snapshot nor fetch exists, the fail-closed guard below keeps buying off.
-    setSelectedBranch(null);
+    setSelectedBranchId(null);
     setStockByBranch(initialStockByBranch ?? null);
     setBranchLoading(true);
     fetch(`${API_BASE}/api/v1/products/${product.id}/stock-by-branch`, {
@@ -539,16 +542,29 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
     (branch) => branch.branch_id !== null && branch.quantity_available > 0,
   );
 
-  // Auto-select only a real branch with stock; never auto-select "Kho chung".
-  const [selectedBranch, setSelectedBranch] = useState<BranchStock | null>(null);
+  // Keep only the ID in state. Availability/name/expiry are derived from the
+  // latest response, so a refresh cannot leave an old BranchStock object with a
+  // non-zero quantity after the server says that branch is sold out.
+  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
+  const selectedBranch = selectedBranchId
+    ? allBranches.find((branch) => branch.branch_id === selectedBranchId) ?? null
+    : null;
 
-  // Update selected branch when data arrives
+  // Keep a selected branch only while it remains purchasable; otherwise choose
+  // the first current branch with stock, or no branch when all stock is gone.
+  // Rebuild the list from `stockByBranch` inside the effect so dependencies are
+  // stable and React re-runs exactly when the server snapshot changes.
   useEffect(() => {
-    if (purchasableBranches.length > 0 && selectedBranch === null) {
-      setSelectedBranch(purchasableBranches[0]);
+    const currentPurchasable = (stockByBranch?.branches ?? []).filter(
+      (branch) => branch.branch_id !== null && branch.quantity_available > 0,
+    );
+    const stillPurchasable = currentPurchasable.some(
+      (branch) => branch.branch_id === selectedBranchId,
+    );
+    if (!stillPurchasable) {
+      setSelectedBranchId(currentPurchasable[0]?.branch_id ?? null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stockByBranch]);
+  }, [selectedBranchId, stockByBranch]);
 
   // A failed refresh keeps valid server-rendered stock. If neither the initial
   // snapshot nor a fetched result exists, fail closed and keep purchase disabled.
@@ -556,7 +572,7 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
   const isOutOfStock = isReadyMadeCatalogueProduct && (
     stockByBranch === null ||
     purchasableBranches.length === 0 ||
-    selectedBranch?.branch_id === null ||
+    selectedBranch === null ||
     selectedBranchStock === 0
   );
 
@@ -873,7 +889,7 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
                       return (
                         <button
                           key={branch.branch_id ?? "no-branch"}
-                          onClick={() => isPurchasable && setSelectedBranch(branch)}
+                          onClick={() => isPurchasable && setSelectedBranchId(branch.branch_id)}
                           disabled={!isPurchasable}
                           className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all text-left ${
                             !isPurchasable
