@@ -124,6 +124,42 @@ class TestOrderIsAtomic:
         OrderService(client).create_order(_order_data(), {"id": str(uuid4())})
         assert client.calls[0][1] == "rpc_create_order"
 
+    def test_rpc_always_receives_branch_argument(self):
+        """Hàm RPC mới có chữ ký p_branch_id, kể cả custom order gửi NULL.
+
+        Nếu bỏ tham số này, PostgREST sẽ gọi overload cũ (không trừ tồn) hoặc
+        lỗi signature. Custom Studio không có kho, nên None là giá trị đúng.
+        """
+        client = _ClientStub()
+        OrderService(client).create_order(_order_data(), {"id": str(uuid4())})
+        args = next(call[2] for call in client.calls if call[0] == "rpc")
+        assert "p_branch_id" in args
+        assert args["p_branch_id"] is None
+
+    def test_ready_made_catalogue_order_forwards_selected_branch_to_rpc(self):
+        """Không chỉ schema nhận branch: phải đi tới transaction trừ tồn."""
+        client = _ClientStub()
+        branch_id = str(uuid4())
+        product_id = str(uuid4())
+        data = _order_data(
+            branch_id=branch_id,
+            items=[{
+                "product_id": product_id,
+                "quantity": 1,
+                "unit_price": 1,
+                "customization_json": None,
+            }],
+            pickup_date=datetime.now(timezone.utc) + timedelta(hours=1),
+        )
+        service = OrderService(client)
+        # Unit-price resolution normally reads products; this test isolates the
+        # RPC contract, so avoid teaching this generic stub all catalog queries.
+        service._resolve_unit_prices = lambda _items: [200000]
+        service.create_order(data, {"id": str(uuid4())})
+        args = next(call[2] for call in client.calls if call[0] == "rpc")
+        assert args["p_branch_id"] == branch_id
+        assert args["p_items"][0]["product_id"] == product_id
+
     def test_gui_lai_cung_mot_don_thi_khong_tao_hai_don(self):
         """Khoá idempotency phải do khách gửi lại giữ nguyên qua các lần bấm.
 

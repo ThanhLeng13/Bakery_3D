@@ -489,17 +489,21 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
   const [imgErrors, setImgErrors] = useState<Set<number>>(new Set());
   const [addedToCart, setAddedToCart] = useState(false);
 
-  // Client-side fetch for branch stock (more reliable than SSR prop)
+  // Client-side fetch for branch stock (more reliable than SSR prop).
+  // Bánh kem mẫu sẵn và bánh ngọt đều lấy từ cùng product_batches: admin/baker
+  // nhập số lượng thực tế, khách chỉ được mua ở chi nhánh còn hàng.
   const isCake = product.product_type === "cake";
-  const isSweet = !isCake;
+  const isReadyMadeCatalogueProduct = true;
 
   const [stockByBranch, setStockByBranch] = useState<StockByBranchResponse | null>(
     initialStockByBranch ?? null
   );
-  const [branchLoading, setBranchLoading] = useState(isSweet && !initialStockByBranch);
+  const [branchLoading, setBranchLoading] = useState(
+    isReadyMadeCatalogueProduct && !initialStockByBranch,
+  );
 
   useEffect(() => {
-    if (!isSweet) return;
+    if (!isReadyMadeCatalogueProduct) return;
     // active flag: if the effect re-runs (product.id changed) the cleanup sets
     // active=false so any in-flight response for the previous product is ignored
     let active = true;
@@ -538,14 +542,17 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
 
   // Out-of-stock: selected branch has 0 stock (or no branches at all)
   const selectedBranchStock = selectedBranch?.quantity_available ?? 0;
-  const isOutOfStock = isSweet && (
-    allBranches.length === 0
-      ? (stockInfo != null && (stockInfo?.total_available ?? 0) === 0)
-      : selectedBranchStock === 0
+  const isOutOfStock = isReadyMadeCatalogueProduct && (
+    // Fail closed: nếu endpoint tồn kho lỗi/chưa trả dữ liệu thì không được
+    // cho khách mua rồi mới phát hiện không còn bánh. Chỉ mở nút khi đã nhận
+    // được ít nhất một chi nhánh có số lượng > 0.
+    stockByBranch === null ||
+    allBranches.length === 0 ||
+    selectedBranchStock === 0
   );
 
   // Low stock warning for selected branch
-  const isLowStock = isSweet && !isOutOfStock && selectedBranchStock > 0 && selectedBranchStock <= 5;
+  const isLowStock = isReadyMadeCatalogueProduct && !isOutOfStock && selectedBranchStock > 0 && selectedBranchStock <= 5;
 
   const handleImageError = (index: number) => {
     setImgErrors((prev) => new Set(prev).add(index));
@@ -572,7 +579,7 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
   const isPreviewOnly = primary3DModel ? primary3DModel.is_orderable === false : false;
   // Cả hai nút mua và cả handler đều kiểm tra `cannotOrder`: chỉ khoá nút thì
   // gọi handler bằng cách khác vẫn đi được, và server sẽ trả lỗi 400.
-  const cannotOrder = isOutOfStock || isPreviewOnly;
+  const cannotOrder = branchLoading || isOutOfStock || isPreviewOnly;
 
   /**
    * Món để đưa vào giỏ.
@@ -825,8 +832,8 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
               </div>
             )}
 
-            {/* Branch Stock Section — sweet products */}
-            {isSweet && (
+            {/* Branch Stock Section — mọi mẫu có sẵn trong danh mục */}
+            {isReadyMadeCatalogueProduct && (
               <div className="bg-white rounded-xl p-4 sm:p-5 border border-mocha/5">
                 <h2 className="text-sm font-semibold text-mocha mb-3 flex items-center gap-2">
                   <svg className="w-4 h-4 text-pink-pastel" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -936,7 +943,7 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
                 tính 0 giờ chờ cho dòng có product_id thật), nên dùng chung nút
                 với bánh ngọt. Chỉ phần tồn kho mới riêng cho bánh ngọt. */}
             <div className="space-y-3">
-              {isSweet && (
+              {isReadyMadeCatalogueProduct && (
                 <>
                   {/* Stock indicators — only shown when relevant (low/out) */}
                   {isOutOfStock && (
@@ -974,15 +981,21 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
                         : "bg-pink-pastel text-white hover:bg-pink-pastel/90"
                     }`}
                     aria-label={
-                      isOutOfStock
-                        ? "Hết hàng"
-                        : isPreviewOnly
-                          ? "Mẫu chỉ xem thử, chưa mở bán"
-                          : `Mua ${product.name} ngay`
+                      branchLoading
+                        ? "Đang kiểm tra tồn kho"
+                        : isOutOfStock
+                          ? "Hết hàng"
+                          : isPreviewOnly
+                            ? "Mẫu chỉ xem thử, chưa mở bán"
+                            : `Mua ${product.name} ngay`
                     }
                   >
                     {cannotOrder ? (
-                      isOutOfStock ? "Hết hàng" : "Chưa mở bán"
+                      branchLoading
+                        ? "Đang kiểm tra tồn kho..."
+                        : isOutOfStock
+                          ? "Hết hàng"
+                          : "Chưa mở bán"
                     ) : (
                       <span className="flex items-center justify-center gap-2">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -230,7 +230,7 @@ def _rpc_argument_names(operation: dict) -> set[str]:
     `match_threshold`, `query_embedding`, và **0** tham số query.
 
     Vì vậy bản đầu của test này lấy `in == "query"` sẽ luôn ra tập rỗng — tức
-    báo thiếu cả 12 tham số kể cả khi migration đã chạy đúng.
+    báo thiếu cả 13 tham số kể cả khi migration đã chạy đúng.
 
     Cố ý KHÔNG fallback sang tham số `query`. Đã thử: fallback đó cho ra kết quả
     hợp lý giả khi `schema.properties` rỗng, che mất đúng thứ cần phát hiện. Ở
@@ -244,7 +244,7 @@ def _rpc_argument_names(operation: dict) -> set[str]:
 
 
 def test_create_order_rpc_has_the_expected_signature(db):
-    """Hàm phải nhận đúng 12 tham số, kể cả hai tham số voucher.
+    """Hàm phải nhận đúng 13 tham số, kể cả voucher và branch_id.
 
     Đây là lý do `add_create_order_rpc.sql` phải chạy **sau**
     `add_order_voucher_columns.sql`: chữ ký có `p_voucher_code` và
@@ -278,7 +278,7 @@ def test_create_order_rpc_has_the_expected_signature(db):
     expected = {
         "p_customer_id", "p_full_name", "p_phone", "p_email", "p_pickup_date",
         "p_total_price", "p_ai_summary", "p_voucher_code", "p_voucher_discount",
-        "p_items", "p_customizations", "p_idempotency_key",
+        "p_items", "p_customizations", "p_idempotency_key", "p_branch_id",
     }
     assert names, (
         "Đọc được vị trí /rpc/rpc_create_order nhưng không lấy được tên tham số"

@@ -399,6 +399,7 @@ class OrderService:
                         "p_items": rpc_items,
                         "p_customizations": [],
                         "p_idempotency_key": idempotency_key,
+                        "p_branch_id": order_data.get("branch_id"),
                     },
                 )
                 .execute()
@@ -583,6 +584,7 @@ class OrderService:
             "pickup_date": order["pickup_date"],
             "customer_name": order["customer_name"],
             "customer_phone": order["customer_phone"],
+            "branch_id": order.get("branch_id"),
             "customer_email": order.get("customer_email"),
             "ai_summary": order.get("ai_summary"),
             "baker_notes": order.get("baker_notes"),

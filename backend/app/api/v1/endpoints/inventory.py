@@ -1,12 +1,13 @@
 """Inventory API endpoints.
 
-Manager endpoints (require_admin):
-    POST   /api/v1/baker/batches              — Thêm lô mới
+Inventory endpoints (admin or baker):
+    POST   /api/v1/baker/batches              — Thêm lô mẫu có sẵn
     GET    /api/v1/baker/batches              — Liệt kê lô (tất cả hoặc theo sản phẩm)
     PATCH  /api/v1/baker/batches/{batch_id}   — Cập nhật lô
 
 Public endpoints:
-    GET    /api/v1/products/{product_id}/stock — Stock còn lại của sản phẩm
+    GET    /api/v1/products/{product_id}/stock — Stock còn lại của mẫu bánh
+    GET    /api/v1/products/{product_id}/stock-by-branch — Stock theo chi nhánh
 """
 
 from datetime import date
@@ -14,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, model_validator
 
 from app.core.config import settings
-from app.core.dependencies import require_admin, get_supabase_client
+from app.core.dependencies import require_role, get_supabase_client
 from app.services.inventory_service import (
     BatchNotFoundError,
     InsufficientStockError,
@@ -37,7 +38,7 @@ def _get_inventory_service() -> InventoryService:
 # ─── Schemas ───────────────────────────────────────────────────────────────────
 
 class AddBatchRequest(BaseModel):
-    product_id: str = Field(..., description="UUID sản phẩm (phải là bánh ngọt)")
+    product_id: str = Field(..., description="UUID sản phẩm mẫu có sẵn")
     quantity: int = Field(..., ge=1, le=9999, description="Số lượng lô")
     produced_at: date = Field(..., description="Ngày sản xuất (YYYY-MM-DD)")
     expires_at: date = Field(..., description="Ngày hết hạn (YYYY-MM-DD)")
@@ -60,7 +61,7 @@ class UpdateBatchRequest(BaseModel):
 
 class BulkAddBatchRequest(BaseModel):
     """Create batches for multiple branches in a single request."""
-    product_id: str = Field(..., description="UUID sản phẩm (phải là bánh ngọt)")
+    product_id: str = Field(..., description="UUID sản phẩm mẫu có sẵn")
     quantity: int = Field(..., ge=1, le=9999, description="Số lượng mỗi lô")
     produced_at: date = Field(..., description="Ngày sản xuất (YYYY-MM-DD)")
     expires_at: date = Field(..., description="Ngày hết hạn (YYYY-MM-DD)")
@@ -88,9 +89,9 @@ class BulkAddBatchRequest(BaseModel):
 @baker_router.post("/batches", status_code=201)
 def add_batch(
     body: AddBatchRequest,
-    manager: dict = Depends(require_admin),
+    manager: dict = Depends(require_role(["admin", "baker"])),
 ):
-    """Thêm lô bánh ngọt mới (Manager only)."""
+    """Thêm lô mẫu có sẵn (bánh kem hoặc bánh ngọt; admin/baker)."""
     svc = _get_inventory_service()
     try:
         result = svc.add_batch(
@@ -110,9 +111,9 @@ def add_batch(
 @baker_router.post("/batches/bulk", status_code=201)
 def add_batch_bulk(
     body: BulkAddBatchRequest,
-    manager: dict = Depends(require_admin),
+    manager: dict = Depends(require_role(["admin", "baker"])),
 ):
-    """Tạo lô bánh ngọt cho nhiều chi nhánh trong một request.
+    """Tạo lô mẫu có sẵn (bánh kem hoặc bánh ngọt) cho nhiều chi nhánh.
 
     NOT truly atomic — each branch insert is a separate DB operation.
     On partial failure, returns 207 Multi-Status with details of which
@@ -167,9 +168,9 @@ def add_batch_bulk(
 def list_batches(
     product_id: str | None = Query(default=None, description="Lọc theo sản phẩm"),
     branch_id: str | None = Query(default=None, description="Lọc theo chi nhánh"),
-    manager: dict = Depends(require_admin),
+    manager: dict = Depends(require_role(["admin", "baker"])),
 ):
-    """Liệt kê lô hàng bánh ngọt (Manager only). Lọc tùy chọn theo product_id và branch_id."""
+    """Liệt kê lô mẫu có sẵn (admin/baker), lọc tùy chọn theo sản phẩm/chi nhánh."""
     svc = _get_inventory_service()
     try:
         batches = svc.get_batches(product_id=product_id, branch_id=branch_id)
@@ -182,9 +183,9 @@ def list_batches(
 def update_batch(
     batch_id: str,
     body: UpdateBatchRequest,
-    manager: dict = Depends(require_admin),
+    manager: dict = Depends(require_role(["admin", "baker"])),
 ):
-    """Cập nhật lô hàng (Manager only). Có thể đổi số lượng, ghi chú, ẩn/hiện."""
+    """Cập nhật lô mẫu có sẵn (admin/baker): số lượng, ghi chú, ẩn/hiện."""
     svc = _get_inventory_service()
     updates = body.model_dump(exclude_none=True)
     if not updates:

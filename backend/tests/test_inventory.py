@@ -135,21 +135,32 @@ class TestInventoryServiceBaker:
             )
         assert "Số lượng phải lớn hơn 0" in exc.value.message
 
-    def test_add_batch_invalid_product_type(self):
+    @pytest.mark.parametrize("product_type", ["sweet", "cake", None])
+    def test_add_batch_accepts_every_active_catalogue_product_type(self, product_type):
+        """Cả bánh ngọt lẫn bánh kem mẫu sẵn đều có thể nằm trong kho.
+
+        Phân biệt hàng làm sẵn với bánh đặt riêng bằng `product_id`: bánh Studio
+        dùng UUID nil nên không có product row/lô hàng nào để thêm, chứ không
+        được dùng `product_type == sweet` để loại toàn bộ bánh kem. Nếu khôi
+        phục guard cũ, case product_type='cake' ở đây sẽ đỏ.
+        """
         self.mock_supabase.table().select().eq().eq().maybe_single().execute.return_value = MagicMock(
-            data={"id": "prod-1", "name": "Bánh", "product_type": "custom"}
+            data={"id": "prod-1", "name": "Bánh có sẵn", "product_type": product_type}
         )
-        with pytest.raises(InventoryServiceError) as exc:
-            self.inventory_service.add_batch(
-                product_id="prod-1",
-                quantity=10,
-                produced_at=self.today,
-                expires_at=self.future_date,
-                notes=None,
-                branch_id=None,
-                baker=self.baker
-            )
-        assert "Chỉ bánh ngọt" in exc.value.message
+        self.mock_supabase.table().insert().execute.return_value = MagicMock(
+            data=[{"id": "new-batch-1"}]
+        )
+
+        result = self.inventory_service.add_batch(
+            product_id="prod-1",
+            quantity=10,
+            produced_at=self.today,
+            expires_at=self.future_date,
+            notes=None,
+            branch_id="branch-1",
+            baker=self.baker,
+        )
+        assert result["id"] == "new-batch-1"
 
     def test_update_batch_success(self):
         self.mock_supabase.table().select().eq().maybe_single().execute.return_value = MagicMock(

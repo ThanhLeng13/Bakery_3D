@@ -46,6 +46,13 @@ class CreateOrderRequest(BaseModel):
             "'Đặt hàng' nhiều lần; server trả về đơn cũ thay vì tạo đơn mới."
         ),
     )
+    branch_id: Optional[UUID] = Field(
+        default=None,
+        description=(
+            "Chi nhánh nhận bánh cho mẫu có sẵn. Bánh đặt riêng không cần "
+            "chi nhánh tồn kho."
+        ),
+    )
 
     @field_validator("phone")
     @classmethod
@@ -166,6 +173,7 @@ class OrderDetailResponse(BaseModel):
     pickup_date: datetime
     customer_name: str
     customer_phone: str
+    branch_id: Optional[UUID] = None
     customer_email: Optional[str] = None
     ai_summary: Optional[str] = None
     baker_notes: Optional[str] = None

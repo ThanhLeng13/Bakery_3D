@@ -35,8 +35,8 @@ const CAKE_CART_ITEM = {
   unitPrice: CAKE_PRICE,
   quantity: 1,
   expiresAt: null,
-  branchId: null,
-  branchName: null,
+  branchId: "branch-co-banh",
+  branchName: "Chi nhánh còn bánh",
   productType: "cake",
 };
 
@@ -110,7 +110,7 @@ test("giỏ có bánh sinh nhật thì checkout không báo 'Giỏ hàng trống
   await expect(page.getByText(CAKE_NAME).first()).toBeVisible();
 });
 
-test("bánh làm sẵn có ô ngày nhận và không đòi chọn chi nhánh", async ({
+test("bánh làm sẵn có ô ngày nhận và hiện đúng chi nhánh còn hàng", async ({
   page,
 }) => {
   await seedCart(page, [CAKE_CART_ITEM]);
@@ -120,11 +120,10 @@ test("bánh làm sẵn có ô ngày nhận và không đòi chọn chi nhánh", 
   // bị chặn ở lỗi "Vui lòng chọn ngày nhận bánh" mà không có ô nào để nhập.
   await expect(page.locator("#pickupDate")).toBeVisible();
 
-  // Tồn kho theo chi nhánh chỉ có cho bánh ngọt, nên bánh sinh nhật không có
-  // chi nhánh để chọn; hiện cảnh báo đó là bắt khách đi tìm thứ không tồn tại.
-  await expect(
-    page.getByText(/quay lại trang sản phẩm và chọn chi nhánh/i),
-  ).toHaveCount(0);
+  // Mẫu bánh kem có sẵn cũng lấy tồn từ product_batches. Checkout phải giữ
+  // chi nhánh khách chọn ở trang sản phẩm, thay vì âm thầm gửi null để server
+  // không biết trừ chiếc bánh ở kho nào.
+  await expect(page.getByText("Chi nhánh còn bánh")).toBeVisible();
 });
 
 test("đặt bánh làm sẵn gọi /api/v1/orders và cho nhận trong ngày", async ({
@@ -176,6 +175,7 @@ test("đặt bánh làm sẵn gọi /api/v1/orders và cho nhận trong ngày", 
   const payload = JSON.parse(posts[0].body);
   expect(payload.items).toHaveLength(1);
   expect(payload.items[0].product_id).toBe(CAKE_ID);
+  expect(payload.branch_id).toBe("branch-co-banh");
   // Mẫu làm sẵn không có thiết kế riêng. Gửi `customization_json` vào sẽ khiến
   // server coi là mẫu đặt và đòi 24/48 giờ.
   expect(payload.items[0].customization_json).toBeUndefined();

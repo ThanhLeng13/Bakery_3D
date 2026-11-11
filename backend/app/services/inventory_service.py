@@ -1,9 +1,12 @@
-"""Inventory service — quản lý lô hàng bánh ngọt.
+"""Inventory service — quản lý lô mẫu bánh có sẵn.
 
 Chức năng:
-- Baker thêm / sửa / ẩn lô hàng (product_batches)
-- Public: xem tổng stock còn lại của một sản phẩm
-- Decrement stock theo FIFO (lô gần hết hạn nhất trước)
+- Admin/baker thêm / sửa / ẩn lô hàng (product_batches) cho bánh ngọt và
+  bánh kem mẫu sẵn.
+- Public: xem tổng stock còn lại của một sản phẩm theo chi nhánh.
+- Decrement stock theo FIFO (lô gần hết hạn nhất trước).
+
+Bánh thiết kế qua Studio không tạo product_batch, nên không đi qua service này.
 """
 
 from datetime import date, datetime
@@ -220,7 +223,8 @@ class InventoryService:
         if expires_at <= produced_at:
             raise InventoryServiceError("Ngày hết hạn phải sau ngày sản xuất.")
 
-        # Verify product exists and is sweet type
+        # Verify product exists. Both sweet and cake products can be stocked
+        # as ready-made items; custom Studio designs never enter this table.
         product = (
             self._db.table("products")
             .select("id, name, product_type")
@@ -231,11 +235,6 @@ class InventoryService:
         )
         if not product or not product.data:
             raise InventoryServiceError("Không tìm thấy sản phẩm.", status_code=404)
-        if product.data.get("product_type") != "sweet":
-            raise InventoryServiceError(
-                "Chỉ bánh ngọt mới có thể thêm lô hàng. Bánh kem làm theo đơn.",
-                status_code=400,
-            )
 
         data = {
             "product_id": product_id,

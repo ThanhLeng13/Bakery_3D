@@ -12,8 +12,10 @@ export type OrderStatus =
   | "delivered";
 
 export type ProductType = "sweet" | "cake";
-// sweet = bánh ngọt (có tồn kho, mua trực tiếp)
-// cake  = bánh kem  (đặt hàng theo yêu cầu)
+// `product_type` mô tả loại sản phẩm, KHÔNG quyết định có tồn kho hay không.
+// Cả sweet và cake trong danh mục đều có thể được admin/baker nhập thành mẫu
+// có sẵn theo chi nhánh. Chỉ bánh làm trong Studio (UUID nil, không thuộc
+// products) mới là đơn đặt riêng theo quy tắc 24/48 giờ.
 
 // Branch types
 export interface Branch {

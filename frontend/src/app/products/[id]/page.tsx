@@ -93,13 +93,13 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
     );
   }
 
-  // Fetch stock data in parallel (only for sweet products)
-  const [stockInfo, stockByBranch] = product.product_type === "sweet"
-    ? await Promise.all([
-        getProductStock(params.id),
-        getStockByBranch(params.id),
-      ])
-    : [null, null];
+  // Mọi sản phẩm danh mục đều có thể được admin/baker nhập như mẫu có sẵn.
+  // Lấy tồn kho cho cả sweet và cake để mẫu bánh kem hết hàng cũng khoá được
+  // nút mua, thay vì nhận đơn rồi mới phát hiện không còn bánh.
+  const [stockInfo, stockByBranch] = await Promise.all([
+    getProductStock(params.id),
+    getStockByBranch(params.id),
+  ]);
 
   return (
     <>

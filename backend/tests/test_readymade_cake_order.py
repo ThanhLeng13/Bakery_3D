@@ -216,6 +216,10 @@ class TestFrontendRoutesCakesToOrders:
         idx_ready = src.index(submit_branch)
         idx_cart = src.index("else if (isCartMode) {")
         assert idx_ready < idx_cart, "nhánh bánh làm sẵn phải được kiểm tra trước"
+        # Mẫu có sẵn phải mang branch_id xuống RPC: thiếu nó thì migration mới
+        # từ chối, hoặc tệ hơn một RPC cũ không thể biết trừ kho chi nhánh nào.
+        ready_block = src[idx_ready:idx_cart]
+        assert "branch_id: selectedBranchId!" in ready_block
 
     def test_trang_chi_tiet_khong_con_link_checkout_rong(self):
         """Nút cũ là <Link href="/checkout"> không thêm gì vào giỏ."""
@@ -227,6 +231,29 @@ class TestFrontendRoutesCakesToOrders:
         assert "productType: product.product_type" in src, (
             "món thêm vào giỏ phải mang theo loại sản phẩm"
         )
+        # Bánh kem mẫu sẵn cũng phải chọn đúng chi nhánh đang còn hàng. Nếu
+        # khôi phục `if (!isSweet) return` thì giao diện lại hiện nút mua cho
+        # cake hết hàng và khách chỉ bị từ chối sau khi điền xong checkout.
+        assert "isReadyMadeCatalogueProduct" in src, (
+            "mọi mẫu trong danh mục phải đọc tồn theo chi nhánh"
+        )
+        assert "if (!isReadyMadeCatalogueProduct) return;" in src, (
+            "không được chỉ fetch tồn kho cho sweet"
+        )
+
+    def test_product_detail_fetches_stock_for_cake_catalogue_too(self):
+        src = self._read("frontend/src/app/products/[id]/page.tsx")
+        assert "product.product_type === \"sweet\"" not in src, (
+            "trang chi tiết không được chỉ fetch tồn cho sweet"
+        )
+        assert "getStockByBranch(params.id)" in src
+
+    def test_inventory_search_loads_all_products_not_only_sweets(self):
+        src = self._read("frontend/src/app/baker/inventory/page.tsx")
+        assert "category=b%C3%A1nh+ng%E1%BB%8Dt" not in src
+        assert "product_type === \"sweet\"" not in src
+        assert "page_size=100" in src
+        assert "Tên và giá luôn lấy theo sản phẩm hiện tại" in src
 
     def test_banh_sinh_nhat_khong_co_o_chon_kich_co_doi_gia(self):
         """Giá hiển thị phải bằng giá bị tính.
