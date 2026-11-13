@@ -43,6 +43,11 @@ ALLOWED: dict[tuple[str, str], tuple[str, ...]] = {
     ("PATCH", "/api/v1/baker/orders/{order_id}/status"): ("baker",),
     ("PATCH", "/api/v1/baker/orders/{order_id}/notes"): ("baker",),
     ("POST", "/api/v1/baker/orders/{order_id}/incident"): ("baker",),
+    # ---- Kho mẫu có sẵn: admin hoặc baker ----
+    ("POST", "/api/v1/baker/batches"): ("admin", "baker"),
+    ("POST", "/api/v1/baker/batches/bulk"): ("admin", "baker"),
+    ("GET", "/api/v1/baker/batches"): ("admin", "baker"),
+    ("PATCH", "/api/v1/baker/batches/{batch_id}"): ("admin", "baker"),
     # ---- Khu vực admin: quản trị ----
     ("GET", "/api/v1/admin/orders"): ("admin",),
     ("GET", "/api/v1/admin/orders/{order_id}"): ("admin",),

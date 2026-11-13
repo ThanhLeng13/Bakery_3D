@@ -489,24 +489,32 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
   const [imgErrors, setImgErrors] = useState<Set<number>>(new Set());
   const [addedToCart, setAddedToCart] = useState(false);
 
-  // Client-side fetch for branch stock (more reliable than SSR prop)
+  // Client-side fetch for branch stock (more reliable than SSR prop).
+  // Bánh kem mẫu sẵn và bánh ngọt đều lấy từ cùng product_batches: admin/baker
+  // nhập số lượng thực tế, khách chỉ được mua ở chi nhánh còn hàng.
   const isCake = product.product_type === "cake";
-  const isSweet = !isCake;
+  const isReadyMadeCatalogueProduct = true;
 
   const [stockByBranch, setStockByBranch] = useState<StockByBranchResponse | null>(
     initialStockByBranch ?? null
   );
-  const [branchLoading, setBranchLoading] = useState(isSweet && !initialStockByBranch);
+  const [branchLoading, setBranchLoading] = useState(
+    isReadyMadeCatalogueProduct && !initialStockByBranch,
+  );
 
   useEffect(() => {
-    if (!isSweet) return;
+    if (!isReadyMadeCatalogueProduct) return;
     // active flag: if the effect re-runs (product.id changed) the cleanup sets
     // active=false so any in-flight response for the previous product is ignored
     let active = true;
-    // Reset stale state from previous product BEFORE fetching new data
-    setSelectedBranch(null);
-    setStockByBranch(null);
-    // Always fetch fresh data on the client
+    // Reset the selected ID, but retain the server-rendered snapshot while
+    // refreshing. The selected branch object is always DERIVED from the latest
+    // `stockByBranch` below; keeping an old object here would let stale stock
+    // enter the cart after a refresh changed its quantity to zero.
+    // If the refresh fails, the known initial stock remains usable; if neither
+    // snapshot nor fetch exists, the fail-closed guard below keeps buying off.
+    setSelectedBranchId(null);
+    setStockByBranch(initialStockByBranch ?? null);
     setBranchLoading(true);
     fetch(`${API_BASE}/api/v1/products/${product.id}/stock-by-branch`, {
       cache: "no-store",
@@ -515,7 +523,10 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
       .then((data: StockByBranchResponse | null) => {
         if (active && data) setStockByBranch(data);
       })
-      .catch(() => {})
+      .catch(() => {
+        // Keep initialStockByBranch instead of replacing known stock with null.
+        if (active) setStockByBranch(initialStockByBranch ?? null);
+      })
       .finally(() => { if (active) setBranchLoading(false); });
     return () => { active = false; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -524,28 +535,49 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
   // All branches (including out-of-stock) for display
   const allBranches: BranchStock[] = stockByBranch?.branches ?? [];
 
-  // Auto-select: first branch with stock, else first branch overall
-  const [selectedBranch, setSelectedBranch] = useState<BranchStock | null>(null);
+  // Kho chung (branch_id=null) vẫn hiển thị để quản lý thấy dữ liệu, nhưng
+  // không thể dùng cho đơn nhận tại một chi nhánh. Chỉ branch UUID có hàng mới
+  // được chọn để mua.
+  const purchasableBranches = allBranches.filter(
+    (branch) => branch.branch_id !== null && branch.quantity_available > 0,
+  );
 
-  // Update selected branch when data arrives
+  // Keep only the ID in state. Availability/name/expiry are derived from the
+  // latest response, so a refresh cannot leave an old BranchStock object with a
+  // non-zero quantity after the server says that branch is sold out.
+  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
+  const selectedBranch = selectedBranchId
+    ? allBranches.find((branch) => branch.branch_id === selectedBranchId) ?? null
+    : null;
+
+  // Keep a selected branch only while it remains purchasable; otherwise choose
+  // the first current branch with stock, or no branch when all stock is gone.
+  // Rebuild the list from `stockByBranch` inside the effect so dependencies are
+  // stable and React re-runs exactly when the server snapshot changes.
   useEffect(() => {
-    if (allBranches.length > 0 && selectedBranch === null) {
-      const first = allBranches.find((b) => b.quantity_available > 0) ?? allBranches[0];
-      setSelectedBranch(first);
+    const currentPurchasable = (stockByBranch?.branches ?? []).filter(
+      (branch) => branch.branch_id !== null && branch.quantity_available > 0,
+    );
+    const stillPurchasable = currentPurchasable.some(
+      (branch) => branch.branch_id === selectedBranchId,
+    );
+    if (!stillPurchasable) {
+      setSelectedBranchId(currentPurchasable[0]?.branch_id ?? null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stockByBranch]);
+  }, [selectedBranchId, stockByBranch]);
 
-  // Out-of-stock: selected branch has 0 stock (or no branches at all)
+  // A failed refresh keeps valid server-rendered stock. If neither the initial
+  // snapshot nor a fetched result exists, fail closed and keep purchase disabled.
   const selectedBranchStock = selectedBranch?.quantity_available ?? 0;
-  const isOutOfStock = isSweet && (
-    allBranches.length === 0
-      ? (stockInfo != null && (stockInfo?.total_available ?? 0) === 0)
-      : selectedBranchStock === 0
+  const isOutOfStock = isReadyMadeCatalogueProduct && (
+    stockByBranch === null ||
+    purchasableBranches.length === 0 ||
+    selectedBranch === null ||
+    selectedBranchStock === 0
   );
 
   // Low stock warning for selected branch
-  const isLowStock = isSweet && !isOutOfStock && selectedBranchStock > 0 && selectedBranchStock <= 5;
+  const isLowStock = isReadyMadeCatalogueProduct && !isOutOfStock && selectedBranchStock > 0 && selectedBranchStock <= 5;
 
   const handleImageError = (index: number) => {
     setImgErrors((prev) => new Set(prev).add(index));
@@ -572,7 +604,7 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
   const isPreviewOnly = primary3DModel ? primary3DModel.is_orderable === false : false;
   // Cả hai nút mua và cả handler đều kiểm tra `cannotOrder`: chỉ khoá nút thì
   // gọi handler bằng cách khác vẫn đi được, và server sẽ trả lỗi 400.
-  const cannotOrder = isOutOfStock || isPreviewOnly;
+  const cannotOrder = branchLoading || isOutOfStock || isPreviewOnly;
 
   /**
    * Món để đưa vào giỏ.
@@ -600,21 +632,23 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
 
   const handleAddToCart = () => {
     if (cannotOrder) return;
-    addItem(buildCartItem());
-    setAddedToCart(true);
-    setTimeout(() => setAddedToCart(false), 2500);
+    if (addItem(buildCartItem())) {
+      setAddedToCart(true);
+      setTimeout(() => setAddedToCart(false), 2500);
+    }
   };
 
   const handleBuyNow = () => {
     if (cannotOrder) return;
+    let added = false;
     // flushSync forces React to immediately commit the addItem state update
     // so the in-memory cart (read by useCart()/checkout page) is populated
     // BEFORE router.push navigates. localStorage persistence of bakery_cart
     // still happens asynchronously via CartProvider's useEffect.
     flushSync(() => {
-      addItem(buildCartItem());
+      added = addItem(buildCartItem());
     });
-    router.push("/checkout");
+    if (added) router.push("/checkout");
   };
 
   const mainImage =
@@ -825,8 +859,8 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
               </div>
             )}
 
-            {/* Branch Stock Section — sweet products */}
-            {isSweet && (
+            {/* Branch Stock Section — mọi mẫu có sẵn trong danh mục */}
+            {isReadyMadeCatalogueProduct && (
               <div className="bg-white rounded-xl p-4 sm:p-5 border border-mocha/5">
                 <h2 className="text-sm font-semibold text-mocha mb-3 flex items-center gap-2">
                   <svg className="w-4 h-4 text-pink-pastel" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -850,14 +884,15 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
                     {allBranches.map((branch) => {
                       const isSelected = selectedBranch?.branch_id === branch.branch_id;
                       const isAvail = branch.quantity_available > 0;
-                      const isLow = isAvail && branch.quantity_available <= 5;
+                      const isPurchasable = isAvail && branch.branch_id !== null;
+                      const isLow = isPurchasable && branch.quantity_available <= 5;
                       return (
                         <button
                           key={branch.branch_id ?? "no-branch"}
-                          onClick={() => isAvail && setSelectedBranch(branch)}
-                          disabled={!isAvail}
+                          onClick={() => isPurchasable && setSelectedBranchId(branch.branch_id)}
+                          disabled={!isPurchasable}
                           className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all text-left ${
-                            !isAvail
+                            !isPurchasable
                               ? "opacity-60 cursor-not-allowed bg-surface border-line"
                               : isSelected
                               ? "border-pink-pastel bg-pink-pastel/5 shadow-sm"
@@ -875,7 +910,7 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
                             </div>
                             <div>
                               <p className={`text-sm font-medium ${
-                                isSelected ? "text-pink-pastel" : isAvail ? "text-mocha" : "text-mocha/50"
+                                isSelected ? "text-pink-pastel" : isPurchasable ? "text-mocha" : "text-mocha/50"
                               }`}>
                                 {branch.branch_name}
                               </p>
@@ -892,8 +927,8 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
                               ? "bg-amber-100 text-amber-700"
                               : "bg-green-100 text-green-700"
                           }`}>
-                            {!isAvail
-                              ? "Hết hàng"
+                            {!isPurchasable
+                              ? isAvail ? "Kho chung" : "Hết hàng"
                               : isLow
                               ? `Còn ${branch.quantity_available}`
                               : `Còn ${branch.quantity_available}`}
@@ -936,7 +971,7 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
                 tính 0 giờ chờ cho dòng có product_id thật), nên dùng chung nút
                 với bánh ngọt. Chỉ phần tồn kho mới riêng cho bánh ngọt. */}
             <div className="space-y-3">
-              {isSweet && (
+              {isReadyMadeCatalogueProduct && (
                 <>
                   {/* Stock indicators — only shown when relevant (low/out) */}
                   {isOutOfStock && (
@@ -974,15 +1009,21 @@ export default function ProductDetailClient({ product, stockInfo, stockByBranch:
                         : "bg-pink-pastel text-white hover:bg-pink-pastel/90"
                     }`}
                     aria-label={
-                      isOutOfStock
-                        ? "Hết hàng"
-                        : isPreviewOnly
-                          ? "Mẫu chỉ xem thử, chưa mở bán"
-                          : `Mua ${product.name} ngay`
+                      branchLoading
+                        ? "Đang kiểm tra tồn kho"
+                        : isOutOfStock
+                          ? "Hết hàng"
+                          : isPreviewOnly
+                            ? "Mẫu chỉ xem thử, chưa mở bán"
+                            : `Mua ${product.name} ngay`
                     }
                   >
                     {cannotOrder ? (
-                      isOutOfStock ? "Hết hàng" : "Chưa mở bán"
+                      branchLoading
+                        ? "Đang kiểm tra tồn kho..."
+                        : isOutOfStock
+                          ? "Hết hàng"
+                          : "Chưa mở bán"
                     ) : (
                       <span className="flex items-center justify-center gap-2">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

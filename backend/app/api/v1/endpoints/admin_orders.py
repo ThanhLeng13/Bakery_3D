@@ -65,7 +65,7 @@ def list_admin_orders(
         # Base query with exact count in a single request
         data_query = supabase.table("orders").select(
             "id, status, total_price, pickup_date, customer_name, "
-            "customer_phone, customer_email, ai_summary, baker_notes, created_at, updated_at",
+            "customer_phone, customer_email, customer_message, ai_summary, baker_notes, created_at, updated_at",
             count="exact"
         )
 

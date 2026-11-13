@@ -78,7 +78,9 @@ function InventoryContent() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string>("all");
 
-  const [sweetProducts, setSweetProducts] = useState<Product[]>([]);
+  // Kho mẫu sẵn gồm cả bánh ngọt và bánh kem. Tên/giá luôn lấy từ products;
+  // batch chỉ giữ product_id nên admin sửa sản phẩm là kho cập nhật ngay.
+  const [products, setProducts] = useState<Product[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -112,16 +114,27 @@ function InventoryContent() {
       .catch(() => {/* silently ignore, branches are optional */});
   }, []);
 
-  // Load sweet products — không tự chọn sản phẩm đầu tiên
+  // Tải toàn bộ sản phẩm active, không lọc category/product_type. API trả tối đa
+  // 100 dòng mỗi trang; lặp qua các trang để kho không bỏ mất mẫu bánh cũ.
   useEffect(() => {
-    apiClient
-      .get<{ products: Product[] }>("/api/v1/products?category=b%C3%A1nh+ng%E1%BB%8Dt&page_size=100")
-      .then((res) => {
-        const sweets = (res.products || []).filter((p) => p.product_type === "sweet");
-        setSweetProducts(sweets);
-        // Không tự điền sản phẩm đầu — để user tự tìm
-      })
-      .catch(() => setError("Không thể tải danh sách sản phẩm."));
+    let active = true;
+    async function loadProducts() {
+      try {
+        const all: Product[] = [];
+        for (let page = 1; page <= 100; page += 1) {
+          const res = await apiClient.get<{ products: Product[]; pagination?: { has_next?: boolean } }>(
+            `/api/v1/products?page=${page}&page_size=100`,
+          );
+          all.push(...(res.products || []));
+          if (!res.pagination?.has_next || (res.products || []).length === 0) break;
+        }
+        if (active) setProducts(all);
+      } catch {
+        if (active) setError("Không thể tải danh sách sản phẩm.");
+      }
+    }
+    loadProducts();
+    return () => { active = false; };
   }, []);
 
   const loadBatches = useCallback(() => {
@@ -234,7 +247,7 @@ function InventoryContent() {
     }
   }
 
-  const selectedProduct = sweetProducts.find((p) => p.id === selectedProductId);
+  const selectedProduct = products.find((p) => p.id === selectedProductId);
 
   // filteredBatches: lọc client-side theo chi nhánh đang chọn
   const filteredBatches = selectedBranchId === "all"
@@ -269,7 +282,7 @@ function InventoryContent() {
                 🎂 <span className="hidden sm:inline">Bơ Nơ</span>
               </Link>
               <div>
-                <h1 className="text-2xl font-heading font-bold text-mocha">Quản lý kho bánh ngọt</h1>
+                <h1 className="text-2xl font-heading font-bold text-mocha">Quản lý kho mẫu bánh sẵn</h1>
                 <p className="text-mocha/60 text-sm mt-0.5">Nhập lô hàng, quản lý hạn sử dụng và tồn kho theo chi nhánh</p>
               </div>
             </div>
@@ -283,7 +296,7 @@ function InventoryContent() {
 
           {/* Product search selector */}
           <div className="bg-white rounded-2xl p-4 mb-4 border border-mocha/5 shadow-sm">
-            <label className="block text-sm font-medium text-mocha mb-2">Chọn sản phẩm bánh ngọt</label>
+            <label className="block text-sm font-medium text-mocha mb-2">Chọn mẫu bánh có sẵn (bánh kem hoặc bánh ngọt)</label>
             <div className="relative">
               {/* Search input */}
               <div className="relative flex items-center">
@@ -308,7 +321,7 @@ function InventoryContent() {
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                   onKeyDown={(e) => {
                     if (!showSuggestions) return;
-                    const filtered = sweetProducts.filter((p) =>
+                    const filtered = products.filter((p) =>
                       p.name.toLowerCase().includes(searchQuery.toLowerCase())
                     );
                     if (filtered.length === 0) return;
@@ -357,7 +370,7 @@ function InventoryContent() {
                       setHighlightIndex(-1);
                     }
                   }}
-                  placeholder="Tìm tên bánh..."
+                  placeholder="Tìm tên bánh kem hoặc bánh ngọt..."
                   className="w-full border border-mocha/20 rounded-xl pl-9 pr-10 py-2.5 text-mocha focus:outline-none focus:ring-2 focus:ring-pink-pastel/40 focus:border-pink-pastel/40 transition-all"
                 />
                 {/* Clear button */}
@@ -381,7 +394,7 @@ function InventoryContent() {
 
               {/* Suggestions dropdown */}
               {showSuggestions && (() => {
-                const filtered = sweetProducts.filter((p) =>
+                const filtered = products.filter((p) =>
                   p.name.toLowerCase().includes(searchQuery.toLowerCase())
                 );
                 return filtered.length > 0 ? (
@@ -411,7 +424,12 @@ function InventoryContent() {
                                 : "text-mocha hover:bg-cream"
                           }`}
                         >
-                          <span>{p.name}</span>
+                          <span className="min-w-0">
+                            <span className="block truncate">{p.name}</span>
+                            <span className="text-[11px] text-mocha/45">
+                              {p.product_type === "cake" ? "Bánh kem mẫu sẵn" : "Bánh ngọt"}
+                            </span>
+                          </span>
                           <span className="text-xs text-mocha/40 flex-shrink-0">{formatPrice(p.base_price)}</span>
                         </button>
                       );
@@ -427,7 +445,10 @@ function InventoryContent() {
 
             {selectedProduct && (
               <div className="mt-3 flex items-center gap-4 text-sm flex-wrap">
-                <span className="text-mocha/60">Giá cơ bản: <strong className="text-mocha">{formatPrice(selectedProduct.base_price)}</strong></span>
+                <span className="text-mocha/60">Giá hiện tại: <strong className="text-mocha">{formatPrice(selectedProduct.base_price)}</strong></span>
+                <span className="text-xs bg-mocha/5 text-mocha/60 px-2 py-0.5 rounded-full">
+                  {selectedProduct.product_type === "cake" ? "Bánh kem mẫu sẵn" : "Bánh ngọt"}
+                </span>
                 <span className={`font-semibold px-2 py-0.5 rounded-full text-xs ${totalAvailable > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
                   {totalAvailable > 0 ? `Tổng còn ${totalAvailable} cái` : "Hết hàng"}
                 </span>
@@ -527,7 +548,11 @@ function InventoryContent() {
               onSubmit={handleAddBatch}
               className="bg-white rounded-2xl p-5 mb-4 border border-pink-pastel/20 shadow-sm space-y-4"
             >
-              <h3 className="font-semibold text-mocha">Nhập lô bánh mới</h3>
+              <h3 className="font-semibold text-mocha">Nhập số lượng mẫu đang có sẵn</h3>
+              <p className="text-xs text-mocha/55 -mt-2">
+                Lô này chỉ lưu mã sản phẩm. Tên và giá luôn lấy theo sản phẩm hiện tại,
+                nên chỉnh tên/giá ở Quản lý sản phẩm sẽ tự cập nhật tại đây.
+              </p>
               {addError && (
                 <p className="text-red-600 text-sm bg-red-50 rounded-lg px-3 py-2">{addError}</p>
               )}

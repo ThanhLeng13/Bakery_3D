@@ -702,6 +702,38 @@ class TestOrderSchemas:
         assert req.phone == "0901234567"
         assert len(req.items) == 1
 
+    def test_create_order_accepts_branch_for_ready_made_catalogue_stock(self):
+        """Mẫu có sẵn phải mang chi nhánh để RPC trừ đúng product_batches."""
+        branch_id = uuid4()
+        req = CreateOrderRequest(
+            full_name="Nguyen Van A",
+            phone="0901234567",
+            pickup_date=(datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+            branch_id=branch_id,
+            items=[{
+                "product_id": uuid4(),
+                "quantity": 1,
+                "unit_price": 200000,
+            }],
+        )
+        assert req.branch_id == branch_id
+
+    def test_customer_message_is_optional_and_limited_to_200_chars(self):
+        """Nội dung ghi trên bánh là tùy chọn, không phải ghi chú nội bộ."""
+        base = {
+            "full_name": "Nguyen Van A",
+            "phone": "0901234567",
+            "pickup_date": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+            "items": [{"product_id": uuid4(), "quantity": 1, "unit_price": 200000}],
+        }
+        assert CreateOrderRequest(**base).customer_message is None
+        assert CreateOrderRequest(
+            **base,
+            customer_message="Chúc mừng sinh nhật Minh Anh",
+        ).customer_message == "Chúc mừng sinh nhật Minh Anh"
+        with pytest.raises(Exception):
+            CreateOrderRequest(**base, customer_message="x" * 201)
+
     def test_create_order_request_invalid_phone(self):
         """Phone with non-digits should fail."""
         data = {

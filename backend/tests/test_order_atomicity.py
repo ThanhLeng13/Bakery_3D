@@ -105,6 +105,34 @@ class _RpcStub:
 
 
 class TestOrderIsAtomic:
+    def test_endpoint_wires_authenticated_and_service_role_clients(self, monkeypatch):
+        """Route keeps user-scoped queries separate from the privileged RPC."""
+        from app.api.v1.endpoints import orders as order_endpoint
+
+        auth_client = _ClientStub()
+        rpc_client = _ClientStub()
+        calls: list[tuple[object, bool]] = []
+
+        def get_client(token=None, use_service_role=False):
+            calls.append((token, use_service_role))
+            return rpc_client if use_service_role else auth_client
+
+        monkeypatch.setattr(order_endpoint, "get_supabase_client", get_client)
+        service = order_endpoint._get_order_service("customer-jwt")
+
+        assert service._supabase is auth_client
+        assert service._rpc_client is rpc_client
+        assert calls == [("customer-jwt", False), (None, True)]
+
+    def test_uses_separate_rpc_client_for_privileged_function(self):
+        """The atomic RPC uses the injected service-role client only."""
+        auth_client = _ClientStub()
+        rpc_client = _ClientStub()
+        service = OrderService(auth_client, rpc_client=rpc_client)
+        service.create_order(_order_data(), {"id": str(uuid4())})
+        assert not [call for call in auth_client.calls if call[0] == "rpc"]
+        assert [call for call in rpc_client.calls if call[0] == "rpc"]
+
     def test_du_dung_mot_rpc_deu_nhat(self):
         """Mọi bảng phải được ghi trong MỘT lệnh, không ghi tay từng bảng."""
         client = _ClientStub()
@@ -123,6 +151,52 @@ class TestOrderIsAtomic:
         client = _ClientStub()
         OrderService(client).create_order(_order_data(), {"id": str(uuid4())})
         assert client.calls[0][1] == "rpc_create_order"
+
+    def test_rpc_always_receives_branch_argument(self):
+        """Hàm RPC mới có chữ ký p_branch_id, kể cả custom order gửi NULL.
+
+        Nếu bỏ tham số này, PostgREST sẽ gọi overload cũ (không trừ tồn) hoặc
+        lỗi signature. Custom Studio không có kho, nên None là giá trị đúng.
+        """
+        client = _ClientStub()
+        OrderService(client).create_order(_order_data(), {"id": str(uuid4())})
+        args = next(call[2] for call in client.calls if call[0] == "rpc")
+        assert "p_branch_id" in args
+        assert args["p_branch_id"] is None
+        assert args["p_customer_message"] is None
+
+    def test_customer_message_is_forwarded_to_atomic_rpc(self):
+        """Optional text must reach the same transaction as the order."""
+        client = _ClientStub()
+        service = OrderService(client)
+        data = _order_data(customer_message="Chúc mừng sinh nhật Minh Anh")
+        service.create_order(data, {"id": str(uuid4())})
+        args = next(call[2] for call in client.calls if call[0] == "rpc")
+        assert args["p_customer_message"] == "Chúc mừng sinh nhật Minh Anh"
+
+    def test_ready_made_catalogue_order_forwards_selected_branch_to_rpc(self):
+        """Không chỉ schema nhận branch: phải đi tới transaction trừ tồn."""
+        client = _ClientStub()
+        branch_id = str(uuid4())
+        product_id = str(uuid4())
+        data = _order_data(
+            branch_id=branch_id,
+            items=[{
+                "product_id": product_id,
+                "quantity": 1,
+                "unit_price": 1,
+                "customization_json": None,
+            }],
+            pickup_date=datetime.now(timezone.utc) + timedelta(hours=1),
+        )
+        service = OrderService(client)
+        # Unit-price resolution normally reads products; this test isolates the
+        # RPC contract, so avoid teaching this generic stub all catalog queries.
+        service._resolve_unit_prices = lambda _items: [200000]
+        service.create_order(data, {"id": str(uuid4())})
+        args = next(call[2] for call in client.calls if call[0] == "rpc")
+        assert args["p_branch_id"] == branch_id
+        assert args["p_items"][0]["product_id"] == product_id
 
     def test_gui_lai_cung_mot_don_thi_khong_tao_hai_don(self):
         """Khoá idempotency phải do khách gửi lại giữ nguyên qua các lần bấm.

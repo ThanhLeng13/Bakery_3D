@@ -159,7 +159,16 @@ def test_order_has_voucher_and_discount_columns(db):
     thì PostgREST báo lỗi `42703`, tức là chính câu hỏi là cách kiểm.
     """
     missing = []
-    for column in ("voucher_code", "voucher_discount"):
+    # branch_id is added by add_ready_made_inventory_to_orders.sql. A ready-made
+    # catalogue order cannot know which branch to lock/decrement without it.
+    # customer_message belongs to add_customer_message_to_orders.sql; it is kept
+    # separate from internal baker_notes so customer text is not lost or hidden.
+    for column in (
+        "voucher_code",
+        "voucher_discount",
+        "branch_id",
+        "customer_message",
+    ):
         try:
             _require_reachable(
                 db.table("orders").select(column).limit(1).execute
@@ -173,7 +182,7 @@ def test_order_has_voucher_and_discount_columns(db):
 
     assert not missing, (
         "Cột thiếu trong bảng orders: " + ", ".join(missing)
-        + " — chưa chạy migrations/add_order_voucher_columns.sql"
+        + " — chưa chạy add_order_voucher_columns.sql hoặc add_ready_made_inventory_to_orders.sql"
     )
 
 
@@ -230,12 +239,12 @@ def _rpc_argument_names(operation: dict) -> set[str]:
     `match_threshold`, `query_embedding`, và **0** tham số query.
 
     Vì vậy bản đầu của test này lấy `in == "query"` sẽ luôn ra tập rỗng — tức
-    báo thiếu cả 12 tham số kể cả khi migration đã chạy đúng.
+    báo thiếu cả 13 tham số kể cả khi migration đã chạy đúng.
 
     Cố ý KHÔNG fallback sang tham số `query`. Đã thử: fallback đó cho ra kết quả
     hợp lý giả khi `schema.properties` rỗng, che mất đúng thứ cần phát hiện. Ở
-    `rpc_create_order`, `p_voucher_code` và `p_voucher_discount` chính là hai
-    tham số dễ mất, nên đọc thiếu rồi báo xanh là nguy hiểm hơn báo lỗi cấu trúc.
+    `rpc_create_order`, voucher, branch và nội dung bánh là những tham số dễ
+    mất. Đọc thiếu rồi báo xanh là nguy hiểm hơn báo lỗi cấu trúc.
     """
     for param in operation.get("parameters", []):
         if param.get("in") == "body":
@@ -244,12 +253,12 @@ def _rpc_argument_names(operation: dict) -> set[str]:
 
 
 def test_create_order_rpc_has_the_expected_signature(db):
-    """Hàm phải nhận đúng 12 tham số, kể cả hai tham số voucher.
+    """Hàm phải nhận đúng 14 tham số, kể cả voucher, branch_id và nội dung bánh.
 
-    Đây là lý do `add_create_order_rpc.sql` phải chạy **sau**
-    `add_order_voucher_columns.sql`: chữ ký có `p_voucher_code` và
-    `p_voucher_discount`. Hàm cũ thiếu hai tham số này vẫn gọi được nhưng sẽ
-    âm thầm bỏ qua voucher, nên chỉ kiểm "hàm có tồn tại" là chưa đủ.
+    Migration mở rộng mới phải chạy sau `add_create_order_rpc.sql` và
+    `add_order_voucher_columns.sql`: chữ ký có voucher, chi nhánh và nội dung
+    ghi trên bánh. Hàm cũ thiếu các tham số này vẫn gọi được nhưng sẽ âm thầm
+    bỏ dữ liệu, nên chỉ kiểm "hàm có tồn tại" là chưa đủ.
     """
     import json
     import urllib.request
@@ -278,7 +287,8 @@ def test_create_order_rpc_has_the_expected_signature(db):
     expected = {
         "p_customer_id", "p_full_name", "p_phone", "p_email", "p_pickup_date",
         "p_total_price", "p_ai_summary", "p_voucher_code", "p_voucher_discount",
-        "p_items", "p_customizations", "p_idempotency_key",
+        "p_items", "p_customizations", "p_idempotency_key", "p_branch_id",
+        "p_customer_message",
     }
     assert names, (
         "Đọc được vị trí /rpc/rpc_create_order nhưng không lấy được tên tham số"

@@ -10,12 +10,7 @@ import { Suspense, useState, FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuthContext } from "@/contexts/AuthContext";
-import { ApiError } from "@/lib/api";
-
-interface FieldError {
-  field: string;
-  message: string;
-}
+import { normalizeApiError } from "@/lib/api-errors";
 
 export default function RegisterPage() {
   return (
@@ -121,20 +116,15 @@ function RegisterContent() {
       await register(formData);
       router.replace(redirectUrl);
     } catch (err: unknown) {
-      const apiError = err as ApiError;
-
-      if (Array.isArray(apiError.detail)) {
-        // Backend validation errors: [{ field, message }]
-        const errors: Record<string, string> = {};
-        (apiError.detail as FieldError[]).forEach((e) => {
-          errors[e.field] = e.message;
-        });
-        setFieldErrors(errors);
-      } else if (typeof apiError.detail === "string") {
-        setGeneralError(apiError.detail);
-      } else {
-        setGeneralError("Đã xảy ra lỗi, vui lòng thử lại sau");
-      }
+      // Trước đây chỗ này chỉ đọc được `detail` dạng [{field, message}] của
+      // tầng dịch vụ. Khi CHÍNH FastAPI trả lỗi kiểm tra dữ liệu thì `detail`
+      // là [{loc, msg, type}], nên `e.field` và `e.message` đều undefined:
+      // form không hiện thông báo nào và người dùng tưởng nút không ăn.
+      // `normalizeApiError` xử lý cả ba dạng `detail` và cả trường hợp
+      // `fetch` không gọi được máy chủ.
+      const { fieldErrors: fe, generalError: ge } = normalizeApiError(err);
+      if (Object.keys(fe).length) setFieldErrors(fe);
+      if (ge) setGeneralError(ge);
     } finally {
       setLoading(false);
     }

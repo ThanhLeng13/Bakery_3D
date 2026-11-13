@@ -103,6 +103,9 @@ function CheckoutContent() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [pickupDate, setPickupDate] = useState("");
+  // Tùy chọn: khách có thể để trống. Nội dung này được lưu RIÊNG trong đơn,
+  // không dùng baker_notes vì baker_notes là ghi chú nội bộ của thợ bánh.
+  const [customerMessage, setCustomerMessage] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState<OrderConfirmation | null>(null);
@@ -126,7 +129,6 @@ function CheckoutContent() {
     ? (cartItems[0].productType ?? "sweet")
     : null;
   const isCartMode = cartItems.length > 0;
-  const isSweetCartMode = isCartMode && cartProductType === "sweet";
   const isReadyMadeCakeMode = isCartMode && cartProductType === "cake";
   const isCakeMode = !isCartMode;            // cake builder
 
@@ -225,10 +227,12 @@ function CheckoutContent() {
       }
     }
 
-    // Chi nhánh chỉ bắt buộc khi mua bánh ngọt: tồn kho theo chi nhánh chỉ có
-    // cho `product_type = 'sweet'` (xem inventory_service), nên bánh sinh nhật
-    // không có chi nhánh để chọn và yêu cầu nó sẽ chặn đơn vĩnh viễn.
-    if (isSweetCartMode && !selectedBranchId) {
+    // Mọi MẪU CÓ SẴN — bánh ngọt lẫn bánh kem — đều lấy từ product_batches
+    // theo chi nhánh. Không có chi nhánh thì server không biết phải kiểm/trừ
+    // số chiếc đang bày ở đâu; cho đặt tiếp sẽ bán vượt tồn kho.
+    // Bánh thiết kế qua Studio không vào isCartMode, nên vẫn đi quy tắc 24/48h
+    // và không bắt chọn kho mẫu sẵn.
+    if (isCartMode && !selectedBranchId) {
       newErrors.branch = "Vui lòng chọn chi nhánh nhận bánh";
     }
 
@@ -281,6 +285,10 @@ function CheckoutContent() {
           ai_summary: null,
           voucher_code: voucherCode.trim() || null,
           idempotency_key: idempotencyKey,
+          // Bắt buộc ở validateForm: RPC dùng chi nhánh này để khoá và trừ
+          // product_batches của đúng mẫu bánh làm sẵn.
+          branch_id: selectedBranchId!,
+          customer_message: customerMessage.trim() || null,
         };
 
         const response = await apiClient.post<OrderConfirmation>(
@@ -295,7 +303,7 @@ function CheckoutContent() {
         // không có nó, nên khách sẽ đọc "+0 điểm đã được cộng" dù điểm thực ra
         // được cộng khi nhận bánh.
         setSubmittedIsCartMode(false);
-        setSubmittedBranchName(null);
+        setSubmittedBranchName(selectedBranchName ?? null);
         setConfirmation(response);
         setIdempotencyKey(
           typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -362,6 +370,7 @@ function CheckoutContent() {
           items: orderItems,
           ai_summary: null,
           voucher_code: voucherCode.trim() || null,
+          customer_message: customerMessage.trim() || null,
           // Khoá chống tạo trùng: bấm "Đặt hàng" hai lần khi mạng chập
           // chờn sẽ dùng chung khoá này, server trả về đơn cũ.
           idempotency_key: idempotencyKey,
@@ -509,7 +518,7 @@ function CheckoutContent() {
                   </span>
                 </div>
               ) : null}
-              {submittedIsCartMode && submittedBranchName && (
+              {submittedBranchName && (
                 <div className="flex justify-between items-center">
                   <span className="text-mocha/70 text-sm">Chi nhánh nhận</span>
                   <span className="font-medium text-mocha text-sm">{submittedBranchName}</span>
@@ -598,16 +607,9 @@ function CheckoutContent() {
               <h2 className="font-heading text-lg font-bold text-mocha mb-1">
                 Sản phẩm đã chọn
               </h2>
-              {/* Cảnh báo chi nhánh chỉ dành cho bánh ngọt.
-                  Tồn kho theo chi nhánh chỉ tồn tại cho `product_type='sweet'`,
-                  nên bánh sinh nhật không bao giờ có `branchName`. Hiện dòng
-                  "Vui lòng chọn chi nhánh" ở đây là bắt khách đi tìm một thứ
-                  không có trên trang bánh sinh nhật. */}
-              {isReadyMadeCakeMode ? (
-                <p className="text-sm text-mocha/60 mb-4">
-                  Mẫu có sẵn tại tiệm — nhận trực tiếp theo ngày bạn chọn bên dưới.
-                </p>
-              ) : selectedBranchName ? (
+              {/* Mọi mẫu có sẵn đều thuộc một chi nhánh. Cùng chi nhánh đó
+                  quyết định tồn kho ở trang sản phẩm và là nơi RPC trừ lô hàng. */}
+              {selectedBranchName ? (
                 <p className="text-sm text-mocha/60 mb-4 flex items-center gap-1.5">
                   <svg className="w-3.5 h-3.5 text-pink-pastel flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -792,6 +794,27 @@ function CheckoutContent() {
                 {errors.phone && (
                   <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
                 )}
+              </div>
+
+              {/* Nội dung ghi trên bánh: áp dụng cho mẫu có sẵn hoặc bánh đặt.
+                  Đây là dữ liệu khách yêu cầu thợ thực hiện, khác special_notes
+                  trong Studio (ghi chú thiết kế) và baker_notes (nội bộ). */}
+              <div>
+                <label htmlFor="customerMessage" className="block text-sm font-medium text-mocha mb-1">
+                  Nội dung ghi trên bánh <span className="text-mocha/50">(không bắt buộc)</span>
+                </label>
+                <textarea
+                  id="customerMessage"
+                  value={customerMessage}
+                  onChange={(e) => setCustomerMessage(e.target.value)}
+                  placeholder="Ví dụ: Chúc mừng sinh nhật Minh Anh"
+                  maxLength={200}
+                  rows={3}
+                  className="w-full px-4 py-3 rounded-xl border border-mocha/20 text-mocha bg-cream/50 placeholder:text-mocha/40 focus:outline-none focus:ring-2 focus:ring-pink-pastel/50 resize-y"
+                />
+                <p className="mt-1 text-xs text-mocha/45 text-right" aria-live="polite">
+                  {customerMessage.length}/200
+                </p>
               </div>
 
               {/* Email (optional) */}

@@ -1,9 +1,12 @@
-"""Inventory service — quản lý lô hàng bánh ngọt.
+"""Inventory service — quản lý lô mẫu bánh có sẵn.
 
 Chức năng:
-- Baker thêm / sửa / ẩn lô hàng (product_batches)
-- Public: xem tổng stock còn lại của một sản phẩm
-- Decrement stock theo FIFO (lô gần hết hạn nhất trước)
+- Admin/baker thêm / sửa / ẩn lô hàng (product_batches) cho bánh ngọt và
+  bánh kem mẫu sẵn.
+- Public: xem tổng stock còn lại của một sản phẩm theo chi nhánh.
+- Decrement stock theo FIFO (lô gần hết hạn nhất trước).
+
+Bánh thiết kế qua Studio không tạo product_batch, nên không đi qua service này.
 """
 
 from datetime import date, datetime
@@ -15,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 class InventoryServiceError(Exception):
     def __init__(self, message: str, status_code: int = 400):
+        """Create a user-facing inventory error with its HTTP status."""
         self.message = message
         self.status_code = status_code
         super().__init__(message)
@@ -22,7 +26,9 @@ class InventoryServiceError(Exception):
 
 class InsufficientStockError(InventoryServiceError):
     def __init__(self, available: int, requested: int):
+        """Create a conflict error containing available and requested counts."""
         super().__init__(
+
             f"Không đủ hàng. Còn {available} cái, yêu cầu {requested} cái.",
             status_code=409,
         )
@@ -32,13 +38,15 @@ class InsufficientStockError(InventoryServiceError):
 
 class BatchNotFoundError(InventoryServiceError):
     def __init__(self):
+        """Create a not-found error for a missing inventory batch."""
         super().__init__("Không tìm thấy lô hàng.", status_code=404)
 
 
 class InventoryService:
-    """Service quản lý lô hàng bánh ngọt."""
+    """Service quản lý lô mẫu bánh có sẵn."""
 
     def __init__(self, supabase_client: Any):
+        """Initialize the service with a Supabase client."""
         self._db = supabase_client
 
     # ─── Public ────────────────────────────────────────────────────────────────
@@ -220,7 +228,8 @@ class InventoryService:
         if expires_at <= produced_at:
             raise InventoryServiceError("Ngày hết hạn phải sau ngày sản xuất.")
 
-        # Verify product exists and is sweet type
+        # Verify product exists. Both sweet and cake products can be stocked
+        # as ready-made items; custom Studio designs never enter this table.
         product = (
             self._db.table("products")
             .select("id, name, product_type")
@@ -231,11 +240,6 @@ class InventoryService:
         )
         if not product or not product.data:
             raise InventoryServiceError("Không tìm thấy sản phẩm.", status_code=404)
-        if product.data.get("product_type") != "sweet":
-            raise InventoryServiceError(
-                "Chỉ bánh ngọt mới có thể thêm lô hàng. Bánh kem làm theo đơn.",
-                status_code=400,
-            )
 
         data = {
             "product_id": product_id,

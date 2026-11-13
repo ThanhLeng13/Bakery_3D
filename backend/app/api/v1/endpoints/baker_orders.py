@@ -77,7 +77,7 @@ def list_baker_orders(
             supabase.table("orders")
             .select(
                 "id, status, total_price, pickup_date, customer_name, "
-                "customer_phone, ai_summary, baker_notes, created_at, updated_at"
+                "customer_phone, customer_message, ai_summary, baker_notes, created_at, updated_at"
             )
             .in_("status", ["confirmed", "in_production"])
             .order("pickup_date", desc=False)
