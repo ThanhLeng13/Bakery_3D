@@ -23,6 +23,7 @@ interface AdminOrder {
   customer_name: string;
   customer_phone: string;
   customer_email?: string;
+  customer_message?: string | null;
   ai_summary?: string;
   baker_notes?: string;
   created_at: string;
@@ -566,6 +567,13 @@ function AdminOrdersContent() {
                     {selectedOrder.customizations.map((c) => (
                       <CustomizationDetails key={c.id} customizationJson={c.customization_json} />
                     ))}
+                  </section>
+                )}
+
+                {selectedOrder.customer_message && (
+                  <section className="bg-pink-pastel/10 border border-pink-pastel/20 rounded-xl p-4">
+                    <h3 className="font-semibold text-mocha text-sm mb-2">Nội dung ghi trên bánh</h3>
+                    <p className="text-mocha text-sm whitespace-pre-wrap">{selectedOrder.customer_message}</p>
                   </section>
                 )}
 

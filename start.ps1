@@ -118,18 +118,23 @@ while (-not $portFound) {
 Set-Content -Path $lastPortFile -Value "$frontendPort" -Encoding UTF8
 
 # ---- BACKEND ----
+# Khong chay `pip install -r requirements.txt` moi lan start: no co the mat hon
+# 90 giay va frontend mo truoc API, lam dang ky bao khong ket noi duoc. Setup
+# dependency la buoc cai dat mot lan; start chi can dung dung Python trong venv.
 Write-Host "[1/2] Khoi dong BACKEND (FastAPI - cong 8000)..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList @(
+$backendCommand = @'
+Write-Host "[BACKEND] Dang chay server..." -ForegroundColor Green
+.\venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+'@
+Start-Process powershell -WorkingDirectory $backendDir -ArgumentList @(
     "-ExecutionPolicy", "Bypass",
     "-NoExit",
-    "-Command",
-    "cd '$backendDir'; .\venv\Scripts\Activate.ps1; `$env:FRONTEND_PORT = $frontendPort; Write-Host '[BACKEND] Dang cai thu vien...' -ForegroundColor Cyan; pip install -r requirements.txt -q; if (`$LASTEXITCODE -ne 0) { Write-Host '[BACKEND] Cai dat thu vien THAT BAI!' -ForegroundColor Red; Read-Host 'Nhan Enter de dong'; exit 1 }; Write-Host '[BACKEND] Dang chay server...' -ForegroundColor Green; python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload"
+    "-Command", $backendCommand
 )
 
-# Chờ backend thật sự sẵn sàng thay vì ngủ cố định 3 giây. Cài dependency hoặc
-# import model có thể lâu hơn; nếu frontend mở trước, đăng ký sẽ báo không kết
-# nối được tới máy chủ dù người dùng vừa chạy script đúng cách.
-Write-Host "[*] Đang chờ backend health-check..." -ForegroundColor Cyan
+# Cho backend that su san sang thay vi ngu co dinh 3 giay. Import application co
+# the lau hon; neu frontend mo truoc, dang ky se bao khong ket noi duoc may chu.
+Write-Host "[*] Dang cho backend health-check..." -ForegroundColor Cyan
 $backendReady = $false
 for ($i = 1; $i -le 90; $i++) {
     try {
@@ -139,14 +144,14 @@ for ($i = 1; $i -le 90; $i++) {
             break
         }
     } catch {
-        # Backend đang khởi động; thử lại ở vòng tiếp theo.
+        # Backend dang khoi dong; thu lai o vong tiep theo.
     }
     Start-Sleep -Seconds 1
 }
 if ($backendReady) {
-    Write-Host "[OK] Backend health-check thành công." -ForegroundColor Green
+    Write-Host "[OK] Backend health-check thanh cong." -ForegroundColor Green
 } else {
-    Write-Host "[!] Backend chưa phản hồi /health. Kiểm tra cửa sổ backend trước khi đăng ký." -ForegroundColor Red
+    Write-Host "[!] Backend chua phan hoi /health. Kiem tra cua so backend truoc khi dang ky." -ForegroundColor Red
 }
 
 # ---- FRONTEND ----

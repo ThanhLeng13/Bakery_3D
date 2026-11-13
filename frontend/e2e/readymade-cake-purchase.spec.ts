@@ -161,6 +161,7 @@ test("đặt bánh làm sẵn gọi /api/v1/orders và cho nhận trong ngày", 
 
   await page.locator("#fullName").fill("Khách thử");
   await page.locator("#phone").fill("0900000001");
+  await page.locator("#customerMessage").fill("Chúc mừng sinh nhật Minh Anh");
   // Nhận sau 3 giờ: hợp lệ với mẫu làm sẵn (0 giờ chờ). Mốc 24/48 giờ chỉ dành
   // cho mẫu đặt qua Studio.
   await page.locator("#pickupDate").fill(localDateTimeValue(3));
@@ -177,6 +178,7 @@ test("đặt bánh làm sẵn gọi /api/v1/orders và cho nhận trong ngày", 
   expect(payload.items).toHaveLength(1);
   expect(payload.items[0].product_id).toBe(CAKE_ID);
   expect(payload.branch_id).toBe(BRANCH_ID);
+  expect(payload.customer_message).toBe("Chúc mừng sinh nhật Minh Anh");
   // Mẫu làm sẵn không có thiết kế riêng. Gửi `customization_json` vào sẽ khiến
   // server coi là mẫu đặt và đòi 24/48 giờ.
   expect(payload.items[0].customization_json).toBeUndefined();

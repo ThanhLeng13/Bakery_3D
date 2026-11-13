@@ -414,6 +414,7 @@ class OrderService:
                         "p_customizations": [],
                         "p_idempotency_key": idempotency_key,
                         "p_branch_id": order_data.get("branch_id"),
+                        "p_customer_message": order_data.get("customer_message"),
                     },
                 )
                 .execute()
@@ -454,6 +455,8 @@ class OrderService:
             "pickup_date": order_data["pickup_date"].isoformat(),
             "customer_name": order_data["full_name"],
             "customer_phone": order_data["phone"],
+            "branch_id": order_data.get("branch_id"),
+            "customer_message": order_data.get("customer_message"),
             "customer_email": order_data.get("email"),
             "ai_summary": order_data.get("ai_summary"),
             "voucher_code": created.get("voucher_code") or money["voucher_code"],
@@ -599,6 +602,7 @@ class OrderService:
             "customer_name": order["customer_name"],
             "customer_phone": order["customer_phone"],
             "branch_id": order.get("branch_id"),
+            "customer_message": order.get("customer_message"),
             "customer_email": order.get("customer_email"),
             "ai_summary": order.get("ai_summary"),
             "baker_notes": order.get("baker_notes"),

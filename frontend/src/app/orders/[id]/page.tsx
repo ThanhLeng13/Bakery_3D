@@ -39,6 +39,7 @@ interface OrderDetail {
   customer_name: string;
   customer_phone: string;
   customer_email: string | null;
+  customer_message: string | null;
   ai_summary: string | null;
   baker_notes: string | null;
   created_at: string;
@@ -585,6 +586,18 @@ function OrderDetailContent() {
                 )}
               </div>
             ))}
+          </section>
+        )}
+
+        {/* Customer message: public order instruction, distinct from internal baker notes. */}
+        {order.customer_message && (
+          <section className="bg-pink-pastel/5 border border-pink-pastel/20 rounded-2xl shadow-sm p-5 md:p-6">
+            <h2 className="font-heading text-lg font-bold text-mocha mb-2">
+              Nội dung ghi trên bánh
+            </h2>
+            <p className="text-mocha text-sm whitespace-pre-wrap leading-relaxed">
+              {order.customer_message}
+            </p>
           </section>
         )}
 

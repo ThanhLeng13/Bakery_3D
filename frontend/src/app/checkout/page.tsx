@@ -103,6 +103,9 @@ function CheckoutContent() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [pickupDate, setPickupDate] = useState("");
+  // Tùy chọn: khách có thể để trống. Nội dung này được lưu RIÊNG trong đơn,
+  // không dùng baker_notes vì baker_notes là ghi chú nội bộ của thợ bánh.
+  const [customerMessage, setCustomerMessage] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState<OrderConfirmation | null>(null);
@@ -285,6 +288,7 @@ function CheckoutContent() {
           // Bắt buộc ở validateForm: RPC dùng chi nhánh này để khoá và trừ
           // product_batches của đúng mẫu bánh làm sẵn.
           branch_id: selectedBranchId!,
+          customer_message: customerMessage.trim() || null,
         };
 
         const response = await apiClient.post<OrderConfirmation>(
@@ -366,6 +370,7 @@ function CheckoutContent() {
           items: orderItems,
           ai_summary: null,
           voucher_code: voucherCode.trim() || null,
+          customer_message: customerMessage.trim() || null,
           // Khoá chống tạo trùng: bấm "Đặt hàng" hai lần khi mạng chập
           // chờn sẽ dùng chung khoá này, server trả về đơn cũ.
           idempotency_key: idempotencyKey,
@@ -789,6 +794,27 @@ function CheckoutContent() {
                 {errors.phone && (
                   <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
                 )}
+              </div>
+
+              {/* Nội dung ghi trên bánh: áp dụng cho mẫu có sẵn hoặc bánh đặt.
+                  Đây là dữ liệu khách yêu cầu thợ thực hiện, khác special_notes
+                  trong Studio (ghi chú thiết kế) và baker_notes (nội bộ). */}
+              <div>
+                <label htmlFor="customerMessage" className="block text-sm font-medium text-mocha mb-1">
+                  Nội dung ghi trên bánh <span className="text-mocha/50">(không bắt buộc)</span>
+                </label>
+                <textarea
+                  id="customerMessage"
+                  value={customerMessage}
+                  onChange={(e) => setCustomerMessage(e.target.value)}
+                  placeholder="Ví dụ: Chúc mừng sinh nhật Minh Anh"
+                  maxLength={200}
+                  rows={3}
+                  className="w-full px-4 py-3 rounded-xl border border-mocha/20 text-mocha bg-cream/50 placeholder:text-mocha/40 focus:outline-none focus:ring-2 focus:ring-pink-pastel/50 resize-y"
+                />
+                <p className="mt-1 text-xs text-mocha/45 text-right" aria-live="polite">
+                  {customerMessage.length}/200
+                </p>
               </div>
 
               {/* Email (optional) */}

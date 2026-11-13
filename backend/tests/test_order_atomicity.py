@@ -163,6 +163,16 @@ class TestOrderIsAtomic:
         args = next(call[2] for call in client.calls if call[0] == "rpc")
         assert "p_branch_id" in args
         assert args["p_branch_id"] is None
+        assert args["p_customer_message"] is None
+
+    def test_customer_message_is_forwarded_to_atomic_rpc(self):
+        """Optional text must reach the same transaction as the order."""
+        client = _ClientStub()
+        service = OrderService(client)
+        data = _order_data(customer_message="Chúc mừng sinh nhật Minh Anh")
+        service.create_order(data, {"id": str(uuid4())})
+        args = next(call[2] for call in client.calls if call[0] == "rpc")
+        assert args["p_customer_message"] == "Chúc mừng sinh nhật Minh Anh"
 
     def test_ready_made_catalogue_order_forwards_selected_branch_to_rpc(self):
         """Không chỉ schema nhận branch: phải đi tới transaction trừ tồn."""

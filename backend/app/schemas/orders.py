@@ -53,6 +53,14 @@ class CreateOrderRequest(BaseModel):
             "chi nhánh tồn kho."
         ),
     )
+    customer_message: Optional[str] = Field(
+        default=None,
+        max_length=200,
+        description=(
+            "Nội dung khách muốn ghi trên bánh, không bắt buộc và không phải "
+            "ghi chú nội bộ của thợ bánh."
+        ),
+    )
 
     @field_validator("phone")
     @classmethod
@@ -176,6 +184,7 @@ class OrderDetailResponse(BaseModel):
     customer_name: str
     customer_phone: str
     branch_id: Optional[UUID] = None
+    customer_message: Optional[str] = None
     customer_email: Optional[str] = None
     ai_summary: Optional[str] = None
     baker_notes: Optional[str] = None

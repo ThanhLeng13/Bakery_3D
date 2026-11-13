@@ -113,6 +113,7 @@ def create_order(
         # Mẫu có sẵn cần chi nhánh để kiểm/trừ product_batches; bánh đặt riêng
         # gửi None và tiếp tục theo quy tắc 24/48 giờ.
         "branch_id": str(body.branch_id) if body.branch_id else None,
+        "customer_message": body.customer_message,
     }
 
     try:
