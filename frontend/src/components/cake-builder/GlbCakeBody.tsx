@@ -61,7 +61,14 @@ export default function GlbCakeBody({
     const sourceBounds = new THREE.Box3().setFromObject(clone);
     clone.position.y -= sourceBounds.min.y;
     const sourceSize = sourceBounds.getSize(new THREE.Vector3());
-    const desiredWidth = design.size === "16cm" ? 1.55 : design.size === "24cm" ? 2.35 : design.size === "2-tier" ? 2.05 : 1.92;
+    // Bề rộng hiển thị theo đường kính. Số tầng do mẫu quyết định, nên bánh
+    // hai tầng chọn 20cm vẫn rộng như bánh một tầng 20cm — khác hẳn bản cũ
+    // vốn dùng kích thước "2-tier" làm bề rộng.
+    const desiredWidth =
+      design.size === "16cm" ? 1.55
+      : design.size === "24cm" ? 2.35
+      : design.size === "2-tier" ? 2.05
+      : 1.92;
     const scale = desiredWidth / Math.max(sourceSize.x, sourceSize.z, 0.01);
     clone.scale.setScalar(scale);
     const materials: THREE.Material[] = [];

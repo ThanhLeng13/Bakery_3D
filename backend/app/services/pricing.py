@@ -16,6 +16,8 @@ Nếu muốn giao diện hiện giá trước khi lưu, hãy cho frontend gọi
 Nhân bản chính là nguồn của lỗi chênh giá.
 """
 
+import re
+
 # Placeholder Cake Builder gửi thay cho product_id, vì bánh tùy chỉnh không có
 # dòng trong bảng products.
 NIL_UUID = "00000000-0000-0000-0000-000000000000"
@@ -52,6 +54,71 @@ DEFAULT_CAKE_SIZE = "20cm"
 DEFAULT_CAKE_PRICE = CAKE_SIZE_PRICES[DEFAULT_CAKE_SIZE]
 
 TWO_TIER_SIZES = ("2-tier", "2 tier", "2tier")
+
+# Số tầng thuộc về MẪU THÂN BÁNH (`model_slug`), không phải kích thước.
+# Kích thước chỉ là đường kính. Bảng `CAKE_SIZE_PRICES` vẫn giữ khoá "2-tier"
+# để đọc được đơn và thiết kế CŨ đã lưu trước khi tách hai khái niệm này.
+TWO_TIER_BASE_PRICE = 650_000
+TWO_TIER_LEAD_HOURS = 48
+
+
+def tiers_for_model_slug(slug) -> int:
+    """Số tầng suy ra từ `model_slug`, ví dụ `round-2-tier` -> 2.
+
+    Trả 0 khi không có slug hoặc slug không chứa số tầng, để nơi gọi tự quyết
+    định mức mặc định thay vì âm thầm coi là bánh nhiều tầng.
+    """
+    if not isinstance(slug, str):
+        return 0
+    match = re.search(r"-(\d+)-tier", slug.strip().lower())
+    return int(match.group(1)) if match else 0
+
+
+def tiers_for_design(design) -> int:
+    """Số tầng của một cấu hình bánh.
+
+    Ưu tiên `model_slug`. Nếu thiết kế cũ chỉ có `size == "2-tier"` thì vẫn
+    nhận ra là bánh hai tầng, nhờ vậy đơn đã lưu giữ nguyên giá và thời gian.
+    """
+    if not isinstance(design, dict):
+        return 0
+    tiers = tiers_for_model_slug(design.get("model_slug"))
+    if tiers:
+        return tiers
+    return 2 if normalize_size(design.get("size")) in TWO_TIER_SIZES else 0
+
+
+def base_price_for_design(design) -> int:
+    """Giá thân bánh: bánh từ hai tầng trở lên dùng giá bánh nhiều tầng.
+
+    Trước đây giá chỉ theo kích thước, nên một chiếc bánh hai tầng chọn đường
+    kính 20cm sẽ bị tính 350.000đ thay vì 650.000đ.
+    """
+    if tiers_for_design(design) >= 2:
+        return TWO_TIER_BASE_PRICE
+    if not isinstance(design, dict):
+        return DEFAULT_CAKE_PRICE
+    raw_size = design.get("size")
+    if raw_size is None or (isinstance(raw_size, str) and not raw_size.strip()):
+        return DEFAULT_CAKE_PRICE
+    key = normalize_size(raw_size)
+    if key not in CAKE_SIZE_PRICES:
+        raise ValueError(
+            f"Kích cỡ bánh không hợp lệ: {raw_size!r}. "
+            f"Chỉ nhận: {', '.join(sorted(CAKE_SIZE_PRICES))}."
+        )
+    return CAKE_SIZE_PRICES[key]
+
+
+def lead_hours_for_design(design) -> int:
+    """Giờ chuẩn bị tối thiểu của một cấu hình, tính cả số tầng."""
+    if tiers_for_design(design) >= 2:
+        return TWO_TIER_LEAD_HOURS
+    if not isinstance(design, dict):
+        return DEFAULT_LEAD_HOURS
+    return SIZE_LEAD_HOURS.get(
+        normalize_size(design.get("size")), DEFAULT_LEAD_HOURS
+    )
 
 # Giờ chuẩn bị tối thiểu (giờ) theo kích cỡ, khớp _validate_pickup_date.
 SIZE_LEAD_HOURS: dict[str, int] = {
@@ -152,9 +219,11 @@ def lead_hours_for_items(items) -> int:
         if not is_custom_cake(item):
             continue
         has_custom = True
-        size = item.get("size")
-        # Mẫu đặt không có size: dùng mức mặc định.
-        hours = SIZE_LEAD_HOURS.get(normalize_size(size), DEFAULT_LEAD_HOURS)
+        # Số tầng đến từ mẫu thân bánh; thiết kế cũ dùng size "2-tier" vẫn được
+        # nhận ra qua `lead_hours_for_design`.
+        hours = lead_hours_for_design(
+            item.get("customization_json") if isinstance(item.get("customization_json"), dict) else item
+        )
         longest = max(longest, hours)
     if has_custom:
         return longest
@@ -177,9 +246,8 @@ def custom_design_lead_hours(items) -> int:
             continue
         if not is_custom_cake(item):
             continue
-        hours = SIZE_LEAD_HOURS.get(
-            normalize_size(item.get("size")), DEFAULT_LEAD_HOURS
-        )
+        design = item.get("customization_json")
+        hours = lead_hours_for_design(design if isinstance(design, dict) else item)
         longest = max(longest, hours)
     return longest or DEFAULT_LEAD_HOURS
 
@@ -249,17 +317,7 @@ def price_breakdown(design) -> dict:
     if not isinstance(design, dict):
         design = {}
 
-    raw_size = design.get("size")
-    if raw_size is None or (isinstance(raw_size, str) and not raw_size.strip()):
-        base = DEFAULT_CAKE_PRICE
-    else:
-        key = normalize_size(raw_size)
-        if key not in CAKE_SIZE_PRICES:
-            raise ValueError(
-                f"Kích cỡ bánh không hợp lệ: {raw_size!r}. "
-                f"Chỉ nhận: {', '.join(sorted(CAKE_SIZE_PRICES))}."
-            )
-        base = CAKE_SIZE_PRICES[key]
+    base = base_price_for_design(design)
 
     topping = sum(
         CAKE_TOPPING_COSTS.get(key, 0)
@@ -278,3 +336,8 @@ def price_breakdown(design) -> dict:
 def order_total(design) -> int:
     """Tổng tiền một chiếc bánh tùy chỉnh, theo đúng thứ sẽ ghi vào đơn."""
     return price_breakdown(design)["total"]
+
+
+def quote_lead_hours(design) -> int:
+    """Giờ chuẩn bị tối thiểu cho một cấu hình đã lưu (dùng cho /orders/quote)."""
+    return lead_hours_for_design(design)

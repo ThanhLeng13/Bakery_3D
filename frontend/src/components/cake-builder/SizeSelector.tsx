@@ -2,7 +2,8 @@
 
 /**
  * SizeSelector component for the Cake Builder.
- * Displays 4 size options with price per size and visual indicator for selection.
+ * Displays the three diameter options with price per size and visual indicator for selection.
+ * Cake tiers are selected from the body-model picker, never from this control.
  * Responsive grid layout with 44×44px minimum touch targets.
  *
  * Validates: Requirements 2.4, 2.5
@@ -26,7 +27,6 @@ const SIZE_OPTIONS: SizeOption[] = [
   { value: "16cm", label: "16cm", description: "4-6 người" },
   { value: "20cm", label: "20cm", description: "8-10 người" },
   { value: "24cm", label: "24cm", description: "12-15 người" },
-  { value: "2-tier", label: "2 tầng", description: "20-25 người" },
 ];
 
 export function SizeSelector({ selectedSize, onSizeChange }: SizeSelectorProps) {
@@ -36,7 +36,7 @@ export function SizeSelector({ selectedSize, onSizeChange }: SizeSelectorProps) 
         Kích thước
       </h3>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {SIZE_OPTIONS.map((option) => {
           const isSelected = selectedSize === option.value;
           const price = BASE_PRICES[option.value];

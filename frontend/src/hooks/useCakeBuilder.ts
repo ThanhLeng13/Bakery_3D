@@ -102,9 +102,10 @@ export function useCakeBuilder(
     setDesign((prev) => ({
       ...prev,
       model_slug: modelSlug,
-      // The published pricing/lead-time catalogue currently supports two tiers
-      // only through its dedicated size. Never silently map a 3-tier preview.
-      size: modelSlug === "round-2-tier" ? "2-tier" : prev.size === "2-tier" ? "20cm" : prev.size,
+      // Number of tiers belongs to the selected body model. `2-tier` used to
+      // be a fake size; old saved designs may still contain it, so normalize it
+      // once to the standard 20cm diameter instead of exposing it again.
+      size: prev.size === "2-tier" ? "20cm" : prev.size,
     }));
   }, []);
 

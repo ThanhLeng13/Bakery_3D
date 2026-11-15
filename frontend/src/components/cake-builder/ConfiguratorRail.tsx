@@ -41,7 +41,6 @@ const SIZE_OPTIONS: Array<{
   { value: "16cm", label: "16 cm", badge: "16", description: "4–6 người" },
   { value: "20cm", label: "20 cm", badge: "20", description: "8–10 người" },
   { value: "24cm", label: "24 cm", badge: "24", description: "12–15 người" },
-  { value: "2-tier", label: "2 tầng", badge: "2T", description: "20–25 người" },
 ];
 
 const FLAVOR_OPTIONS = [

@@ -763,10 +763,12 @@ TOOL_SCHEMAS: list[dict] = [
                     "items": _nullable({
                         "type": "array",
                         "description": (
-                            "Các món trong đơn. PHẢI kèm `size` là kích cỡ khách "
-                            "chọn (16cm, 20cm, 24cm, 2-tier) vì thời gian chuẩn bị "
-                            "tính theo kích cỡ, KHÔNG theo tên bánh. Khách chưa nói "
-                            "kích cỡ thì hỏi, hoặc bỏ trống để lấy mức mặc định. "
+                            "Các món trong đơn. PHẢI kèm `size` là đường kính khách "
+                            "chọn (16cm, 20cm, 24cm) vì thời gian chuẩn bị tính "
+                            "theo kích cỡ và số tầng, KHÔNG theo tên bánh. Bánh hai "
+                            "tầng là MẪU bánh (`round-2-tier`), không phải một "
+                            "kích thước. Khách chưa nói kích cỡ thì hỏi, hoặc bỏ "
+                            "trống để lấy mức mặc định. "
                             "Mẫu có sẵn trong danh mục thì PHẢI kèm `cake_id` (hoặc "
                             "`product_id`) LẤY TỪ KẾT QUẢ CỦA `find_cakes`: có ID "
                             "thì bán ngay (0 giờ), thiếu ID sẽ bị coi là bánh đặt "
@@ -791,7 +793,7 @@ TOOL_SCHEMAS: list[dict] = [
                                 },
                                 "size": {
                                     "type": "string",
-                                    "description": "Kích cỡ khách chọn: 16cm, 20cm, 24cm hoặc 2-tier.",
+                                    "description": "Đường kính khách chọn: 16cm, 20cm hoặc 24cm. Bánh 2 tầng là mẫu riêng, không phải kích thước.",
                                 },
                             },
                         },
@@ -818,8 +820,9 @@ TOOL_SCHEMAS: list[dict] = [
                     "items": {
                         "type": "array",
                         "description": (
-                            "Các món trong đơn. Nên kèm `size` là kích cỡ khách chọn "
-                            "(16cm, 20cm, 24cm, 2-tier) để kiểm tra thời gian làm đúng."
+                            "Các món trong đơn. Nên kèm `size` là đường kính khách "
+                            "chọn (16cm, 20cm, 24cm) để kiểm tra thời gian làm đúng. "
+                            "Bánh hai tầng là mẫu riêng, không phải một kích thước."
                         ),
                         "items": {
                             "type": "object",
@@ -828,7 +831,7 @@ TOOL_SCHEMAS: list[dict] = [
                                 "name": {"type": "string"},
                                 "size": {
                                     "type": "string",
-                                    "description": "Kích cỡ khách chọn: 16cm, 20cm, 24cm hoặc 2-tier.",
+                                    "description": "Đường kính khách chọn: 16cm, 20cm hoặc 24cm. Bánh 2 tầng là mẫu riêng, không phải kích thước.",
                                 },
                                 "quantity": {"type": "integer"},
                             },

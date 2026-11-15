@@ -20,6 +20,7 @@ import { useCart } from "@/contexts/CartContext";
 import { useLoyaltyContext } from "@/contexts/LoyaltyContext";
 import { apiClient } from "@/lib/api";
 import { useCakeQuote } from "@/lib/use-cake-quote";
+import { tiersForDesign } from "@/lib/price-calculator";
 import type { CakeDesign, CakeSize } from "@/types";
 
 interface OrderConfirmation {
@@ -182,8 +183,9 @@ function CheckoutContent() {
 
   const totalPrice = isCartMode ? cartTotal : builderTotal;
 
-  // hasTwoTier only applies to cake builder mode
-  const hasTwoTier = isCakeMode && cakeDesign?.size === "2-tier";
+  // Bánh hai tầng được chọn bằng MẪU (`model_slug`), không phải bằng kích thước.
+  // Đơn/thiết kế cũ đã lưu size "2-tier" vẫn được nhận để không đổi nghĩa.
+  const hasTwoTier = isCakeMode && cakeDesign ? tiersForDesign(cakeDesign) >= 2 : false;
 
   const minDate = useMemo(
     // Mẫu làm sẵn: 0 giờ chờ, khớp `lead_hours_for_items` ở server.

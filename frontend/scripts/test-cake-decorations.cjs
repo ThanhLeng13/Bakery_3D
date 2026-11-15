@@ -29,6 +29,11 @@ async function main() {
   const cases = [
     ['round-1-tier', 'cake-tron-1-tang.glb', '16cm', 1],
     ['round-1-tier', 'cake-tron-1-tang.glb', '24cm', 1],
+    // Mẫu hai tầng giờ chọn đường kính như bánh một tầng. Ca này cố ý dùng
+    // 20cm: nếu ai đó quay lại ép `size="2-tier"` thì lỗi đo viền cũ sẽ tái
+    // hiện đúng ở đây thay vì chỉ hiện trên trình duyệt của người dùng.
+    ['round-2-tier', 'cake-tron-2-tang.glb', '20cm', 2],
+    // Đơn/thiết kế cũ đã lưu "2-tier" vẫn phải dựng được, không được sập.
     ['round-2-tier', 'cake-tron-2-tang.glb', '2-tier', 2],
     ['round-3-tier', 'cake-tron-3-tang.glb', '20cm', 3],
     ['tall-1-tier', 'cake-cao-1-tang.glb', '20cm', 1],

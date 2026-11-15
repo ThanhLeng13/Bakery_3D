@@ -35,7 +35,8 @@ export const CAKE_BODY_MODELS: Record<Cake3DModelSlug, CakeBodyModelDefinition> 
     glbUrl: "/models/cake-tron-2-tang.glb",
     shape: "round",
     tiers: 2,
-    allowedSizes: ["2-tier"],
+    // Số tầng thuộc về mẫu này; kích thước vẫn là đường kính như bánh một tầng.
+    allowedSizes: ["16cm", "20cm", "24cm"],
     orderable: true,
     supportsRadialDecorations: true,
   },

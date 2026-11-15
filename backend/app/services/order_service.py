@@ -219,7 +219,9 @@ class OrderService:
         for item in items:
             design = item.get("customization_json")
             if is_custom_cake(catalogue_product_id(item)) and isinstance(design, dict) and design:
-                lead_items.append({**item, "size": design.get("size")})
+                # Truyền cả cấu hình: `model_slug` quyết định số tầng, còn
+                # `size` chỉ là đường kính.
+                lead_items.append({**item, "customization_json": design})
             else:
                 lead_items.append(item)
         required = lead_hours_for_items(lead_items)
