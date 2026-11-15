@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { CakeDesign, PriceBreakdown } from "@/types";
-import { formatPriceVND } from "@/lib/price-calculator";
+import { formatPriceVND, tiersForDesign } from "@/lib/price-calculator";
 
 interface OrderSummaryProps {
   design: CakeDesign;
@@ -11,6 +11,14 @@ interface OrderSummaryProps {
   validationMessage?: string | null;
   onContinue: () => void;
 }
+
+const SIZE_LABELS: Record<string, string> = {
+  "16cm": "16 cm",
+  "20cm": "20 cm",
+  "24cm": "24 cm",
+  // Chỉ xuất hiện khi mở thiết kế cũ đã lưu trước khi tách tầng khỏi kích thước.
+  "2-tier": "2 tầng",
+};
 
 const FLAVOR_LABELS: Record<string, string> = {
   vanilla: "Vanilla",
@@ -103,7 +111,13 @@ export default function OrderSummary({
 
       {showDetails && (
         <dl className="border-b border-line pb-2">
-          <SummaryRow label="Kích thước" value={design.size} />
+          <SummaryRow
+            label="Kích thước"
+            value={SIZE_LABELS[design.size] ?? design.size}
+          />
+          {tiersForDesign(design) >= 2 && (
+            <SummaryRow label="Số tầng" value={`${tiersForDesign(design)} tầng`} />
+          )}
           <SummaryRow
             label="Hương vị"
             value={FLAVOR_LABELS[design.flavor] ?? "Chưa chọn"}

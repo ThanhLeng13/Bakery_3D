@@ -19,7 +19,7 @@ from app.schemas.orders import (
     QuoteResponse,
     UpdateStatusRequest,
 )
-from app.services.pricing import lead_hours, price_breakdown
+from app.services.pricing import lead_hours, price_breakdown, quote_lead_hours
 from app.services.order_service import (
     InsufficientPermissionError,
     InvalidStatusTransitionError,
@@ -64,7 +64,9 @@ def quote_cake(body: QuoteRequest, user: dict = Depends(get_current_user)):
     size = design.get("size")
     return {
         **breakdown,
-        "lead_hours": lead_hours(size),
+        # Bánh hai tầng chọn bằng mẫu (`model_slug`), nên thời gian chuẩn bị
+        # phải đọc từ cả cấu hình chứ không chỉ từ kích thước đường kính.
+        "lead_hours": quote_lead_hours(design),
     }
 
 

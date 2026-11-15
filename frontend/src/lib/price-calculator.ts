@@ -7,13 +7,31 @@
 
 import type { CakeSize, CakeDesign, PriceBreakdown } from "@/types";
 
-/** Base prices by cake size (VND) */
+/** Base prices by cake diameter (VND). Tiers are priced separately below. */
 export const BASE_PRICES: Record<CakeSize, number> = {
   "16cm": 250_000,
   "20cm": 350_000,
   "24cm": 450_000,
+  // Legacy key: orders saved before tiers moved to `model_slug` used this size.
   "2-tier": 650_000,
 };
+
+/** Bánh từ hai tầng trở lên, giá theo mẫu chứ không theo đường kính. */
+export const TWO_TIER_BASE_PRICE = 650_000;
+
+/** Số tầng suy ra từ `model_slug`, ví dụ `round-2-tier` → 2. */
+export function tiersForModelSlug(slug?: string | null): number {
+  if (typeof slug !== "string") return 0;
+  const match = slug.trim().toLowerCase().match(/-(\d+)-tier/);
+  return match ? Number(match[1]) : 0;
+}
+
+/** Số tầng của một thiết kế; thiết kế cũ dùng size "2-tier" vẫn được nhận. */
+export function tiersForDesign(design: Pick<CakeDesign, "model_slug" | "size">): number {
+  const tiers = tiersForModelSlug(design.model_slug);
+  if (tiers) return tiers;
+  return design.size === "2-tier" ? 2 : 0;
+}
 
 /** Topping costs (VND) */
 export const TOPPING_COSTS: Record<string, number> = {
@@ -35,10 +53,17 @@ export const DECORATION_COSTS: Record<string, number> = {
 };
 
 /**
- * Calculate the base price for a given cake size.
+ * Calculate the base price for a cake design.
+ *
+ * Tiers belong to the chosen body model (`model_slug`). A two-tier cake used to
+ * be expressed as `size: "2-tier"`, so designs saved that way keep the same
+ * price. Diameter alone must not downgrade a tiered cake to the single-tier rate.
  */
-export function getBasePrice(size: CakeSize): number {
-  return BASE_PRICES[size] ?? 0;
+export function getBasePriceForDesign(
+  design: Pick<CakeDesign, "model_slug" | "size">,
+): number {
+  if (tiersForDesign(design) >= 2) return TWO_TIER_BASE_PRICE;
+  return BASE_PRICES[design.size] ?? 0;
 }
 
 /**
@@ -89,7 +114,7 @@ export function getDecorationCost(zones: CakeDesign["zones"]): number {
  * Pure function: basePrice + toppingCost + decorationCost = totalPrice
  */
 export function calculatePrice(design: CakeDesign): PriceBreakdown {
-  const basePrice = getBasePrice(design.size);
+  const basePrice = getBasePriceForDesign(design);
   const toppingCost = getToppingCost(design.topping_type);
   const decorationCost = getDecorationCost(design.zones);
   const totalPrice = basePrice + toppingCost + decorationCost;

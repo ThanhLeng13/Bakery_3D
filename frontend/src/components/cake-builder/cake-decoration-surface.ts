@@ -28,14 +28,26 @@ function detached(mesh: THREE.Mesh) {
 
 // The current round, heart and rounded-rectangle assets are star-shaped around
 // their modelling origin. Cast from outside so concave heart notches are kept.
-function outline(mesh: THREE.Mesh, y: number, reach: number) {
+//
+// A miss must NOT throw. This used to throw "Cannot measure cake outline at N",
+// which is an unhandled runtime error that blanks the whole Studio page: one
+// silhouette the rays do not hit (a tier whose geometry sits at a different
+// height, or an asset swap mid-load) was enough to kill the page. Falling back
+// to a point on the bounding circle keeps the cake renderable; the border is
+// only slightly rounder than the true outline in that rare case.
+function outline(mesh: THREE.Mesh, y: number, reach: number, fallbackRadius: number) {
   const ray = new THREE.Raycaster();
   return closedPath(Array.from({ length: 192 }, (_, i) => {
     const angle = i / 192 * Math.PI * 2;
     const direction = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
     ray.set(direction.clone().multiplyScalar(reach).setY(y), direction.clone().negate());
     const hit = ray.intersectObject(mesh, false)[0];
-    if (!hit) throw new Error(`Cannot measure cake outline at ${i}`);
+    if (!hit) {
+      // Same origin and winding as a real hit, projected onto y = 0.
+      return new THREE.Vector3(
+        direction.x * fallbackRadius, 0, direction.z * fallbackRadius,
+      );
+    }
     return hit.point.clone().setY(0);
   }));
 }
@@ -47,8 +59,9 @@ export function measureDecorationTier(body: THREE.Mesh, top: THREE.Mesh): CakeDe
   const bodyY = (bodyBounds.min.y + bodyBounds.max.y) / 2;
   const surface = detached(top);
   const reach = Math.max(dimensions.x, dimensions.z) * 2;
-  const topPath = outline(surface, topBounds.min.y + (topBounds.max.y - topBounds.min.y) * 0.25, reach);
-  const bodyPath = outline(detached(body), bodyY, reach);
+  const fallbackRadius = Math.min(dimensions.x, dimensions.z) / 2;
+  const topPath = outline(surface, topBounds.min.y + (topBounds.max.y - topBounds.min.y) * 0.25, reach, fallbackRadius);
+  const bodyPath = outline(detached(body), bodyY, reach, fallbackRadius);
   const ray = new THREE.Raycaster();
   const surfaceAt = (x: number, z: number) => {
     ray.set(new THREE.Vector3(x, topBounds.max.y + 1, z), new THREE.Vector3(0, -1, 0));

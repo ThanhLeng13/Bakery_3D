@@ -15,6 +15,7 @@ import { type CakeZone } from "./CakeSVG";
 import { Ganache, PipedBorder, RoundedCylinder, useIcingTexture } from "./CakeFinish";
 import GlbCakeBody from "./GlbCakeBody";
 import CanvasErrorBoundary from "./CanvasErrorBoundary";
+import { tiersForDesign } from "@/lib/price-calculator";
 import type { CakeDecorationTier } from "./cake-decoration-surface";
 
 interface Cake3DProps {
@@ -501,11 +502,14 @@ function CakeMesh({ design, activeZone, hoveredZone, onZoneClick, onZoneHover }:
   const topColor    = design.zones?.top?.color    || bodyColor;
 
   const size = design.size;
+  // Tầng là thuộc tính của MẪU thân bánh, không phải của kích thước đường kính.
+  // Bản cũ dựa vào `size === "2-tier"`; vẫn đọc được thiết kế cũ đã lưu.
+  const tiers = tiersForDesign(design);
   const zoneProps = { onZoneClick, onZoneHover, activeZone, hoveredZone };
 
   const activeToppings = getVisibleToppings(design);
 
-  if (size === "2-tier") {
+  if (tiers >= 2) {
     // Bottom Tier Dimensions
     const R1 = 0.9;
     const bodyH1 = 0.55;
@@ -763,8 +767,8 @@ function RotatingCake(props: Cake3DProps) {
         onStart={() => { rotating.current = false; }}
         onEnd={()   => { rotating.current = true;  }}
       />
-      <group scale={props.design.size === "2-tier" || props.design.size === "24cm" ? 0.9 : 1}
-        position={[0, props.design.size === "2-tier" ? -0.16 : props.design.size === "24cm" ? 0.09 : 0, 0]}>
+      <group scale={tiersForDesign(props.design) >= 2 || props.design.size === "24cm" ? 0.9 : 1}
+        position={[0, tiersForDesign(props.design) >= 2 ? -0.16 : props.design.size === "24cm" ? 0.09 : 0, 0]}>
         <SelectedCakeBody {...props} />
       </group>
     </group>
@@ -773,12 +777,16 @@ function RotatingCake(props: Cake3DProps) {
 
 // ─── Scene lighting ───────────────────────────────────────────────────────────
 function Scene(props: Cake3DProps) {
-  const shadowY = {
-    "16cm": -0.47,
-    "20cm": -0.55,
-    "24cm": -0.46,
-    "2-tier": -0.52,
-  }[props.design.size];
+  // Bóng tiếp xúc phải khớp đáy bánh. Bánh nhiều tầng được chọn bằng mẫu, nên
+  // không thể tra bảng theo kích thước đường kính như trước.
+  const shadowY = tiersForDesign(props.design) >= 2
+    ? -0.52
+    : {
+        "16cm": -0.47,
+        "20cm": -0.55,
+        "24cm": -0.46,
+        "2-tier": -0.52,
+      }[props.design.size];
 
   return (
     <>

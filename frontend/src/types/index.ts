@@ -39,6 +39,9 @@ export interface StockByBranchResponse {
   branches: BranchStock[];
 }
 
+// Kích thước là đường kính bánh. Số tầng thuộc `model_slug` (ví dụ
+// round-2-tier), không phải một lựa chọn kích thước.
+// Giữ "2-tier" để đọc đơn/thiết kế CŨ đã lưu trước khi tách hai khái niệm.
 export type CakeSize = "16cm" | "20cm" | "24cm" | "2-tier";
 
 /** Stable identifier of a reusable base model in the local 3D cake warehouse. */

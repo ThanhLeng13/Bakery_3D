@@ -130,7 +130,13 @@ class TestTwoTierLeadTime:
 
 
 class TestTables:
-    def test_bang_gia_size_dung_bon_kich_thuoc(self):
+    def test_bang_gia_size_giu_bon_khoa_de_doc_don_cu(self):
+        """Bảng giá theo đường kính; khoá "2-tier" còn lại chỉ để đọc đơn cũ.
+
+        Số tầng hiện được chọn bằng mẫu bánh (`model_slug`), không phải bằng
+        kích thước. Khoá "2-tier" vẫn phải còn để đơn đã lưu trước đó giữ nguyên
+        giá và thời gian chuẩn bị.
+        """
         assert CAKE_SIZE_PRICES == {
             "16cm": 250_000,
             "20cm": 350_000,

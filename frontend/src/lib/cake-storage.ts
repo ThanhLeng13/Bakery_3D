@@ -9,7 +9,7 @@ import type { CakeDesign, CakeSize } from "@/types";
 
 export const STORAGE_KEY = "cake_builder_design";
 
-/** Valid cake sizes for validation */
+/** Valid cake diameters. "2-tier" is accepted only to read older saved designs. */
 const VALID_SIZES: CakeSize[] = ["16cm", "20cm", "24cm", "2-tier"];
 
 /**
