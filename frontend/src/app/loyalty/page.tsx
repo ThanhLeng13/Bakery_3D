@@ -9,11 +9,15 @@
  * thì lần đổi bảng màu sau sẽ tự động áp dụng, không phải sửa lại file này.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Header from "@/components/Header";
-import { useLoyaltyContext, LoyaltyTransaction } from "@/contexts/LoyaltyContext";
+import {
+  useLoyaltyContext,
+  LoyaltyTransaction,
+  VoucherRow,
+} from "@/contexts/LoyaltyContext";
 import { useAuthContext } from "@/contexts/AuthContext";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -441,10 +445,104 @@ function SuccessModal({
   );
 }
 
+// ─── Voucher Wallet ──────────────────────────────────────────────────────────
+/**
+ * Danh sách mã voucher khách đã đổi, kèm nút sao chép.
+ *
+ * Vì sao cần khối này: màn hình "đổi điểm thành công" chỉ hiện mã MỘT LẦN. Khách
+ * đóng đi là mất dấu, không có chỗ nào xem lại — nên họ không nhập được mã ở
+ * trang thanh toán và tưởng tính năng đổi điểm bị hỏng. Đây là chỗ xem lại.
+ */
+function VoucherWallet({ vouchers }: { vouchers: VoucherRow[] }) {
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const usable = vouchers.filter((v) => v.status === "active" && !v.used_at);
+  if (usable.length === 0) {
+    return (
+      <p style={{ color: "var(--muted)", fontSize: "0.85rem", margin: 0 }}>
+        Chưa có mã nào dùng được. Đổi điểm ở trên để nhận voucher.
+      </p>
+    );
+  }
+
+  const copy = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(code);
+      setTimeout(() => setCopied((c) => (c === code ? null : c)), 2000);
+    } catch {
+      // Trình duyệt chặn clipboard (http, hoặc chưa cấp quyền). Không phải lỗi
+      // chí mạng: mã vẫn hiển thị để khách tự gõ lại.
+      setCopied(null);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+      {usable.slice(0, 10).map((v) => (
+        <div
+          key={v.id}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "0.75rem",
+            background: "var(--subtle)",
+            border: "1.5px dashed var(--brand)",
+            borderRadius: "0.75rem",
+            padding: "0.6rem 0.9rem",
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            <p
+              style={{
+                fontFamily: "monospace",
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                fontSize: "0.9rem",
+                color: "var(--foreground)",
+                margin: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {v.code}
+            </p>
+            <p style={{ color: "var(--muted)", fontSize: "0.72rem", margin: 0 }}>
+              Giảm {formatVND(v.discount_vnd)}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => copy(v.code)}
+            aria-label={`Sao chép mã ${v.code}`}
+            style={{
+              flexShrink: 0,
+              padding: "0.4rem 0.8rem",
+              borderRadius: "0.6rem",
+              border: "1px solid var(--brand)",
+              background: "white",
+              color: "var(--foreground)",
+              fontWeight: 600,
+              fontSize: "0.78rem",
+              cursor: "pointer",
+            }}
+          >
+            {copied === v.code ? "✓ Đã chép" : "Sao chép"}
+          </button>
+        </div>
+      ))}
+      <p style={{ color: "var(--muted)", fontSize: "0.75rem", margin: "0.25rem 0 0" }}>
+        Nhập mã này ở trang thanh toán để được giảm giá. Mỗi mã dùng một lần.
+      </p>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function LoyaltyPage() {
   const { user, isAuthenticated } = useAuthContext();
-  const { data, loading, error, redeemPoints } = useLoyaltyContext();
+  const { data, loading, error, redeemPoints, fetchVouchers } = useLoyaltyContext();
 
   const [showRedeem, setShowRedeem] = useState(false);
   const [redeemLoading, setRedeemLoading] = useState(false);
@@ -453,6 +551,28 @@ export default function LoyaltyPage() {
     discountVnd: number;
   } | null>(null);
   const [redeemError, setRedeemError] = useState<string | null>(null);
+  const [vouchers, setVouchers] = useState<VoucherRow[]>([]);
+
+  // Tải danh sách mã đã đổi. Chạy lại sau khi đổi điểm để mã mới xuất hiện ngay
+  // trong ví, không phải tải lại trang.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setVouchers([]);
+      return;
+    }
+    let cancelled = false;
+    fetchVouchers()
+      .then((res) => {
+        if (!cancelled) setVouchers(res.vouchers);
+      })
+      .catch(() => {
+        // Ví voucher lỗi không được làm hỏng cả trang tích điểm.
+        if (!cancelled) setVouchers([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, fetchVouchers, successResult]);
 
   const handleRedeem = async (count: number) => {
     setRedeemLoading(true);
@@ -853,6 +973,29 @@ export default function LoyaltyPage() {
               ⚠️ {redeemError}
             </p>
           )}
+
+          {/* ── VÍ VOUCHER ─────────────────────────────────────────────────── */}
+          <div
+            style={{
+              background: "white",
+              border: "1px solid var(--line)",
+              borderRadius: "1.25rem",
+              padding: "1.1rem 1rem",
+              marginBottom: "1.25rem",
+            }}
+          >
+            <h2
+              style={{
+                fontSize: "1rem",
+                fontWeight: 700,
+                color: "var(--foreground)",
+                margin: "0 0 0.75rem",
+              }}
+            >
+              🎟️ Mã giảm giá của bạn
+            </h2>
+            <VoucherWallet vouchers={vouchers} />
+          </div>
 
           {/* ── TRANSACTION HISTORY ────────────────────────────────────────── */}
           <div

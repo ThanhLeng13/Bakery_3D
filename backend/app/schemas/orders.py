@@ -61,6 +61,22 @@ class CreateOrderRequest(BaseModel):
             "ghi chú nội bộ của thợ bánh."
         ),
     )
+    fulfillment_type: Optional[str] = Field(
+        default=None,
+        description=(
+            "'pickup' (ghé lấy tại quán) hoặc 'delivery' (giao tận nơi). "
+            "Bỏ trống thì coi là ghé lấy. Nhận cả cách viết của khách "
+            "('giao hàng', 'tự lấy'...) và chuẩn hoá ở server."
+        ),
+    )
+    delivery_address: Optional[str] = Field(
+        default=None,
+        max_length=300,
+        description=(
+            "Địa chỉ giao hàng. BẮT BUỘC khi fulfillment_type='delivery', "
+            "phải rỗng khi khách ghé lấy."
+        ),
+    )
 
     @field_validator("phone")
     @classmethod
@@ -69,6 +85,15 @@ class CreateOrderRequest(BaseModel):
         if not v.isdigit() or len(v) != 10:
             raise ValueError("Phone must be exactly 10 digits")
         return v
+
+    @field_validator("fulfillment_type", "delivery_address")
+    @classmethod
+    def strip_blank_text(cls, v: Optional[str]) -> Optional[str]:
+        """Chuỗi toàn khoảng trắng là "không nhập", không phải một giá trị."""
+        if v is None:
+            return None
+        clean = " ".join(str(v).split())
+        return clean or None
 
     @field_validator("voucher_code")
     @classmethod
@@ -185,6 +210,8 @@ class OrderDetailResponse(BaseModel):
     customer_phone: str
     branch_id: Optional[UUID] = None
     customer_message: Optional[str] = None
+    fulfillment_type: str = "pickup"
+    delivery_address: Optional[str] = None
     customer_email: Optional[str] = None
     ai_summary: Optional[str] = None
     baker_notes: Optional[str] = None

@@ -155,7 +155,9 @@ class ChatService:
         for entry in tool_log:
             result = entry.get("result") or {}
             cakes = result.get("cakes")
-            if entry.get("tool") == "find_cakes" and cakes:
+            tool = entry.get("tool")
+            if tool in ("find_cakes", "find_ready_made_cakes") and cakes:
+                ready_made = tool == "find_ready_made_cakes"
                 return [
                     {
                         "product_name": c["name"],
@@ -164,9 +166,18 @@ class ChatService:
                         # Không nói "cần đặt trước 0 giờ" với khách — câu đó vô
                         # nghĩa và làm thẻ gợi ý trông như máy móc.
                         "reasoning": (
-                            f"Phù hợp yêu cầu, cần đặt trước {c['needs_lead_hours']} giờ"
-                            if c["needs_lead_hours"]
-                            else "Phù hợp yêu cầu, mẫu đang có sẵn tại tiệm"
+                            f"Còn {c['stock_total']} cái"
+                            + (
+                                f" tại {c['branches'][0]['branch_name']}"
+                                if c.get("branches")
+                                else ""
+                            )
+                            if ready_made and c.get("stock_total")
+                            else (
+                                f"Phù hợp yêu cầu, cần đặt trước {c['needs_lead_hours']} giờ"
+                                if c["needs_lead_hours"]
+                                else "Phù hợp yêu cầu, mẫu đang có sẵn tại tiệm"
+                            )
                         ),
                         "product_id": c.get("id"),
                     }

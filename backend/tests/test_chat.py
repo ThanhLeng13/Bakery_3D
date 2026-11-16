@@ -888,6 +888,10 @@ def _draft_args():
         "customer_phone": "0901234567",
         "pickup_date": _pickup_in(5),
         "customer_id": str(uuid4()),
+        # Hình thức nhận hàng là BẮT BUỘC khi chốt đơn: thợ làm xong phải biết
+        # để quầy chờ khách hay đóng gói giao đi. Các test dưới đây kiểm tra
+        # tính toàn vẹn của đơn nháp, không kiểm tra phần này, nên dùng 'pickup'.
+        "fulfillment_type": "pickup",
         "items": [
             {"name": "Bánh kem hoa hồng đỏ", "quantity": 1},
             {"name": "Bánh kem chữ Happy Birthday", "quantity": 2},
@@ -1073,6 +1077,8 @@ class TestLlmCannotForgeIdentity:
             "customer_name": "Khách",
             "customer_phone": "0901234567",
             "pickup_date": _pickup_in(5),
+            # Bắt buộc khi chốt đơn: thợ phải biết khách ghé lấy hay giao hàng.
+            "fulfillment_type": "pickup",
             "items": [{"name": "Bánh kem hoa hồng đỏ", "quantity": 1}],
         }
         base.update(extra)

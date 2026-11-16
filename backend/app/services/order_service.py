@@ -19,6 +19,7 @@ from app.services.pricing import (
     order_total,
 )
 from app.services.orderable_3d import OrderableModelError, ensure_orderable_model
+from app.services.fulfillment import FulfillmentError, resolve_fulfillment
 from app.services.voucher_service import (
     VoucherService,
     VoucherServiceError,
@@ -372,6 +373,18 @@ class OrderService:
 
         total_price = money["total"]
 
+        # ── Hình thức nhận bánh ─────────────────────────────────────────────
+        # Ghé lấy hay giao hàng là thông tin THỰC HIỆN ĐƠN, không phải ghi chú:
+        # thợ làm xong phải biết để quầy chờ khách hay đóng gói giao đi. Kiểm
+        # tra ở đây để đơn giao hàng thiếu địa chỉ bị chặn trước khi vào CSDL.
+        try:
+            fulfillment = resolve_fulfillment(
+                order_data.get("fulfillment_type"),
+                order_data.get("delivery_address"),
+            )
+        except FulfillmentError as exc:
+            raise OrderServiceError(exc.message, status_code=400) from exc
+
         # ── Ghi đơn: MỘT lệnh ───────────────────────────────────────────────
         # Trước đây ghi orders, rồi order_items từng món, rồi cake_customizations,
         # rồi order_status_history bằng các lệnh rời rạc. Lệnh sau hỏng thì các
@@ -417,6 +430,8 @@ class OrderService:
                         "p_idempotency_key": idempotency_key,
                         "p_branch_id": order_data.get("branch_id"),
                         "p_customer_message": order_data.get("customer_message"),
+                        "p_fulfillment_type": fulfillment["fulfillment_type"],
+                        "p_delivery_address": fulfillment["delivery_address"],
                     },
                 )
                 .execute()
@@ -459,6 +474,8 @@ class OrderService:
             "customer_phone": order_data["phone"],
             "branch_id": order_data.get("branch_id"),
             "customer_message": order_data.get("customer_message"),
+            "fulfillment_type": fulfillment["fulfillment_type"],
+            "delivery_address": fulfillment["delivery_address"],
             "customer_email": order_data.get("email"),
             "ai_summary": order_data.get("ai_summary"),
             "voucher_code": created.get("voucher_code") or money["voucher_code"],
@@ -605,6 +622,10 @@ class OrderService:
             "customer_phone": order["customer_phone"],
             "branch_id": order.get("branch_id"),
             "customer_message": order.get("customer_message"),
+            # Ghé lấy hay giao hàng: thợ đọc đơn cần biết để xử lý đúng. Đơn
+            # cũ (trước migration) mặc định 'pickup'.
+            "fulfillment_type": order.get("fulfillment_type") or "pickup",
+            "delivery_address": order.get("delivery_address"),
             "customer_email": order.get("customer_email"),
             "ai_summary": order.get("ai_summary"),
             "baker_notes": order.get("baker_notes"),

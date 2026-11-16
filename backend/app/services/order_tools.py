@@ -29,6 +29,7 @@ from app.services.orderable_3d import (
     ensure_orderable_model,
     is_orderable_model,
 )
+from app.services.fulfillment import FulfillmentError, resolve_fulfillment
 from app.services.pricing import (
     DEFAULT_LEAD_HOURS,
     custom_design_lead_hours,
@@ -323,6 +324,156 @@ class OrderTools:
             ],
         }
 
+    # ────────────────────────────────────────────────────────────────────────
+    # Tra cứu mẫu CÓ SẴN THẬT trong ngày
+    # ────────────────────────────────────────────────────────────────────────
+
+    def _branches(self) -> list[dict]:
+        """Danh sách chi nhánh đang hoạt động."""
+        result = (
+            self._supabase.table("branches")
+            .select("id, name, address, is_active")
+            .eq("is_active", True)
+            .execute()
+        )
+        return result.data or []
+
+    def _ready_made_stock(self) -> dict[str, dict]:
+        """Tồn khả dụng hôm nay của từng sản phẩm, gộp theo chi nhánh.
+
+        Chỉ tính lô `is_active`, còn hạn (`expires_at >= hôm nay`) và còn hàng
+        (`quantity_sold < quantity`) — đúng điều kiện `rpc_create_order` dùng khi
+        trừ kho, nên thứ trợ lý giới thiệu trùng với thứ đặt được.
+
+        Trả về `{product_id: {"total": int, "branches": [...]}}`.
+        "Kho chung" (`branch_id` null) được tính vào `total` nhưng không vào
+        `branches`, vì khách không nhận bánh tại kho không có địa chỉ.
+        """
+        today = _vn_now().date().isoformat()
+        result = (
+            self._supabase.table("product_batches")
+            .select("product_id, quantity, quantity_sold, branch_id, branches(id, name)")
+            .eq("is_active", True)
+            .gte("expires_at", today)
+            .execute()
+        )
+        stock: dict[str, dict] = {}
+        for row in result.data or []:
+            available = (row.get("quantity") or 0) - (row.get("quantity_sold") or 0)
+            if available <= 0:
+                continue
+            entry = stock.setdefault(row["product_id"], {"total": 0, "branches": []})
+            entry["total"] += available
+            branch = row.get("branches") or {}
+            if isinstance(branch, list):
+                branch = branch[0] if branch else {}
+            if row.get("branch_id") and isinstance(branch, dict) and branch.get("name"):
+                entry["branches"].append(
+                    {
+                        "branch_id": row["branch_id"],
+                        "branch_name": branch["name"],
+                        "quantity": available,
+                    }
+                )
+        for entry in stock.values():
+            entry["branches"].sort(key=lambda b: (-b["quantity"], b["branch_name"]))
+        return stock
+
+    def find_ready_made_cakes(
+        self,
+        budget: Optional[int] = None,
+        keyword: Optional[str] = None,
+        occasion: Optional[str] = None,
+        limit: int = 5,
+    ) -> dict:
+        """Tìm mẫu bánh CÒN HÀNG THẬT tại chi nhánh, mua được ngay hôm nay.
+
+        Vì sao cần công cụ riêng: `find_cakes` chỉ đọc danh mục, không đọc
+        `product_batches`, nên nó luôn báo "có sẵn, 0 giờ chờ" cho cả mẫu đã hết
+        hàng. Khách hỏi "hôm nay có bánh gì mua liền được" mà trợ lý trả lời theo
+        danh mục là hứa hàng tiệm không có.
+
+        Trả về `found` = số mẫu thật sự còn hàng, kèm tổng tồn và tồn từng chi
+        nhánh để trợ lý nói rõ khách nhận ở đâu.
+        """
+        limit = max(1, min(int(limit or 5), MAX_RESULTS))
+        if budget is not None:
+            try:
+                budget = int(budget)
+            except (TypeError, ValueError):
+                raise ToolError("Ngân sách phải là một con số (đơn vị VNĐ).")
+            if budget <= 0:
+                raise ToolError("Ngân sách phải lớn hơn 0.")
+
+        products = [p for p in self._active_cakes() if _is_orderable_catalogue_row(p)]
+        stock = self._ready_made_stock()
+
+        available = []
+        for product in products:
+            entry = stock.get(product["id"])
+            if not entry or entry["total"] <= 0:
+                continue
+            if budget is not None and (product.get("base_price") or 0) > budget:
+                continue
+            available.append((product, entry))
+
+        if keyword:
+            words = [w for w in _words(keyword) if w not in _STOPWORDS]
+            if words:
+                scored = []
+                for product, entry in available:
+                    hay = (
+                        f"{product.get('name','')} {product.get('description','')} "
+                        f"{product.get('category','')}"
+                    ).lower()
+                    hits = sum(1 for w in words if w in hay)
+                    if hits:
+                        scored.append((hits, product, entry))
+                scored.sort(key=lambda x: (-x[0], x[1].get("base_price") or 0))
+                available = [(p, e) for _h, p, e in scored]
+
+        if occasion:
+            occ = str(occasion).lower()
+            available.sort(
+                key=lambda pair: (
+                    0
+                    if occ in f"{pair[0].get('name','')} {pair[0].get('description','')}".lower()
+                    else 1,
+                    pair[0].get("base_price") or 0,
+                )
+            )
+
+        if not available:
+            return {
+                "found": 0,
+                "message": (
+                    "Hiện chưa có mẫu bánh nào còn hàng tại chi nhánh"
+                    + (f" trong ngân sách {budget:,}đ." if budget else ".")
+                    + " Đừng nói là còn sẵn; hãy đề nghị khách đặt mẫu riêng "
+                    "hoặc liên hệ tiệm để kiểm tra thêm."
+                ),
+                "cakes": [],
+                "branches_checked": [b.get("name") for b in self._branches()],
+            }
+
+        return {
+            "found": len(available),
+            "budget": budget,
+            "cakes": [
+                {
+                    "id": product["id"],
+                    "name": product["name"],
+                    "price": product.get("base_price") or 0,
+                    "category": product.get("category"),
+                    "description": (product.get("description") or "")[:160],
+                    "needs_lead_hours": READY_MADE_LEAD_HOURS,
+                    "stock_total": entry["total"],
+                    "branches": entry["branches"],
+                }
+                for product, entry in available[:limit]
+            ],
+        }
+
     def get_cake_detail(self, cake_id: Optional[str] = None, name: Optional[str] = None) -> dict:
         """Xem chi tiết một mẫu bánh, theo id hoặc theo tên."""
         if not cake_id and not name:
@@ -520,10 +671,20 @@ class OrderTools:
         customer_email: Optional[str] = None,
         customer_id: Optional[str] = None,
         notes: Optional[str] = None,
+        fulfillment_type: Optional[str] = None,
+        delivery_address: Optional[str] = None,
     ) -> dict:
         """Tạo đơn NHÁP (status='draft'), chưa phải đơn chính thức.
 
         Chỉ gọi sau khi khách đã xác nhận rõ ràng: mẫu bánh, số lượng, ngày nhận.
+
+        Hình thức nhận hàng là thông tin BẮT BUỘC để chốt đơn:
+            pickup   — khách ghé lấy tại quán; địa chỉ phải rỗng
+            delivery — tiệm giao tận nơi; địa chỉ bắt buộc
+
+        Không có thông tin này thì thợ làm xong không biết để quầy chờ khách hay
+        đóng gói giao đi. Trước đây trợ lý chốt đơn mà không hỏi, nên mọi đơn
+        đều bị coi là ghé lấy — khách chờ giao hàng thì không ai giao.
 
         LƯU Ý: bảng `orders` có `customer_id` NOT NULL (đã kiểm chứng bằng cách
         thử chèn — PostgREST không báo ràng buộc này trong schema). Nghĩa là mọi
@@ -547,6 +708,21 @@ class OrderTools:
         if len(phone) < 9:
             raise ToolError("Số điện thoại chưa hợp lệ (cần ít nhất 9 chữ số).")
 
+        # Chưa biết khách ghé lấy hay giao hàng thì KHÔNG được đoán. Mặc định
+        # 'pickup' ở đây sẽ âm thầm biến đơn giao hàng thành đơn chờ khách.
+        if fulfillment_type is None and delivery_address is None:
+            raise ToolError(
+                "Cần biết khách GIAO HÀNG hay GHÉ LẤY trước khi chốt đơn. "
+                "Hãy hỏi khách, rồi gọi lại: `fulfillment_type` = 'pickup' "
+                "(ghé lấy tại quán) hoặc 'delivery' (giao tận nơi). "
+                "Nếu giao hàng thì phải có cả `delivery_address`."
+            )
+
+        try:
+            fulfillment = resolve_fulfillment(fulfillment_type, delivery_address)
+        except FulfillmentError as exc:
+            raise ToolError(exc.message) from exc
+
         timed = self.check_bake_time(pickup_date, items)
         if not timed["is_possible"]:
             return {
@@ -567,6 +743,10 @@ class OrderTools:
         # Tóm tắt cho thợ làm bánh đọc.
         summary = "; ".join(f"{l['name']} x{l['quantity']}" for l in priced["items"])
         ai_summary = f"{summary} | Nhận: {timed['pickup_date']} | Tổng: {priced['total_price']:,}đ"
+        if fulfillment["fulfillment_type"] == "delivery":
+            ai_summary += f" | Giao tới: {fulfillment['delivery_address']}"
+        else:
+            ai_summary += " | Khách ghé lấy tại quán"
         if notes:
             ai_summary += f" | Ghi chú: {notes}"
 
@@ -579,6 +759,8 @@ class OrderTools:
             "customer_phone": phone,
             "customer_email": customer_email,
             "ai_summary": ai_summary,
+            "fulfillment_type": fulfillment["fulfillment_type"],
+            "delivery_address": fulfillment["delivery_address"],
         }
 
         # ── Chống tạo trùng (idempotent) ──────────────────────────────────────
@@ -663,10 +845,17 @@ class OrderTools:
             "total_price": priced["total_price"],
             "pickup_date": timed["pickup_date"],
             "items": priced["items"],
+            "fulfillment_type": fulfillment["fulfillment_type"],
+            "delivery_address": fulfillment["delivery_address"],
             "message": (
                 f"Đã tạo đơn nháp {order['id'][:8]} cho {order_insert['customer_name']}, "
-                f"nhận ngày {timed['pickup_date']}, tổng {priced['total_price']:,}đ. "
-                "Tiệm sẽ gọi xác nhận."
+                f"nhận ngày {timed['pickup_date']}, tổng {priced['total_price']:,}đ, "
+                + (
+                    f"giao tới {fulfillment['delivery_address']}. "
+                    if fulfillment["fulfillment_type"] == "delivery"
+                    else "khách ghé lấy tại quán. "
+                )
+                + "Tiệm sẽ gọi xác nhận."
             ),
         }
 
@@ -694,6 +883,31 @@ TOOL_SCHEMAS: list[dict] = [
                     "budget": _nullable({"type": "integer", "description": "Ngân sách tối đa, đơn vị VNĐ. Ví dụ 400000."}),
                     "occasion": _nullable({"type": "string", "description": "Dịp: sinh nhật, kỷ niệm, cưới, thôi nôi..."}),
                     "keyword": _nullable({"type": "string", "description": "Từ khoá mô tả bánh khách muốn, ví dụ 'hoa hồng', '2 tầng'."}),
+                    "limit": _nullable({"type": "integer", "description": "Số kết quả tối đa (1-10). Mặc định 5."}),
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "find_ready_made_cakes",
+            "description": (
+                "Tìm mẫu bánh CÒN HÀNG THẬT tại chi nhánh, mua được NGAY HÔM NAY. "
+                "BẮT BUỘC gọi công cụ này khi khách hỏi: 'hôm nay có bánh gì', "
+                "'có sẵn không', 'mua liền được không', 'lấy ngay hôm nay', "
+                "'còn bánh không', hoặc bất kỳ câu nào ngụ ý nhận bánh trong ngày. "
+                "KHÔNG dùng `find_cakes` cho những câu này: `find_cakes` chỉ đọc "
+                "danh mục, không biết tồn kho, nên có thể giới thiệu mẫu đã hết. "
+                "Kết quả `found` = 0 nghĩa là KHÔNG có mẫu nào còn sẵn — phải nói "
+                "thật với khách, không được nói 'dạ còn ạ'."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "budget": _nullable({"type": "integer", "description": "Ngân sách tối đa, đơn vị VNĐ."}),
+                    "keyword": _nullable({"type": "string", "description": "Từ khoá mô tả bánh khách muốn."}),
+                    "occasion": _nullable({"type": "string", "description": "Dịp: sinh nhật, kỷ niệm, cưới..."}),
                     "limit": _nullable({"type": "integer", "description": "Số kết quả tối đa (1-10). Mặc định 5."}),
                 },
             },
@@ -808,14 +1022,25 @@ TOOL_SCHEMAS: list[dict] = [
         "function": {
             "name": "create_draft_order",
             "description": (
-                "Tạo đơn nháp. CHỈ gọi sau khi khách đã xác nhận rõ ràng mẫu bánh, "
-                "số lượng và ngày nhận. Không được tự ý tạo đơn khi khách chưa đồng ý."
+                "Tạo đơn nháp (chốt đơn). CHỈ gọi sau khi khách đã xác nhận rõ "
+                "ràng mẫu bánh, số lượng, ngày nhận, VÀ đã cho biết GIAO HÀNG "
+                "hay GHÉ LẤY. Không được tự ý tạo đơn khi khách chưa đồng ý.\n"
+                "BẮT BUỘC có đủ 5 thứ, thiếu một thứ thì HỎI khách, không đoán:\n"
+                "  1. Tên bánh cụ thể (lấy từ `find_cakes`/`find_ready_made_cakes`)\n"
+                "  2. Số lượng\n"
+                "  3. Tên khách\n"
+                "  4. Số điện thoại khách\n"
+                "  5. Hình thức nhận: 'pickup' (ghé lấy tại quán) hoặc 'delivery'\n"
+                "Nếu 'delivery' thì BẮT BUỘC có `delivery_address` là địa chỉ cụ "
+                "thể (số nhà, đường, phường/quận). Thiếu địa chỉ mà vẫn gọi thì "
+                "công cụ sẽ từ chối.\n"
+                "Ghi chú 'ghi chú' (notes) chỉ là tuỳ chọn: chữ trên bánh, dị ứng."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "customer_name": {"type": "string", "description": "Tên khách."},
-                    "customer_phone": {"type": "string", "description": "Số điện thoại khách."},
+                    "customer_phone": {"type": "string", "description": "Số điện thoại khách (10 chữ số)."},
                     "pickup_date": {"type": "string", "description": "Ngày nhận, YYYY-MM-DD."},
                     "items": {
                         "type": "array",
@@ -838,10 +1063,35 @@ TOOL_SCHEMAS: list[dict] = [
                             "required": ["quantity"],
                         },
                     },
+                    # BẮT BUỘC, nên KHÔNG bọc `_nullable`: vừa required vừa cho
+                    # null là mâu thuẫn, và model sẽ gửi null rồi bị công cụ từ
+                    # chối — đúng vòng lặp vô ích mà `_nullable` sinh ra để tránh.
+                    "fulfillment_type": {
+                        "type": "string",
+                        "enum": ["pickup", "delivery"],
+                        "description": (
+                            "'pickup' = khách ghé lấy tại quán. "
+                            "'delivery' = tiệm giao tận nơi (cần delivery_address). "
+                            "PHẢI hỏi khách nếu chưa biết."
+                        ),
+                    },
+                    "delivery_address": _nullable({
+                        "type": "string",
+                        "description": (
+                            "Địa chỉ giao hàng cụ thể. BẮT BUỘC khi "
+                            "fulfillment_type='delivery'."
+                        ),
+                    }),
                     "customer_email": _nullable({"type": "string"}),
                     "notes": _nullable({"type": "string", "description": "Ghi chú: chữ trên bánh, dị ứng, giờ nhận."}),
                 },
-                "required": ["customer_name", "customer_phone", "pickup_date", "items"],
+                "required": [
+                    "customer_name",
+                    "customer_phone",
+                    "pickup_date",
+                    "items",
+                    "fulfillment_type",
+                ],
             },
         },
     },
@@ -873,10 +1123,26 @@ def _normalize_arguments(name: str, arguments: dict) -> dict:
             "ngay_nhan": "pickup_date",
             "cakes": "items",
             "products": "items",
+            # Hình thức nhận hàng: LLM hay dùng tên khác cho cùng một ý.
+            "fulfillment": "fulfillment_type",
+            "handover": "fulfillment_type",
+            "handover_method": "fulfillment_type",
+            "delivery_method": "fulfillment_type",
+            "receiving_method": "fulfillment_type",
+            "address": "delivery_address",
+            "dia_chi": "delivery_address",
+            "shipping_address": "delivery_address",
+            "note": "notes",
+            "ghi_chu": "notes",
         },
         "check_bake_time": {"date": "pickup_date", "ngay_nhan": "pickup_date"},
         "price_order": {"cakes": "items", "products": "items", "ngan_sach": "budget"},
         "find_cakes": {"ngan_sach": "budget", "q": "keyword", "tu_khoa": "keyword"},
+        "find_ready_made_cakes": {
+            "ngan_sach": "budget",
+            "q": "keyword",
+            "tu_khoa": "keyword",
+        },
         "get_cake_detail": {"id": "cake_id", "ten": "name"},
     }
     mapping = aliases.get(name)
@@ -895,6 +1161,7 @@ def dispatch(tools: OrderTools, name: str, arguments: dict) -> dict:
     không ném ra ngoài làm hỏng cả lượt chat."""
     handlers = {
         "find_cakes": tools.find_cakes,
+        "find_ready_made_cakes": tools.find_ready_made_cakes,
         "get_cake_detail": tools.get_cake_detail,
         "price_order": tools.price_order,
         "check_bake_time": tools.check_bake_time,
