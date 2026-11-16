@@ -9,7 +9,7 @@ POST /api/v1/purchases
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 from app.core.dependencies import require_customer, get_supabase_client
@@ -19,6 +19,11 @@ from app.services.inventory_service import (
     InventoryServiceError,
 )
 from app.services.loyalty_service import LoyaltyService
+from app.services.voucher_service import (
+    VoucherService,
+    VoucherServiceError,
+    apply_voucher,
+)
 
 router = APIRouter()
 
@@ -48,6 +53,25 @@ class CreatePurchaseRequest(BaseModel):
     customer_phone: str = Field(..., pattern=r"^\d{10}$", description="10 chữ số")
     notes: str | None = Field(default=None, max_length=300)
     branch_id: str = Field(..., description="UUID chi nhánh mua hàng (bắt buộc)")
+    # Mã voucher khách đổi bằng điểm. Trước đây trường này KHÔNG tồn tại, nên
+    # khách mua bánh ngọt nhập mã trên trang thanh toán thì mã bị bỏ qua im
+    # lặng: đơn vẫn tính đủ tiền, mã vẫn 'active', khách tưởng voucher hỏng.
+    voucher_code: str | None = Field(
+        default=None,
+        max_length=64,
+        description=(
+            "Mã voucher đổi từ điểm. Mức giảm đọc từ bảng `vouchers` ở server, "
+            "không nhận từ phía trình duyệt."
+        ),
+    )
+
+    @field_validator("voucher_code")
+    @classmethod
+    def normalize_voucher_code(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        clean = v.strip().upper()
+        return clean or None
 
 
 # ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -211,10 +235,44 @@ def create_purchase(
 
 
     # 4. Calculate total price
-    total_price = sum(
+    subtotal = sum(
         products_map[item.product_id]["base_price"] * item.quantity
         for item in body.items
     )
+
+    # 4b. Áp voucher đổi từ điểm (nếu khách nhập mã).
+    # Mức giảm đọc từ bảng `vouchers` — không bao giờ lấy con số từ trình duyệt.
+    # Voucher phải thuộc đúng khách, còn hiệu lực và chưa dùng.
+    voucher_row = None
+    if body.voucher_code:
+        voucher_row = VoucherService(db).find_usable(
+            body.voucher_code, str(customer["id"])
+        )
+    try:
+        money = apply_voucher(
+            {"total": int(subtotal)},
+            voucher_row,
+            customer_id=str(customer["id"]),
+            code=body.voucher_code,
+        )
+    except VoucherServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+    total_price = money["total"]
+
+    # 4c. Giữ chỗ voucher NGUYÊN TỬ trước khi ghi bất cứ thứ gì.
+    # Luồng này không phải một transaction CSDL, nên nếu đánh dấu 'used' ở cuối
+    # thì hai request đồng thời cùng thấy 'active' và cùng tạo được đơn — một
+    # mã giảm giá bị dùng hai lần. UPDATE có điều kiện khiến chỉ một request thắng.
+    voucher_svc = VoucherService(db)
+    voucher_claimed = False
+    if money["voucher_id"]:
+        voucher_claimed = voucher_svc.claim(money["voucher_id"])
+        if not voucher_claimed:
+            raise HTTPException(
+                status_code=400,
+                detail="Voucher này vừa được sử dụng. Vui lòng kiểm tra lại mã.",
+            )
 
     # 5. Create purchase record
     purchase_data = {
@@ -225,9 +283,17 @@ def create_purchase(
         "status": "pending",
         "notes": body.notes,
         "branch_id": body.branch_id,
+        # Lưu lại mã và mức giảm THẬT đã áp, để hoá đơn và lịch sử mua đọc lại
+        # được con số khách đã trả, không phải tính lại từ bảng giá hiện tại.
+        "voucher_code": money["voucher_code"],
+        "voucher_discount": money["discount"],
     }
     purchase_result = db.table("purchases").insert(purchase_data).execute()
     if not purchase_result.data:
+        # Chưa có gì được ghi, nhưng voucher đã bị giữ chỗ: trả lại để khách
+        # không mất mã vì lỗi của tiệm.
+        if voucher_claimed:
+            voucher_svc.release(money["voucher_id"])
         raise HTTPException(status_code=500, detail="Không thể tạo đơn mua hàng.")
 
     purchase = purchase_result.data[0]
@@ -283,10 +349,15 @@ def create_purchase(
 
     except (InsufficientStockError, InventoryServiceError) as e:
         _rollback_purchase(inv_svc, db, all_decrements, purchase_id)
+        # Đơn không thành: trả voucher để khách không mất mã vì hết hàng.
+        if voucher_claimed:
+            voucher_svc.release(money["voucher_id"])
         raise HTTPException(status_code=409, detail=e.message) from e
     except Exception as e:
         _logger.exception("Lỗi không mong muốn trong luồng xử lý mua hàng (purchase_id=%s): %s", purchase_id, e)
         _rollback_purchase(inv_svc, db, all_decrements, purchase_id)
+        if voucher_claimed:
+            voucher_svc.release(money["voucher_id"])
         raise HTTPException(status_code=500, detail="Lỗi xử lý mua hàng.") from e
 
 
@@ -309,6 +380,9 @@ def create_purchase(
         "customer_name": body.customer_name,
         "customer_phone": body.customer_phone,
         "items": receipt_items,
+        "subtotal": money["subtotal"],
+        "discount": money["discount"],
+        "voucher_code": money["voucher_code"],
         "total_price": int(total_price),
         "points_earned": points_earned,
         "status": "completed",

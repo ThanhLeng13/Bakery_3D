@@ -59,6 +59,23 @@ interface RedeemResult {
   message: string;
 }
 
+/** Voucher khách đã đổi, dùng để xem lại mã khi đặt hàng. */
+export interface VoucherRow {
+  id: string;
+  code: string;
+  discount_vnd: number;
+  status: "active" | "used" | "expired";
+  expires_at: string | null;
+  used_at: string | null;
+  created_at: string;
+}
+
+interface VoucherListResult {
+  vouchers: VoucherRow[];
+  usable_count: number;
+  total_discount_available: number;
+}
+
 interface LoyaltyContextValue {
   data: LoyaltyData | null;
   loading: boolean;
@@ -67,6 +84,19 @@ interface LoyaltyContextValue {
   refresh: () => Promise<void>;
   /** Đổi điểm: gọi API rồi tự refresh balance. */
   redeemPoints: (voucherCount: number) => Promise<RedeemResult>;
+  /** Danh sách voucher đã đổi (để xem lại mã). Tải on-demand. */
+  fetchVouchers: () => Promise<VoucherListResult>;
+  /** Kiểm tra một mã trước khi đặt hàng — server trả mức giảm thật. */
+  checkVoucher: (code: string, orderTotal: number) => Promise<VoucherCheckResult>;
+}
+
+export interface VoucherCheckResult {
+  valid: boolean;
+  code: string;
+  subtotal: number;
+  discount: number;
+  total: number;
+  message: string;
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -182,6 +212,46 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
     [fetchLoyalty]
   );
 
+  // ── Voucher: xem lại mã + kiểm tra trước khi đặt ──────────────────────────
+  // Trước đây mã chỉ hiện MỘT LẦN ở màn hình "đổi điểm thành công". Khách đóng
+  // đi là không còn chỗ nào xem lại, nên không nhập được mã ở trang thanh toán
+  // và tưởng lần đổi điểm bị lỗi.
+  const fetchVouchers = useCallback(async (): Promise<VoucherListResult> => {
+    const token = getStoredToken();
+    if (!token) throw new Error("Bạn cần đăng nhập.");
+    const res = await fetch(`${API_BASE}/api/v1/loyalty/vouchers`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Lỗi ${res.status}`);
+    }
+    return res.json();
+  }, []);
+
+  const checkVoucher = useCallback(
+    async (code: string, orderTotal: number): Promise<VoucherCheckResult> => {
+      const token = getStoredToken();
+      if (!token) throw new Error("Bạn cần đăng nhập.");
+      const res = await fetch(`${API_BASE}/api/v1/loyalty/vouchers/check`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ code, order_total: orderTotal }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        // Ném nguyên văn `detail` để trang thanh toán hiện đúng lý do
+        // (hết hạn / đã dùng / không thuộc tài khoản) thay vì câu chung chung.
+        throw new Error(err.detail || `Lỗi ${res.status}`);
+      }
+      return res.json();
+    },
+    []
+  );
+
   // Memoised so Header and LoyaltyPage do not re-render when the provider
   // re-renders for unrelated reasons (e.g. AuthProvider state changing above).
   const contextValue = useMemo(
@@ -191,8 +261,10 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
       error,
       refresh: fetchLoyalty,
       redeemPoints,
+      fetchVouchers,
+      checkVoucher,
     }),
-    [data, loading, error, fetchLoyalty, redeemPoints]
+    [data, loading, error, fetchLoyalty, redeemPoints, fetchVouchers, checkVoucher]
   );
 
   return (

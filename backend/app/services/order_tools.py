@@ -29,6 +29,7 @@ from app.services.orderable_3d import (
     ensure_orderable_model,
     is_orderable_model,
 )
+from app.services.fulfillment import FulfillmentError, resolve_fulfillment
 from app.services.pricing import (
     DEFAULT_LEAD_HOURS,
     custom_design_lead_hours,
@@ -670,10 +671,20 @@ class OrderTools:
         customer_email: Optional[str] = None,
         customer_id: Optional[str] = None,
         notes: Optional[str] = None,
+        fulfillment_type: Optional[str] = None,
+        delivery_address: Optional[str] = None,
     ) -> dict:
         """Tạo đơn NHÁP (status='draft'), chưa phải đơn chính thức.
 
         Chỉ gọi sau khi khách đã xác nhận rõ ràng: mẫu bánh, số lượng, ngày nhận.
+
+        Hình thức nhận hàng là thông tin BẮT BUỘC để chốt đơn:
+            pickup   — khách ghé lấy tại quán; địa chỉ phải rỗng
+            delivery — tiệm giao tận nơi; địa chỉ bắt buộc
+
+        Không có thông tin này thì thợ làm xong không biết để quầy chờ khách hay
+        đóng gói giao đi. Trước đây trợ lý chốt đơn mà không hỏi, nên mọi đơn
+        đều bị coi là ghé lấy — khách chờ giao hàng thì không ai giao.
 
         LƯU Ý: bảng `orders` có `customer_id` NOT NULL (đã kiểm chứng bằng cách
         thử chèn — PostgREST không báo ràng buộc này trong schema). Nghĩa là mọi
@@ -697,6 +708,21 @@ class OrderTools:
         if len(phone) < 9:
             raise ToolError("Số điện thoại chưa hợp lệ (cần ít nhất 9 chữ số).")
 
+        # Chưa biết khách ghé lấy hay giao hàng thì KHÔNG được đoán. Mặc định
+        # 'pickup' ở đây sẽ âm thầm biến đơn giao hàng thành đơn chờ khách.
+        if fulfillment_type is None and delivery_address is None:
+            raise ToolError(
+                "Cần biết khách GIAO HÀNG hay GHÉ LẤY trước khi chốt đơn. "
+                "Hãy hỏi khách, rồi gọi lại: `fulfillment_type` = 'pickup' "
+                "(ghé lấy tại quán) hoặc 'delivery' (giao tận nơi). "
+                "Nếu giao hàng thì phải có cả `delivery_address`."
+            )
+
+        try:
+            fulfillment = resolve_fulfillment(fulfillment_type, delivery_address)
+        except FulfillmentError as exc:
+            raise ToolError(exc.message) from exc
+
         timed = self.check_bake_time(pickup_date, items)
         if not timed["is_possible"]:
             return {
@@ -717,6 +743,10 @@ class OrderTools:
         # Tóm tắt cho thợ làm bánh đọc.
         summary = "; ".join(f"{l['name']} x{l['quantity']}" for l in priced["items"])
         ai_summary = f"{summary} | Nhận: {timed['pickup_date']} | Tổng: {priced['total_price']:,}đ"
+        if fulfillment["fulfillment_type"] == "delivery":
+            ai_summary += f" | Giao tới: {fulfillment['delivery_address']}"
+        else:
+            ai_summary += " | Khách ghé lấy tại quán"
         if notes:
             ai_summary += f" | Ghi chú: {notes}"
 
@@ -729,6 +759,8 @@ class OrderTools:
             "customer_phone": phone,
             "customer_email": customer_email,
             "ai_summary": ai_summary,
+            "fulfillment_type": fulfillment["fulfillment_type"],
+            "delivery_address": fulfillment["delivery_address"],
         }
 
         # ── Chống tạo trùng (idempotent) ──────────────────────────────────────
@@ -813,10 +845,17 @@ class OrderTools:
             "total_price": priced["total_price"],
             "pickup_date": timed["pickup_date"],
             "items": priced["items"],
+            "fulfillment_type": fulfillment["fulfillment_type"],
+            "delivery_address": fulfillment["delivery_address"],
             "message": (
                 f"Đã tạo đơn nháp {order['id'][:8]} cho {order_insert['customer_name']}, "
-                f"nhận ngày {timed['pickup_date']}, tổng {priced['total_price']:,}đ. "
-                "Tiệm sẽ gọi xác nhận."
+                f"nhận ngày {timed['pickup_date']}, tổng {priced['total_price']:,}đ, "
+                + (
+                    f"giao tới {fulfillment['delivery_address']}. "
+                    if fulfillment["fulfillment_type"] == "delivery"
+                    else "khách ghé lấy tại quán. "
+                )
+                + "Tiệm sẽ gọi xác nhận."
             ),
         }
 
@@ -983,14 +1022,25 @@ TOOL_SCHEMAS: list[dict] = [
         "function": {
             "name": "create_draft_order",
             "description": (
-                "Tạo đơn nháp. CHỈ gọi sau khi khách đã xác nhận rõ ràng mẫu bánh, "
-                "số lượng và ngày nhận. Không được tự ý tạo đơn khi khách chưa đồng ý."
+                "Tạo đơn nháp (chốt đơn). CHỈ gọi sau khi khách đã xác nhận rõ "
+                "ràng mẫu bánh, số lượng, ngày nhận, VÀ đã cho biết GIAO HÀNG "
+                "hay GHÉ LẤY. Không được tự ý tạo đơn khi khách chưa đồng ý.\n"
+                "BẮT BUỘC có đủ 5 thứ, thiếu một thứ thì HỎI khách, không đoán:\n"
+                "  1. Tên bánh cụ thể (lấy từ `find_cakes`/`find_ready_made_cakes`)\n"
+                "  2. Số lượng\n"
+                "  3. Tên khách\n"
+                "  4. Số điện thoại khách\n"
+                "  5. Hình thức nhận: 'pickup' (ghé lấy tại quán) hoặc 'delivery'\n"
+                "Nếu 'delivery' thì BẮT BUỘC có `delivery_address` là địa chỉ cụ "
+                "thể (số nhà, đường, phường/quận). Thiếu địa chỉ mà vẫn gọi thì "
+                "công cụ sẽ từ chối.\n"
+                "Ghi chú 'ghi chú' (notes) chỉ là tuỳ chọn: chữ trên bánh, dị ứng."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "customer_name": {"type": "string", "description": "Tên khách."},
-                    "customer_phone": {"type": "string", "description": "Số điện thoại khách."},
+                    "customer_phone": {"type": "string", "description": "Số điện thoại khách (10 chữ số)."},
                     "pickup_date": {"type": "string", "description": "Ngày nhận, YYYY-MM-DD."},
                     "items": {
                         "type": "array",
@@ -1013,10 +1063,35 @@ TOOL_SCHEMAS: list[dict] = [
                             "required": ["quantity"],
                         },
                     },
+                    # BẮT BUỘC, nên KHÔNG bọc `_nullable`: vừa required vừa cho
+                    # null là mâu thuẫn, và model sẽ gửi null rồi bị công cụ từ
+                    # chối — đúng vòng lặp vô ích mà `_nullable` sinh ra để tránh.
+                    "fulfillment_type": {
+                        "type": "string",
+                        "enum": ["pickup", "delivery"],
+                        "description": (
+                            "'pickup' = khách ghé lấy tại quán. "
+                            "'delivery' = tiệm giao tận nơi (cần delivery_address). "
+                            "PHẢI hỏi khách nếu chưa biết."
+                        ),
+                    },
+                    "delivery_address": _nullable({
+                        "type": "string",
+                        "description": (
+                            "Địa chỉ giao hàng cụ thể. BẮT BUỘC khi "
+                            "fulfillment_type='delivery'."
+                        ),
+                    }),
                     "customer_email": _nullable({"type": "string"}),
                     "notes": _nullable({"type": "string", "description": "Ghi chú: chữ trên bánh, dị ứng, giờ nhận."}),
                 },
-                "required": ["customer_name", "customer_phone", "pickup_date", "items"],
+                "required": [
+                    "customer_name",
+                    "customer_phone",
+                    "pickup_date",
+                    "items",
+                    "fulfillment_type",
+                ],
             },
         },
     },
@@ -1048,6 +1123,17 @@ def _normalize_arguments(name: str, arguments: dict) -> dict:
             "ngay_nhan": "pickup_date",
             "cakes": "items",
             "products": "items",
+            # Hình thức nhận hàng: LLM hay dùng tên khác cho cùng một ý.
+            "fulfillment": "fulfillment_type",
+            "handover": "fulfillment_type",
+            "handover_method": "fulfillment_type",
+            "delivery_method": "fulfillment_type",
+            "receiving_method": "fulfillment_type",
+            "address": "delivery_address",
+            "dia_chi": "delivery_address",
+            "shipping_address": "delivery_address",
+            "note": "notes",
+            "ghi_chu": "notes",
         },
         "check_bake_time": {"date": "pickup_date", "ngay_nhan": "pickup_date"},
         "price_order": {"cakes": "items", "products": "items", "ngan_sach": "budget"},

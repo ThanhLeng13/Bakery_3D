@@ -155,3 +155,44 @@ class VoucherService:
                 "hoặc bị huỷ trong lúc xử lý.",
                 voucher_id,
             )
+
+    def claim(self, voucher_id: str) -> bool:
+        """Giữ chỗ voucher NGUYÊN TỬ. True nếu giành được, False nếu đã bị dùng.
+
+        Vì sao cần, khi đã có `mark_used`: luồng mua bánh ngọt không phải một
+        transaction CSDL. Nếu chỉ đánh dấu 'used' ở CUỐI luồng thì hai request
+        đồng thời cùng đọc thấy 'active', cả hai đều tạo được đơn, và cùng một
+        mã giảm giá được dùng hai lần. UPDATE có điều kiện `status='active'`
+        khiến CSDL chỉ cho đúng một request thắng.
+
+        Gọi hàm này TRƯỚC khi trừ kho; nếu các bước sau hỏng thì `release()`
+        trả mã về 'active' để khách không mất voucher vì lỗi của tiệm.
+        """
+        result = (
+            self._db.table("vouchers")
+            .update({"status": "used", "used_at": _now().isoformat()})
+            .eq("id", voucher_id)
+            .eq("status", "active")
+            .execute()
+        )
+        return bool(result.data)
+
+    def release(self, voucher_id: str) -> None:
+        """Trả voucher về 'active' sau khi đơn thất bại.
+
+        Chỉ trả khi mã vẫn đang 'used' bởi chính lần giữ chỗ này. Đây là bù trừ
+        khi lỗi, không phải đường dùng lại mã: nếu đơn đã tạo xong thì không
+        gọi hàm này.
+        """
+        try:
+            (
+                self._db.table("vouchers")
+                .update({"status": "active", "used_at": None})
+                .eq("id", voucher_id)
+                .eq("status", "used")
+                .execute()
+            )
+        except Exception:
+            # Không ném ra ngoài: đang trong đường xử lý lỗi, và che mất lỗi gốc
+            # sẽ khiến người dùng nhận thông báo sai.
+            _logger.exception("Không trả lại được voucher %s", voucher_id)

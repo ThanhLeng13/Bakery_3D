@@ -41,6 +41,7 @@ interface FormErrors {
   email?: string;
   pickup_date?: string;
   branch?: string;   // lỗi chi nhánh khi isCartMode
+  address?: string;  // lỗi địa chỉ khi khách chọn giao hàng
   general?: string;
 }
 
@@ -95,7 +96,7 @@ function CheckoutContent() {
   const router = useRouter();
   const { user } = useAuthContext();
   const { items: cartItems, clearCart, selectedBranchId, selectedBranchName } = useCart();
-  const { refresh: refreshLoyalty } = useLoyaltyContext();
+  const { refresh: refreshLoyalty, checkVoucher, fetchVouchers } = useLoyaltyContext();
 
   // Builder mode: load from localStorage
   const [cakeDesign, setCakeDesign] = useState<CakeDesign | null>(null);
@@ -113,6 +114,11 @@ function CheckoutContent() {
   // Persisted at submit time so confirmation screen shows correct info even after clearCart()
   const [submittedIsCartMode, setSubmittedIsCartMode] = useState(false);
   const [submittedBranchName, setSubmittedBranchName] = useState<string | null>(null);
+  // Lưu lại cách nhận và địa chỉ tại lúc đặt: sau khi đặt xong, form có thể đã
+  // đổi trạng thái nên không đọc lại từ state của form được.
+  const [submittedFulfillment, setSubmittedFulfillment] =
+    useState<"pickup" | "delivery">("pickup");
+  const [submittedAddress, setSubmittedAddress] = useState<string>("");
 
   // Ba chế độ, không phải hai.
   //
@@ -175,6 +181,24 @@ function CheckoutContent() {
       : `k-${Date.now()}-${Math.random().toString(36).slice(2)}`
   );
   const [voucherError, setVoucherError] = useState<string | null>(null);
+  // Kết quả kiểm tra mã từ server. `null` = chưa kiểm tra / chưa nhập.
+  // Server là nơi quyết định mức giảm; ở đây chỉ hiển thị lại để khách thấy
+  // ngay "giảm 5.000đ" thay vì bấm đặt hàng rồi mới biết mã sai.
+  const [voucherInfo, setVoucherInfo] = useState<{
+    discount: number;
+    total: number;
+    message: string;
+  } | null>(null);
+  const [voucherChecking, setVoucherChecking] = useState(false);
+  // Voucher đã đổi nhưng chưa dùng — gợi ý để khách chọn thay vì phải nhớ mã.
+  const [myVouchers, setMyVouchers] = useState<
+    Array<{ id: string; code: string; discount_vnd: number }>
+  >([]);
+
+  // Ghé lấy tại quán hay giao hàng tận nơi. Bắt buộc chọn: thợ làm xong phải
+  // biết để quầy chờ khách hay đóng gói giao đi.
+  const [fulfillmentType, setFulfillmentType] = useState<"pickup" | "delivery">("pickup");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
 
   const cartTotal = useMemo(
     () => cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
@@ -182,6 +206,65 @@ function CheckoutContent() {
   );
 
   const totalPrice = isCartMode ? cartTotal : builderTotal;
+
+  // Tải danh sách mã đang dùng được để khách chọn thay vì phải nhớ mã.
+  // Lỗi ở đây không được làm hỏng trang: khách vẫn nhập tay được.
+  useEffect(() => {
+    let cancelled = false;
+    fetchVouchers()
+      .then((res) => {
+        if (cancelled) return;
+        setMyVouchers(
+          res.vouchers
+            .filter((v) => v.status === "active" && !v.used_at)
+            .map((v) => ({ id: v.id, code: v.code, discount_vnd: v.discount_vnd }))
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setMyVouchers([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchVouchers]);
+
+  // Kiểm tra mã với server mỗi khi mã hoặc tổng tiền đổi. Debounce 400ms để
+  // không bắn một request cho mỗi ký tự khách gõ.
+  useEffect(() => {
+    const code = voucherCode.trim();
+    if (!code) {
+      setVoucherInfo(null);
+      setVoucherError(null);
+      return;
+    }
+    if (totalPrice <= 0) return;
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setVoucherChecking(true);
+      try {
+        const result = await checkVoucher(code, totalPrice);
+        if (cancelled) return;
+        setVoucherInfo({
+          discount: result.discount,
+          total: result.total,
+          message: result.message,
+        });
+        setVoucherError(null);
+      } catch (err) {
+        if (cancelled) return;
+        setVoucherInfo(null);
+        setVoucherError(err instanceof Error ? err.message : "Mã không dùng được.");
+      } finally {
+        if (!cancelled) setVoucherChecking(false);
+      }
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [voucherCode, totalPrice, checkVoucher]);
 
   // Bánh hai tầng được chọn bằng MẪU (`model_slug`), không phải bằng kích thước.
   // Đơn/thiết kế cũ đã lưu size "2-tier" vẫn được nhận để không đổi nghĩa.
@@ -238,6 +321,17 @@ function CheckoutContent() {
       newErrors.branch = "Vui lòng chọn chi nhánh nhận bánh";
     }
 
+    // Địa chỉ giao hàng: bắt buộc khi khách chọn giao tận nơi. Kiểm tra ở đây
+    // để khách thấy lỗi ngay cạnh ô nhập; server vẫn kiểm tra lại.
+    if (fulfillmentType === "delivery") {
+      const addr = deliveryAddress.trim();
+      if (!addr) {
+        newErrors.address = "Vui lòng nhập địa chỉ giao hàng";
+      } else if (addr.length < 10) {
+        newErrors.address = "Địa chỉ quá ngắn — cần số nhà và tên đường";
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -291,6 +385,9 @@ function CheckoutContent() {
           // product_batches của đúng mẫu bánh làm sẵn.
           branch_id: selectedBranchId!,
           customer_message: customerMessage.trim() || null,
+          fulfillment_type: fulfillmentType,
+          delivery_address:
+            fulfillmentType === "delivery" ? deliveryAddress.trim() : null,
         };
 
         const response = await apiClient.post<OrderConfirmation>(
@@ -306,6 +403,8 @@ function CheckoutContent() {
         // được cộng khi nhận bánh.
         setSubmittedIsCartMode(false);
         setSubmittedBranchName(selectedBranchName ?? null);
+        setSubmittedFulfillment(fulfillmentType);
+        setSubmittedAddress(fulfillmentType === "delivery" ? deliveryAddress.trim() : "");
         setConfirmation(response);
         setIdempotencyKey(
           typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -329,6 +428,9 @@ function CheckoutContent() {
           customer_phone: phone.trim(),
           notes: null,
           branch_id: selectedBranchId!, // guaranteed non-null by validateForm
+          // Mã voucher phải được gửi cho luồng mua bánh ngọt nữa — trước đây
+          // trường này bị bỏ qua nên khách nhập mã mà không được giảm giá.
+          voucher_code: voucherCode.trim() || null,
         };
 
         const response = await apiClient.post<OrderConfirmation>(
@@ -338,6 +440,9 @@ function CheckoutContent() {
         // Persist mode/branch BEFORE clearCart() so confirmation screen is correct
         setSubmittedIsCartMode(true);
         setSubmittedBranchName(selectedBranchName ?? null);
+        // Bánh ngọt mua tại quán: luôn là ghé lấy, không có giao hàng.
+        setSubmittedFulfillment("pickup");
+        setSubmittedAddress("");
         setConfirmation(response);
         // Đơn đã tạo xong: đổi khoá để lần đặt kế tiếp là một đơn mới.
         setIdempotencyKey(
@@ -373,6 +478,9 @@ function CheckoutContent() {
           ai_summary: null,
           voucher_code: voucherCode.trim() || null,
           customer_message: customerMessage.trim() || null,
+          fulfillment_type: fulfillmentType,
+          delivery_address:
+            fulfillmentType === "delivery" ? deliveryAddress.trim() : null,
           // Khoá chống tạo trùng: bấm "Đặt hàng" hai lần khi mạng chập
           // chờn sẽ dùng chung khoá này, server trả về đơn cũ.
           idempotency_key: idempotencyKey,
@@ -382,6 +490,8 @@ function CheckoutContent() {
           "/api/v1/orders",
           orderData
         );
+        setSubmittedFulfillment(fulfillmentType);
+        setSubmittedAddress(fulfillmentType === "delivery" ? deliveryAddress.trim() : "");
         setConfirmation(response);
         // Đơn đã tạo xong: đổi khoá để lần đặt kế tiếp là một đơn mới.
         setIdempotencyKey(
@@ -397,9 +507,12 @@ function CheckoutContent() {
       if (apiErr?.detail) {
         if (typeof apiErr.detail === "string") {
           // Lỗi voucher nói về mã giảm giá: hiện ngay cạnh ô nhập mã.
-          if (/voucher/i.test(apiErr.detail)) {
+          if (/voucher|mã giảm/i.test(apiErr.detail)) {
             setVoucherError(apiErr.detail);
             setErrors({});
+          } else if (/địa chỉ/i.test(apiErr.detail)) {
+            // Lỗi địa chỉ giao hàng: hiện cạnh ô địa chỉ, không phải lỗi chung.
+            setErrors({ address: apiErr.detail });
           } else {
             setErrors({ general: apiErr.detail });
           }
@@ -497,6 +610,14 @@ function CheckoutContent() {
                   {formatPrice(confirmation.total_price)}
                 </span>
               </div>
+              {voucherInfo && voucherInfo.discount > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-mocha/70 text-sm">Đã giảm (voucher)</span>
+                  <span className="font-semibold text-green-700 text-sm">
+                    −{formatPrice(voucherInfo.discount)}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between items-center gap-4">
                 <span className="text-mocha/70 text-sm">Điểm thưởng</span>
                 <span className="font-semibold text-green-700 text-sm text-right">
@@ -526,6 +647,14 @@ function CheckoutContent() {
                   <span className="font-medium text-mocha text-sm">{submittedBranchName}</span>
                 </div>
               )}
+              <div className="flex justify-between items-center gap-4">
+                <span className="text-mocha/70 text-sm">Cách nhận</span>
+                <span className="font-medium text-mocha text-sm text-right">
+                  {submittedFulfillment === "delivery"
+                    ? `Giao tới: ${submittedAddress}`
+                    : "Ghé lấy tại quán"}
+                </span>
+              </div>
               <div className="flex justify-between items-center">
                 <span className="text-mocha/70 text-sm">Trạng thái</span>
                 <span className={`px-3 py-1 text-xs font-medium rounded-full ${
@@ -877,6 +1006,81 @@ function CheckoutContent() {
             </section>
           )}
 
+          {/* Hình thức nhận bánh — BẮT BUỘC, không mặc định ngầm.
+              Thợ làm xong cần biết để quầy chờ khách hay đóng gói giao đi. */}
+          <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
+            <h2 className="font-heading text-lg font-bold text-mocha mb-1">
+              Nhận bánh thế nào? <span className="text-red-500">*</span>
+            </h2>
+            <p className="text-sm text-mocha/60 mb-3">
+              Chọn cách bạn muốn nhận bánh.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {([
+                {
+                  value: "pickup" as const,
+                  title: "Ghé lấy tại quán",
+                  desc: "Bạn tới tiệm nhận bánh, không phí giao",
+                },
+                {
+                  value: "delivery" as const,
+                  title: "Giao hàng tận nơi",
+                  desc: "Tiệm giao trong nội thành Đà Nẵng",
+                },
+              ]).map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  id={`fulfillment-${opt.value}`}
+                  onClick={() => {
+                    setFulfillmentType(opt.value);
+                    setErrors((prev) => ({ ...prev, address: undefined }));
+                  }}
+                  aria-pressed={fulfillmentType === opt.value}
+                  className={`text-left p-4 rounded-xl border-2 transition-colors min-h-[44px] ${
+                    fulfillmentType === opt.value
+                      ? "border-pink-pastel bg-pink-pastel/5"
+                      : "border-mocha/20 bg-cream/40 hover:border-mocha/40"
+                  }`}
+                >
+                  <span className="block font-semibold text-mocha text-sm">
+                    {fulfillmentType === opt.value ? "✓ " : ""}
+                    {opt.title}
+                  </span>
+                  <span className="block text-xs text-mocha/60 mt-1">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+
+            {fulfillmentType === "delivery" && (
+              <div className="mt-4">
+                <label
+                  htmlFor="deliveryAddress"
+                  className="block text-sm font-medium text-mocha mb-1"
+                >
+                  Địa chỉ giao hàng <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  id="deliveryAddress"
+                  value={deliveryAddress}
+                  onChange={(e) => setDeliveryAddress(e.target.value)}
+                  placeholder="Ví dụ: 123 Nguyễn Văn Linh, phường Phước Ninh, quận Hải Châu, Đà Nẵng"
+                  maxLength={300}
+                  rows={3}
+                  className={`w-full px-4 py-3 rounded-xl border text-mocha bg-cream/50 placeholder:text-mocha/40 focus:outline-none focus:ring-2 focus:ring-pink-pastel/50 resize-y ${
+                    errors.address ? "border-red-400" : "border-mocha/20"
+                  }`}
+                />
+                {errors.address && (
+                  <p className="mt-1 text-sm text-red-600">{errors.address}</p>
+                )}
+                <p className="mt-1 text-xs text-mocha/45">
+                  Số nhà, đường, phường/quận — shipper cần đủ để tìm được.
+                </p>
+              </div>
+            )}
+          </section>
+
           {/* Voucher đổi điểm. Mức giảm do server quyết định — ô này chỉ gửi
               mã lên, không tự tính tiền. */}
           <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
@@ -886,6 +1090,30 @@ function CheckoutContent() {
             <p className="text-sm text-mocha/60 mb-3">
               Nếu bạn đã đổi điểm lấy voucher, nhập mã ở đây.
             </p>
+
+            {/* Gợi ý mã đang dùng được: khách không phải nhớ hay chép tay. */}
+            {myVouchers.length > 0 && (
+              <div className="mb-3 flex flex-wrap gap-2">
+                {myVouchers.slice(0, 5).map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => {
+                      setVoucherCode(v.code);
+                      setVoucherError(null);
+                    }}
+                    className={`px-3 py-1.5 rounded-full border text-xs font-mono transition-colors ${
+                      voucherCode === v.code
+                        ? "border-pink-pastel bg-pink-pastel/10 text-mocha"
+                        : "border-mocha/20 bg-cream/50 text-mocha/70 hover:border-mocha/40"
+                    }`}
+                  >
+                    {v.code} · −{formatPrice(v.discount_vnd)}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="flex gap-2">
               <input
                 id="voucherCode"
@@ -902,6 +1130,7 @@ function CheckoutContent() {
                   onClick={() => {
                     setVoucherCode("");
                     setVoucherError(null);
+                    setVoucherInfo(null);
                   }}
                   className="px-4 rounded-xl border border-mocha/20 text-mocha/70 hover:bg-cream min-h-[44px]"
                 >
@@ -909,9 +1138,31 @@ function CheckoutContent() {
                 </button>
               )}
             </div>
+
+            {voucherChecking && (
+              <p className="mt-2 text-sm text-mocha/60" aria-live="polite">
+                Đang kiểm tra mã…
+              </p>
+            )}
             {voucherError && (
               <p className="mt-2 text-sm text-red-600" role="alert">
                 {voucherError}
+              </p>
+            )}
+            {voucherInfo && !voucherError && (
+              <p className="mt-2 text-sm text-green-700" role="status">
+                ✓ {voucherInfo.message} — thanh toán{" "}
+                <strong>{formatPrice(voucherInfo.total)}</strong> (tiết kiệm{" "}
+                {formatPrice(voucherInfo.discount)})
+              </p>
+            )}
+            {myVouchers.length === 0 && !voucherCode && (
+              <p className="mt-2 text-xs text-mocha/45">
+                Chưa có mã nào? Vào trang{" "}
+                <a href="/loyalty" className="underline hover:text-pink-pastel">
+                  Tích điểm
+                </a>{" "}
+                để đổi điểm lấy voucher.
               </p>
             )}
           </section>
@@ -932,7 +1183,13 @@ function CheckoutContent() {
                 Đang xử lý...
               </span>
             ) : (
-              `Xác nhận đặt hàng • ${formatPrice(totalPrice)}`
+              // Hiện số tiền THẬT phải trả, đã trừ voucher. Nếu vẫn hiện tổng
+              // gốc thì khách thấy mâu thuẫn với dòng "tiết kiệm" ngay trên.
+              `Xác nhận đặt hàng • ${formatPrice(
+                voucherInfo && voucherInfo.discount > 0
+                  ? voucherInfo.total
+                  : totalPrice
+              )}`
             )}
           </button>
         </form>

@@ -116,6 +116,10 @@ def create_order(
         # gửi None và tiếp tục theo quy tắc 24/48 giờ.
         "branch_id": str(body.branch_id) if body.branch_id else None,
         "customer_message": body.customer_message,
+        # Ghé lấy hay giao hàng. Server chuẩn hoá và kiểm tra; đơn giao hàng
+        # thiếu địa chỉ bị từ chối ngay, không tạo ra đơn không thực hiện được.
+        "fulfillment_type": body.fulfillment_type,
+        "delivery_address": body.delivery_address,
     }
 
     try:
