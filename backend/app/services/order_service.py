@@ -354,7 +354,10 @@ class OrderService:
         # ── Voucher ────────────────────────────────────────────────────────
         # Khách đổi điểm được mã giảm giá; mã phải dùng được ở đây. Mức giảm
         # đọc từ bảng `vouchers` — không bao giờ lấy con số từ trình duyệt.
-        voucher_code = order_data.get("voucher_code")
+        raw_voucher = order_data.get("voucher_code")
+        voucher_code = (
+            str(raw_voucher).strip().upper() if raw_voucher is not None else ""
+        ) or None
         voucher_row = None
         if voucher_code:
             voucher_svc = VoucherService(self._supabase)
@@ -442,6 +445,17 @@ class OrderService:
                 customer.get("id"),
                 exc,
             )
+            exc_str = str(exc)
+            known_errors = (
+                ("Voucher không còn hiệu lực hoặc đã được dùng.", 400),
+                ("Mẫu bánh tại chi nhánh không còn đủ số lượng.", 409),
+                ("Đơn hàng trùng đang được tạo, vui lòng thử lại.", 409),
+                ("Chi nhánh nhận bánh không tồn tại hoặc không hoạt động.", 400),
+                ("Mẫu có sẵn cần chọn chi nhánh nhận bánh.", 400),
+            )
+            for msg, code in known_errors:
+                if msg in exc_str:
+                    raise OrderServiceError(msg, status_code=code) from exc
             raise OrderServiceError(
                 "Không tạo được đơn hàng. Vui lòng thử lại.",
                 status_code=500,

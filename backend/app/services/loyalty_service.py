@@ -25,11 +25,12 @@ POINTS_PER_1000_VND_PURCHASE = 1.0    # bánh ngọt
 POINTS_PER_1000_VND_ORDER    = 1.5    # bánh kem đặt trước
 
 # Quy đổi khi dùng điểm
-REDEEM_POINTS_PER_VOUCHER  = 100      # số điểm cần để đổi một lượt
-REDEEM_VALUE_PER_VOUCHER   = 5_000    # VND được giảm mỗi lượt 100 điểm
+REDEEM_POINTS_PER_VOUCHER  = 100      # số điểm cần cho mỗi mốc quy đổi
+REDEEM_VALUE_PER_VOUCHER   = 5_000    # VND được giảm mỗi mốc 100 điểm
 
-# Số điểm tối đa có thể đổi trong một lần
-MAX_REDEEM_AT_ONCE = 1_000            # = 50,000 VND
+# Giới hạn an toàn tối đa cho một lần đổi (tránh overflow, nhưng không chặn
+# khách có nhiều điểm muốn cộng dồn hết vào một voucher).
+MAX_REDEEM_AT_ONCE = 1_000_000        # = 10,000 mốc = 50,000,000 VND
 
 
 # ─── Exceptions ───────────────────────────────────────────────────────────────
@@ -223,57 +224,54 @@ class LoyaltyService:
 
     def redeem_points(self, user_id: str, voucher_count: int) -> dict:
         """
-        Đổi điểm lấy voucher giảm giá — atomic via RPC `rpc_redeem_points`.
+        Đổi điểm lấy 1 voucher giảm giá cộng dồn — atomic via RPC `rpc_redeem_points`.
 
         Sử dụng RPC DB để thực hiện check-and-decrement trong một transaction
         duy nhất, loại bỏ race condition double-spending khi có request đồng thời.
 
-        Tất cả voucher codes được lưu vào bảng `vouchers` để nhân viên có thể
-        xác minh tính hợp lệ và tránh gian lận / mất mã.
+        Khách chọn số mốc muốn đổi (mỗi mốc = 100 điểm = 5,000 VND) dựa trên
+        số điểm đang có. Toàn bộ giá trị được cộng dồn vào MỘT mã voucher duy
+        nhất để khách áp thẳng vào đơn hàng thay vì nhận nhiều mã 5,000đ rời rạc.
 
         Args:
             user_id:       UUID của khách hàng
-            voucher_count: Số voucher muốn đổi (mỗi voucher = 100 điểm = 5,000 VND)
+            voucher_count: Số mốc 100 điểm muốn đổi (1 mốc = 5,000 VND; cộng dồn vào 1 voucher)
 
         Returns:
-            dict: discount_vnd, points_used, remaining_points, voucher_codes
+            dict: voucher_codes, voucher_code, discount_vnd, points_used, remaining_points, message
 
         Raises:
             InsufficientPointsError: Nếu không đủ điểm (do DB RPC báo lỗi).
             LoyaltyServiceError: Nếu tham số không hợp lệ.
         """
         if voucher_count < 1:
-            raise LoyaltyServiceError("Số voucher phải ít nhất là 1.")
+            raise LoyaltyServiceError("Số mốc đổi phải ít nhất là 1.")
 
         points_needed = voucher_count * REDEEM_POINTS_PER_VOUCHER
 
         if points_needed > MAX_REDEEM_AT_ONCE:
             raise LoyaltyServiceError(
-                f"Tối đa đổi {MAX_REDEEM_AT_ONCE // REDEEM_POINTS_PER_VOUCHER} voucher một lần."
+                f"Tối đa đổi {MAX_REDEEM_AT_ONCE // REDEEM_POINTS_PER_VOUCHER} mốc một lần."
             )
 
-        # Tạo voucher codes bảo mật — 64-bit entropy hex, không thể đoán được.
-        voucher_codes = [
-            f"BNB-{secrets.token_hex(8).upper()}" for _ in range(voucher_count)
-        ]
+        # Tạo 1 mã voucher duy nhất mang toàn bộ giá trị cộng dồn.
+        voucher_code = f"BNB-{secrets.token_hex(8).upper()}"
+        voucher_codes = [voucher_code]
 
         discount_vnd = voucher_count * REDEEM_VALUE_PER_VOUCHER
-        note = f"Đổi {points_needed} điểm lấy {voucher_count} voucher giảm {discount_vnd:,} VND"
+        note = f"Đổi {points_needed:,} điểm lấy voucher giảm {discount_vnd:,} VND"
 
         # ── Atomic redeem via DB RPC ──────────────────────────────────────────
         # rpc_redeem_points thực hiện:
         # 1. Trừ điểm (sẽ lỗi P0001 nếu không đủ điểm)
         # 2. Ghi lịch sử giao dịch loyalty_transactions
-        # 3. Lưu TẤT CẢ voucher codes vào bảng vouchers
-        # Tất cả nằm trong một database transaction. Nếu có bất kỳ lỗi nào (như đứt
-        # kết nối hoặc constraint violation), mọi thứ rollback 100%. Không có rủi ro
-        # mất điểm mà không nhận được voucher.
+        # 3. Lưu mã voucher với giá trị discount_vnd cộng dồn vào bảng vouchers
         try:
             rpc_result = self._db.rpc("rpc_redeem_points", {
                 "p_user_id":       user_id,
                 "p_points_needed": points_needed,
                 "p_voucher_codes": voucher_codes,
-                "p_voucher_value": REDEEM_VALUE_PER_VOUCHER,
+                "p_voucher_value": discount_vnd,
                 "p_note":          note,
             }).execute()
 
@@ -292,17 +290,67 @@ class LoyaltyService:
                     available = 0
                 raise InsufficientPointsError(available, points_needed) from exc
 
-            # Các lỗi khác (cả undefined_function do chưa chạy migration, 
-            # lỗi constraint vouchers, hoặc network) đều quăng ra 500
-            # Không dùng fallback Python để đảm bảo nguyên tắc 100% atomic DB-side.
             _logger.error("Lỗi RPC rpc_redeem_points (user=%s): %s", user_id, exc_str)
             raise LoyaltyServiceError("Hệ thống lỗi khi đổi điểm, vui lòng thử lại sau.") from exc
 
         return {
             "voucher_codes": voucher_codes,
+            "voucher_code": voucher_code,
             "discount_vnd": discount_vnd,
             "points_used": points_needed,
             "remaining_points": remaining_points,
-            "message": f"Đổi thành công! Bạn nhận được {voucher_count} voucher giảm {discount_vnd:,} VND.",
+            "message": f"Đổi thành công! Bạn nhận được 1 voucher giảm {discount_vnd:,} VND.",
+        }
+
+    def merge_vouchers(self, user_id: str, voucher_ids: list[str] | None = None) -> dict:
+        """Gộp nhiều voucher đang hoạt động thành 1 voucher giá trị cộng dồn."""
+        if voucher_ids is not None and len(voucher_ids) < 2:
+            raise LoyaltyServiceError("Cần chọn ít nhất 2 voucher để gộp.", status_code=400)
+
+        new_code = f"BNB-{secrets.token_hex(8).upper()}"
+        try:
+            rpc_result = self._db.rpc(
+                "rpc_merge_vouchers",
+                {
+                    "p_user_id": user_id,
+                    "p_voucher_ids": voucher_ids,
+                    "p_new_code": new_code,
+                },
+            ).execute()
+        except Exception as exc:
+            exc_str = str(exc)
+            if "NEED_AT_LEAST_TWO_VOUCHERS" in exc_str:
+                raise LoyaltyServiceError(
+                    "Cần ít nhất 2 voucher còn hiệu lực để gộp.",
+                    status_code=400,
+                ) from exc
+            if "SOME_VOUCHERS_UNAVAILABLE" in exc_str:
+                raise LoyaltyServiceError(
+                    "Một số voucher đã được dùng hoặc hết hạn, vui lòng tải lại.",
+                    status_code=400,
+                ) from exc
+            _logger.error("Lỗi RPC rpc_merge_vouchers (user=%s): %s", user_id, exc_str)
+            raise LoyaltyServiceError(
+                "Không thể gộp voucher lúc này, vui lòng thử lại sau.",
+                status_code=500,
+            ) from exc
+
+        rows = rpc_result.data or []
+        if not rows:
+            raise LoyaltyServiceError(
+                "Không thể gộp voucher lúc này, vui lòng thử lại sau.",
+                status_code=500,
+            )
+        row = rows[0]
+        discount_vnd = int(row.get("discount_vnd") or 0)
+        merged_count = int(row.get("merged_count") or 0)
+        code = row.get("code") or new_code
+        return {
+            "voucher_id": row.get("voucher_id"),
+            "code": code,
+            "discount_vnd": discount_vnd,
+            "merged_count": merged_count,
+            "expires_at": row.get("expires_at"),
+            "message": f"Đã gộp {merged_count} voucher thành 1 mã giảm {discount_vnd:,} VND.",
         }
 

@@ -28,6 +28,10 @@ interface OrderConfirmation {
   id?: string;
   purchase_id?: string;
   total_price: number;
+  subtotal?: number;
+  discount?: number;
+  voucher_code?: string | null;
+  voucher_discount?: number;
   pickup_date?: string;      // only for cake orders
   created_at?: string;       // only for sweet purchases
   status: string;
@@ -96,7 +100,7 @@ function CheckoutContent() {
   const router = useRouter();
   const { user } = useAuthContext();
   const { items: cartItems, clearCart, selectedBranchId, selectedBranchName } = useCart();
-  const { refresh: refreshLoyalty, checkVoucher, fetchVouchers } = useLoyaltyContext();
+  const { refresh: refreshLoyalty, checkVoucher, fetchVouchers, mergeVouchers } = useLoyaltyContext();
 
   // Builder mode: load from localStorage
   const [cakeDesign, setCakeDesign] = useState<CakeDesign | null>(null);
@@ -190,6 +194,7 @@ function CheckoutContent() {
     message: string;
   } | null>(null);
   const [voucherChecking, setVoucherChecking] = useState(false);
+  const [mergingVouchers, setMergingVouchers] = useState(false);
   // Voucher đã đổi nhưng chưa dùng — gợi ý để khách chọn thay vì phải nhớ mã.
   const [myVouchers, setMyVouchers] = useState<
     Array<{ id: string; code: string; discount_vnd: number }>
@@ -500,6 +505,9 @@ function CheckoutContent() {
             : `k-${Date.now()}-${Math.random().toString(36).slice(2)}`
         );
         localStorage.removeItem("cake_customization_json");
+        refreshLoyalty().catch((refreshError) => {
+          console.warn("[Checkout] Loyalty refresh failed:", refreshError);
+        });
       }
 
     } catch (err: unknown) {
@@ -610,14 +618,21 @@ function CheckoutContent() {
                   {formatPrice(confirmation.total_price)}
                 </span>
               </div>
-              {voucherInfo && voucherInfo.discount > 0 && (
-                <div className="flex justify-between items-center">
-                  <span className="text-mocha/70 text-sm">Đã giảm (voucher)</span>
-                  <span className="font-semibold text-green-700 text-sm">
-                    −{formatPrice(voucherInfo.discount)}
-                  </span>
-                </div>
-              )}
+              {(() => {
+                const appliedDiscount =
+                  confirmation.voucher_discount ??
+                  confirmation.discount ??
+                  voucherInfo?.discount ??
+                  0;
+                return appliedDiscount > 0 ? (
+                  <div className="flex justify-between items-center">
+                    <span className="text-mocha/70 text-sm">Đã giảm (voucher)</span>
+                    <span className="font-semibold text-green-700 text-sm">
+                      −{formatPrice(appliedDiscount)}
+                    </span>
+                  </div>
+                ) : null;
+              })()}
               <div className="flex justify-between items-center gap-4">
                 <span className="text-mocha/70 text-sm">Điểm thưởng</span>
                 <span className="font-semibold text-green-700 text-sm text-right">
@@ -1093,24 +1108,71 @@ function CheckoutContent() {
 
             {/* Gợi ý mã đang dùng được: khách không phải nhớ hay chép tay. */}
             {myVouchers.length > 0 && (
-              <div className="mb-3 flex flex-wrap gap-2">
-                {myVouchers.slice(0, 5).map((v) => (
-                  <button
-                    key={v.id}
-                    type="button"
-                    onClick={() => {
-                      setVoucherCode(v.code);
-                      setVoucherError(null);
-                    }}
-                    className={`px-3 py-1.5 rounded-full border text-xs font-mono transition-colors ${
-                      voucherCode === v.code
-                        ? "border-pink-pastel bg-pink-pastel/10 text-mocha"
-                        : "border-mocha/20 bg-cream/50 text-mocha/70 hover:border-mocha/40"
-                    }`}
-                  >
-                    {v.code} · −{formatPrice(v.discount_vnd)}
-                  </button>
-                ))}
+              <div className="mb-3 space-y-2.5">
+                {myVouchers.length >= 2 && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-cream/80 border border-mocha/15 px-3 py-2">
+                    <span className="text-xs text-mocha/75">
+                      Bạn có <strong>{myVouchers.length}</strong> voucher khả dụng (tổng{" "}
+                      <strong>
+                        {formatPrice(
+                          myVouchers.reduce((sum, v) => sum + (v.discount_vnd || 0), 0)
+                        )}
+                      </strong>
+                      )
+                    </span>
+                    <button
+                      type="button"
+                      disabled={mergingVouchers}
+                      onClick={async () => {
+                        setMergingVouchers(true);
+                        setVoucherError(null);
+                        try {
+                          const merged = await mergeVouchers();
+                          const listRes = await fetchVouchers();
+                          setMyVouchers(
+                            listRes.vouchers
+                              .filter((v) => v.status === "active" && !v.used_at)
+                              .map((v) => ({
+                                id: v.id,
+                                code: v.code,
+                                discount_vnd: v.discount_vnd,
+                              }))
+                          );
+                          setVoucherCode(merged.code);
+                        } catch (err) {
+                          setVoucherError(
+                            err instanceof Error ? err.message : "Không thể gộp voucher."
+                          );
+                        } finally {
+                          setMergingVouchers(false);
+                        }
+                      }}
+                      className="px-3 py-1 rounded-full bg-mocha text-white text-xs font-semibold hover:bg-mocha/90 transition-colors disabled:opacity-50"
+                    >
+                      {mergingVouchers ? "Đang gộp…" : "✨ Gộp tất cả thành 1 mã"}
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto">
+                  {myVouchers.map((v) => (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => {
+                        setVoucherCode(v.code);
+                        setVoucherError(null);
+                      }}
+                      className={`px-3 py-1.5 rounded-full border text-xs font-mono transition-colors ${
+                        voucherCode === v.code
+                          ? "border-pink-pastel bg-pink-pastel/10 text-mocha"
+                          : "border-mocha/20 bg-cream/50 text-mocha/70 hover:border-mocha/40"
+                      }`}
+                    >
+                      {v.code} · −{formatPrice(v.discount_vnd)}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -1166,6 +1228,12 @@ function CheckoutContent() {
               </p>
             )}
           </section>
+
+          {errors.general && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm" role="alert">
+              {errors.general}
+            </div>
+          )}
 
           {/* Submit */}
           <button

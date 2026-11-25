@@ -152,9 +152,15 @@ function RedeemModal({
   loading: boolean;
   error?: string | null;
 }) {
+  const maxSelectable = Math.max(1, availableVouchers);
   const [count, setCount] = useState(1);
-  // FIX: Enforce API cap of max 10 vouchers per redemption.
-  const maxSelectable = Math.min(availableVouchers, 10);
+
+  const clampCount = (val: number) => Math.max(1, Math.min(maxSelectable, Math.floor(val) || 1));
+
+  // Các mốc gợi ý nhanh dựa trên số điểm thực tế khách đang có
+  const presets = Array.from(
+    new Set([1, 2, 5, 10, 20, maxSelectable].filter((n) => n >= 1 && n <= maxSelectable))
+  );
 
   return (
     <div
@@ -178,12 +184,12 @@ function RedeemModal({
           borderRadius: "1.5rem",
           padding: "2rem",
           width: "100%",
-          maxWidth: "420px",
+          maxWidth: "440px",
           boxShadow: "0 20px 60px rgba(43,43,42,0.18)",
           animation: "slideUp 0.25s ease-out",
         }}
       >
-        <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+        <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
           <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>🎁</div>
           <h2
             style={{
@@ -193,10 +199,10 @@ function RedeemModal({
               margin: 0,
             }}
           >
-            Đổi Điểm Lấy Voucher
+            Đổi Điểm Lấy Voucher Cộng Dồn
           </h2>
           <p style={{ color: "var(--muted)", fontSize: "0.875rem", margin: "0.5rem 0 0" }}>
-            {pointsPerVoucher} điểm = 1 voucher = {formatVND(voucherValue)} giảm giá
+            {pointsPerVoucher} điểm = {formatVND(voucherValue)} · Cộng dồn vào 1 voucher duy nhất
           </p>
         </div>
 
@@ -206,13 +212,14 @@ function RedeemModal({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: "1.5rem",
-            margin: "1.5rem 0",
+            gap: "1.25rem",
+            margin: "1.25rem 0",
           }}
         >
           <button
             id="redeem-decrease"
-            onClick={() => setCount(Math.max(1, count - 1))}
+            type="button"
+            onClick={() => setCount(clampCount(count - 1))}
             style={{
               width: "44px",
               height: "44px",
@@ -234,22 +241,42 @@ function RedeemModal({
           </button>
 
           <div style={{ textAlign: "center" }}>
-            <div
+            <input
+              id="redeem-count-input"
+              type="number"
+              min={1}
+              max={maxSelectable}
+              value={count}
+              onChange={(e) => {
+                const parsed = parseInt(e.target.value, 10);
+                if (!Number.isNaN(parsed)) {
+                  setCount(clampCount(parsed));
+                } else {
+                  setCount(1);
+                }
+              }}
+              aria-label="Số mốc điểm muốn đổi"
               style={{
-                fontSize: "2.5rem",
+                width: "96px",
+                textAlign: "center",
+                fontSize: "2.1rem",
                 fontWeight: 800,
                 color: "var(--foreground)",
-                lineHeight: 1,
+                border: "1px solid var(--line)",
+                borderRadius: "0.75rem",
+                padding: "0.2rem 0.4rem",
+                background: "var(--subtle)",
               }}
-            >
-              {count}
+            />
+            <div style={{ fontSize: "0.75rem", color: "var(--muted)", marginTop: "0.25rem" }}>
+              mốc × {pointsPerVoucher} điểm (tối đa {maxSelectable})
             </div>
-            <div style={{ fontSize: "0.75rem", color: "var(--muted)" }}>voucher</div>
           </div>
 
           <button
             id="redeem-increase"
-            onClick={() => setCount(Math.min(maxSelectable, count + 1))}
+            type="button"
+            onClick={() => setCount(clampCount(count + 1))}
             style={{
               width: "44px",
               height: "44px",
@@ -271,6 +298,46 @@ function RedeemModal({
           </button>
         </div>
 
+        {/* Quick presets */}
+        {presets.length > 1 && (
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              justifyContent: "center",
+              gap: "0.45rem",
+              marginBottom: "1.25rem",
+            }}
+          >
+            {presets.map((preset) => {
+              const isMax = preset === maxSelectable && maxSelectable > 1;
+              const label = isMax
+                ? `Tối đa (${((preset * voucherValue) / 1000).toLocaleString("vi-VN")}K)`
+                : `${((preset * voucherValue) / 1000).toLocaleString("vi-VN")}K`;
+              const active = count === preset;
+              return (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setCount(preset)}
+                  style={{
+                    padding: "0.35rem 0.75rem",
+                    borderRadius: "9999px",
+                    border: active ? "1.5px solid var(--foreground)" : "1px solid var(--line)",
+                    background: active ? "var(--foreground)" : "var(--subtle)",
+                    color: active ? "white" : "var(--foreground)",
+                    fontSize: "0.78rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Summary */}
         <div
           style={{
@@ -286,7 +353,7 @@ function RedeemModal({
             Dùng {(count * pointsPerVoucher).toLocaleString("vi-VN")} điểm
           </p>
           <p style={{ margin: "0.25rem 0 0", color: "var(--foreground)", fontSize: "1.1rem", fontWeight: 700 }}>
-            Nhận {formatVND(count * voucherValue)} giảm giá
+            Nhận 1 voucher giảm {formatVND(count * voucherValue)}
           </p>
         </div>
 
@@ -394,7 +461,7 @@ function SuccessModal({
           Đổi điểm thành công!
         </h2>
         <p style={{ color: "var(--muted)", margin: "0 0 1.5rem", fontSize: "0.9rem" }}>
-          Bạn nhận được voucher giảm <strong>{formatVND(discountVnd)}</strong>
+          Bạn nhận được {codes.length} voucher giảm <strong>{formatVND(discountVnd)}</strong>
         </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.5rem" }}>
@@ -419,7 +486,7 @@ function SuccessModal({
         </div>
 
         <p style={{ color: "var(--muted)", fontSize: "0.75rem", margin: "0 0 1.5rem" }}>
-          💡 Lưu mã và trình với nhân viên khi đến quán để được giảm giá.
+          💡 Chọn mã trực tiếp ở trang Thanh toán hoặc trình với nhân viên khi đến quán.
         </p>
 
         <button
@@ -453,7 +520,17 @@ function SuccessModal({
  * đóng đi là mất dấu, không có chỗ nào xem lại — nên họ không nhập được mã ở
  * trang thanh toán và tưởng tính năng đổi điểm bị hỏng. Đây là chỗ xem lại.
  */
-function VoucherWallet({ vouchers }: { vouchers: VoucherRow[] }) {
+function VoucherWallet({
+  vouchers,
+  onMergeAll,
+  merging,
+  mergeError,
+}: {
+  vouchers: VoucherRow[];
+  onMergeAll?: () => void;
+  merging?: boolean;
+  mergeError?: string | null;
+}) {
   const [copied, setCopied] = useState<string | null>(null);
 
   const usable = vouchers.filter((v) => v.status === "active" && !v.used_at);
@@ -464,6 +541,8 @@ function VoucherWallet({ vouchers }: { vouchers: VoucherRow[] }) {
       </p>
     );
   }
+
+  const totalUsable = usable.reduce((sum, v) => sum + (v.discount_vnd || 0), 0);
 
   const copy = async (code: string) => {
     try {
@@ -478,60 +557,118 @@ function VoucherWallet({ vouchers }: { vouchers: VoucherRow[] }) {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-      {usable.slice(0, 10).map((v) => (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+      {usable.length >= 2 && onMergeAll && (
         <div
-          key={v.id}
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            flexWrap: "wrap",
             gap: "0.75rem",
             background: "var(--subtle)",
-            border: "1.5px dashed var(--brand)",
-            borderRadius: "0.75rem",
-            padding: "0.6rem 0.9rem",
+            border: "1px solid var(--line)",
+            borderRadius: "0.85rem",
+            padding: "0.7rem 0.9rem",
           }}
         >
-          <div style={{ minWidth: 0 }}>
-            <p
-              style={{
-                fontFamily: "monospace",
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                fontSize: "0.9rem",
-                color: "var(--foreground)",
-                margin: 0,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {v.code}
-            </p>
-            <p style={{ color: "var(--muted)", fontSize: "0.72rem", margin: 0 }}>
-              Giảm {formatVND(v.discount_vnd)}
-            </p>
-          </div>
+          <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--foreground)" }}>
+            Bạn có <strong>{usable.length}</strong> voucher · Tổng trị giá{" "}
+            <strong>{formatVND(totalUsable)}</strong>
+          </p>
           <button
+            id="merge-vouchers-btn"
             type="button"
-            onClick={() => copy(v.code)}
-            aria-label={`Sao chép mã ${v.code}`}
+            onClick={onMergeAll}
+            disabled={merging}
             style={{
-              flexShrink: 0,
-              padding: "0.4rem 0.8rem",
-              borderRadius: "0.6rem",
-              border: "1px solid var(--brand)",
-              background: "white",
-              color: "var(--foreground)",
-              fontWeight: 600,
+              padding: "0.45rem 0.9rem",
+              borderRadius: "9999px",
+              border: "none",
+              background: "var(--foreground)",
+              color: "white",
+              fontWeight: 700,
               fontSize: "0.78rem",
-              cursor: "pointer",
+              cursor: merging ? "not-allowed" : "pointer",
+              opacity: merging ? 0.6 : 1,
             }}
           >
-            {copied === v.code ? "✓ Đã chép" : "Sao chép"}
+            {merging
+              ? "Đang gộp…"
+              : `✨ Gộp tất cả thành 1 mã (${formatVND(totalUsable)})`}
           </button>
         </div>
-      ))}
+      )}
+
+      {mergeError && (
+        <p style={{ color: "#d32f2f", fontSize: "0.8rem", margin: 0 }}>
+          ⚠️ {mergeError}
+        </p>
+      )}
+
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "0.5rem",
+          maxHeight: "320px",
+          overflowY: "auto",
+        }}
+      >
+        {usable.map((v) => (
+          <div
+            key={v.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "0.75rem",
+              background: "var(--subtle)",
+              border: "1.5px dashed var(--brand)",
+              borderRadius: "0.75rem",
+              padding: "0.6rem 0.9rem",
+            }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <p
+                style={{
+                  fontFamily: "monospace",
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  fontSize: "0.9rem",
+                  color: "var(--foreground)",
+                  margin: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {v.code}
+              </p>
+              <p style={{ color: "var(--muted)", fontSize: "0.72rem", margin: 0 }}>
+                Giảm {formatVND(v.discount_vnd)}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => copy(v.code)}
+              aria-label={`Sao chép mã ${v.code}`}
+              style={{
+                flexShrink: 0,
+                padding: "0.4rem 0.8rem",
+                borderRadius: "0.6rem",
+                border: "1px solid var(--brand)",
+                background: "white",
+                color: "var(--foreground)",
+                fontWeight: 600,
+                fontSize: "0.78rem",
+                cursor: "pointer",
+              }}
+            >
+              {copied === v.code ? "✓ Đã chép" : "Sao chép"}
+            </button>
+          </div>
+        ))}
+      </div>
       <p style={{ color: "var(--muted)", fontSize: "0.75rem", margin: "0.25rem 0 0" }}>
         Nhập mã này ở trang thanh toán để được giảm giá. Mỗi mã dùng một lần.
       </p>
@@ -542,10 +679,12 @@ function VoucherWallet({ vouchers }: { vouchers: VoucherRow[] }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function LoyaltyPage() {
   const { user, isAuthenticated } = useAuthContext();
-  const { data, loading, error, redeemPoints, fetchVouchers } = useLoyaltyContext();
+  const { data, loading, error, redeemPoints, fetchVouchers, mergeVouchers } = useLoyaltyContext();
 
   const [showRedeem, setShowRedeem] = useState(false);
   const [redeemLoading, setRedeemLoading] = useState(false);
+  const [mergingVouchers, setMergingVouchers] = useState(false);
+  const [mergeError, setMergeError] = useState<string | null>(null);
   const [successResult, setSuccessResult] = useState<{
     codes: string[];
     discountVnd: number;
@@ -585,6 +724,19 @@ export default function LoyaltyPage() {
       setRedeemError(err instanceof Error ? err.message : "Lỗi khi đổi điểm.");
     } finally {
       setRedeemLoading(false);
+    }
+  };
+
+  const handleMergeAll = async () => {
+    setMergingVouchers(true);
+    setMergeError(null);
+    try {
+      const merged = await mergeVouchers();
+      setSuccessResult({ codes: [merged.code], discountVnd: merged.discount_vnd });
+    } catch (err) {
+      setMergeError(err instanceof Error ? err.message : "Không thể gộp voucher.");
+    } finally {
+      setMergingVouchers(false);
     }
   };
 
@@ -994,7 +1146,12 @@ export default function LoyaltyPage() {
             >
               🎟️ Mã giảm giá của bạn
             </h2>
-            <VoucherWallet vouchers={vouchers} />
+            <VoucherWallet
+              vouchers={vouchers}
+              onMergeAll={handleMergeAll}
+              merging={mergingVouchers}
+              mergeError={mergeError}
+            />
           </div>
 
           {/* ── TRANSACTION HISTORY ────────────────────────────────────────── */}
@@ -1089,7 +1246,7 @@ export default function LoyaltyPage() {
             >
               <li>Mua bánh ngọt tại quán → nhận <strong>1 điểm / 1,000 VND</strong></li>
               <li>Đặt bánh kem theo ý thích → nhận <strong>1.5 điểm / 1,000 VND</strong> (khi nhận bánh)</li>
-              <li>Đủ 100 điểm → đổi <strong>voucher giảm 5,000 VND</strong> áp dụng tại quán</li>
+              <li>Mỗi 100 điểm = <strong>5,000 VND</strong> — có thể cộng dồn nhiều điểm thành <strong>1 voucher giá trị cao</strong></li>
             </ul>
           </div>
 

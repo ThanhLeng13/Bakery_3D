@@ -53,9 +53,19 @@ export interface LoyaltyData {
 
 interface RedeemResult {
   voucher_codes: string[];
+  voucher_code?: string;
   discount_vnd: number;
   points_used: number;
   remaining_points: number;
+  message: string;
+}
+
+export interface MergeVouchersResult {
+  voucher_id: string;
+  code: string;
+  discount_vnd: number;
+  merged_count: number;
+  expires_at: string | null;
   message: string;
 }
 
@@ -86,6 +96,8 @@ interface LoyaltyContextValue {
   redeemPoints: (voucherCount: number) => Promise<RedeemResult>;
   /** Danh sách voucher đã đổi (để xem lại mã). Tải on-demand. */
   fetchVouchers: () => Promise<VoucherListResult>;
+  /** Gộp nhiều voucher đang có thành 1 mã cộng dồn. */
+  mergeVouchers: (voucherIds?: string[]) => Promise<MergeVouchersResult>;
   /** Kiểm tra một mã trước khi đặt hàng — server trả mức giảm thật. */
   checkVoucher: (code: string, orderTotal: number) => Promise<VoucherCheckResult>;
 }
@@ -229,6 +241,27 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
     return res.json();
   }, []);
 
+  const mergeVouchers = useCallback(
+    async (voucherIds?: string[]): Promise<MergeVouchersResult> => {
+      const token = getStoredToken();
+      if (!token) throw new Error("Bạn cần đăng nhập.");
+      const res = await fetch(`${API_BASE}/api/v1/loyalty/vouchers/merge`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(voucherIds ? { voucher_ids: voucherIds } : {}),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Lỗi ${res.status}`);
+      }
+      return res.json();
+    },
+    []
+  );
+
   const checkVoucher = useCallback(
     async (code: string, orderTotal: number): Promise<VoucherCheckResult> => {
       const token = getStoredToken();
@@ -262,9 +295,10 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
       refresh: fetchLoyalty,
       redeemPoints,
       fetchVouchers,
+      mergeVouchers,
       checkVoucher,
     }),
-    [data, loading, error, fetchLoyalty, redeemPoints, fetchVouchers, checkVoucher]
+    [data, loading, error, fetchLoyalty, redeemPoints, fetchVouchers, mergeVouchers, checkVoucher]
   );
 
   return (

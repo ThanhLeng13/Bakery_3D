@@ -239,3 +239,103 @@ class TestLoyaltyVoucherEndpointsExist:
 
         req = VoucherCheckRequest(code="BNB-X", order_total=250_000)
         assert req.order_total == 250_000
+
+    def test_co_endpoint_gop_voucher(self):
+        src = self._router_source()
+        assert '@router.post("/vouchers/merge")' in src
+
+
+class TestVoucherAmbiguousStatusAndStackingContracts:
+    """Khoá sửa lỗi `column reference "status" is ambiguous` và voucher cộng dồn."""
+
+    def test_migration_qualifies_vouchers_alias_in_rpc_create_order(self):
+        sql = (
+            BACKEND / "migrations" / "fix_voucher_ambiguous_status_and_stackable_vouchers.sql"
+        ).read_text(encoding="utf-8")
+        exec_sql = "\n".join(
+            line for line in sql.splitlines() if not line.lstrip().startswith("--")
+        )
+        assert "UPDATE public.vouchers AS v" in exec_sql
+        assert "v.status = 'active'" in exec_sql
+        assert "AND status = 'active'" not in exec_sql
+
+    def test_migration_allows_large_discount_on_purchases(self):
+        sql = (
+            BACKEND / "migrations" / "fix_voucher_ambiguous_status_and_stackable_vouchers.sql"
+        ).read_text(encoding="utf-8")
+        assert "purchases_voucher_discount_check" in sql
+        assert "CHECK (voucher_discount >= 0 AND total_price >= 0)" in sql
+        assert "rpc_merge_vouchers" in sql
+
+    def test_purchase_insert_error_releases_claimed_voucher(self):
+        src = (BACKEND / "app/api/v1/endpoints/purchases.py").read_text(encoding="utf-8")
+        insert_pos = src.index('db.table("purchases").insert(')
+        snippet = src[insert_pos : insert_pos + 350]
+        assert "voucher_svc.release" in snippet
+
+    def test_order_service_maps_known_rpc_voucher_error_without_leaking_sql(self):
+        from datetime import datetime, timedelta, timezone
+        from unittest.mock import MagicMock
+        from app.services.order_service import OrderService, OrderServiceError
+        from app.services.pricing import NIL_UUID
+
+        mock_db = MagicMock()
+        mock_db.table().select().eq().limit().execute.return_value = MagicMock(
+            data=[_voucher(discount_vnd=50000, user_id="u-1")]
+        )
+        mock_db.rpc().execute.side_effect = Exception(
+            "APIError: {'message': 'Voucher không còn hiệu lực hoặc đã được dùng.', 'code': '23514'}"
+        )
+        svc = OrderService(mock_db)
+        with pytest.raises(OrderServiceError) as exc:
+            svc.create_order(
+                {
+                    "full_name": "Test",
+                    "phone": "0901234567",
+                    "pickup_date": datetime.now(timezone.utc) + timedelta(hours=30),
+                    "items": [{"product_id": NIL_UUID, "size": "20cm", "quantity": 1, "unit_price": 350000}],
+                    "voucher_code": "BNB-AAAA1111",
+                },
+                {"id": "u-1"},
+            )
+        assert exc.value.status_code == 400
+        assert exc.value.message == "Voucher không còn hiệu lực hoặc đã được dùng."
+        assert "23514" not in exc.value.message
+
+    def test_order_service_handles_100_percent_stacked_voucher_total_zero(self):
+        from datetime import datetime, timedelta, timezone
+        from unittest.mock import MagicMock
+        from app.services.order_service import OrderService
+        from app.services.pricing import NIL_UUID
+
+        mock_db = MagicMock()
+        mock_db.table().select().eq().limit().execute.return_value = MagicMock(
+            data=[_voucher(discount_vnd=500000, user_id="u-1")]
+        )
+        mock_db.rpc().execute.return_value = MagicMock(
+            data=[{
+                "order_id": "o-1",
+                "subtotal": 350000,
+                "discount": 350000,
+                "total": 0,
+                "duplicate": False,
+                "status": "pending",
+                "voucher_code": "BNB-AAAA1111",
+            }]
+        )
+        svc = OrderService(mock_db)
+        res = svc.create_order(
+            {
+                "full_name": "Test",
+                "phone": "0901234567",
+                "pickup_date": datetime.now(timezone.utc) + timedelta(hours=30),
+                "items": [{"product_id": NIL_UUID, "size": "20cm", "quantity": 1, "unit_price": 350000}],
+                "voucher_code": "BNB-AAAA1111",
+            },
+            {"id": "u-1"},
+        )
+        assert res["total_price"] == 0
+        assert res["voucher_discount"] == 350000
+        rpc_args = mock_db.rpc.call_args[0][1]
+        assert rpc_args["p_total_price"] == 0
+        assert rpc_args["p_voucher_discount"] == 350000

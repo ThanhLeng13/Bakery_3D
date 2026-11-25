@@ -37,8 +37,15 @@ class RedeemRequest(BaseModel):
     voucher_count: int = Field(
         default=1,
         ge=1,
-        le=10,
-        description="Số voucher muốn đổi (mỗi voucher = 100 điểm = 5,000 VND)",
+        le=10000,
+        description="Số mốc 100 điểm muốn đổi (mỗi mốc = 5,000 VND, cộng dồn vào 1 voucher)",
+    )
+
+
+class MergeVouchersRequest(BaseModel):
+    voucher_ids: list[str] | None = Field(
+        default=None,
+        description="Danh sách ID voucher cần gộp; bỏ trống để gộp toàn bộ voucher đang dùng được.",
     )
 
 
@@ -79,10 +86,10 @@ def redeem_points(
     user: dict = Depends(get_current_user),
 ):
     """
-    Đổi điểm lấy voucher giảm giá.
+    Đổi điểm lấy 1 voucher giảm giá (cộng dồn theo số điểm đổi).
 
-    Mỗi lần đổi:  100 điểm → 1 voucher → giảm 5,000 VND.
-    Tối đa:        10 voucher / lần (= 1,000 điểm = 50,000 VND).
+    Mỗi mốc 100 điểm = 5,000 VND giảm giá. Có thể đổi nhiều mốc cùng lúc
+    dựa trên số điểm hiện có để nhận 1 voucher giá trị lớn hơn.
 
     Yêu cầu đăng nhập.
     """
@@ -113,8 +120,9 @@ def list_my_vouchers(
         db.table("vouchers")
         .select("id, code, discount_vnd, status, expires_at, used_at, created_at")
         .eq("user_id", user["id"])
+        .order("status", desc=False)
         .order("created_at", desc=True)
-        .limit(50)
+        .limit(100)
         .execute()
     )
     rows = result.data or []
@@ -182,3 +190,17 @@ def check_voucher(
             else "Mã hợp lệ nhưng đơn chưa đủ điều kiện giảm giá."
         ),
     }
+
+
+@router.post("/vouchers/merge")
+def merge_my_vouchers(
+    body: MergeVouchersRequest | None = None,
+    user: dict = Depends(get_current_user),
+):
+    """Gộp nhiều voucher còn hiệu lực của khách thành 1 voucher cộng dồn."""
+    svc = _get_loyalty_svc()
+    voucher_ids = body.voucher_ids if body else None
+    try:
+        return svc.merge_vouchers(str(user["id"]), voucher_ids=voucher_ids)
+    except LoyaltyServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc

@@ -96,11 +96,31 @@ class TestLoyaltyServiceRedeemPoints:
         assert result["points_used"] == 200
         assert result["discount_vnd"] == 10000
         assert result["remaining_points"] == 50
-        assert len(result["voucher_codes"]) == 2
-        
+        # Cộng dồn vào 1 voucher duy nhất có giá trị tổng = 10,000 VND
+        assert len(result["voucher_codes"]) == 1
+        assert result["voucher_code"] == result["voucher_codes"][0]
+
         args = self.mock_supabase.rpc.call_args[0]
         assert args[0] == "rpc_redeem_points"
         assert args[1]["p_points_needed"] == 200
+        assert args[1]["p_voucher_value"] == 10000
+        assert len(args[1]["p_voucher_codes"]) == 1
+
+    def test_redeem_points_large_stack_above_ten_units(self):
+        """Khách có nhiều điểm có thể đổi > 10 mốc (50k) vào 1 voucher lớn."""
+        self.mock_supabase.rpc().execute.return_value = MagicMock(
+            data=[{"remaining_points": 10}]
+        )
+
+        result = self.loyalty_service.redeem_points(self.user_id, voucher_count=35)
+        assert result["points_used"] == 3500
+        assert result["discount_vnd"] == 175000
+        assert result["remaining_points"] == 10
+        assert len(result["voucher_codes"]) == 1
+
+        args = self.mock_supabase.rpc.call_args[0]
+        assert args[1]["p_points_needed"] == 3500
+        assert args[1]["p_voucher_value"] == 175000
 
     def test_redeem_points_insufficient(self):
         self.mock_supabase.rpc().execute.side_effect = Exception("INSUFFICIENT_POINTS")
@@ -123,5 +143,42 @@ class TestLoyaltyServiceRedeemPoints:
 
     def test_redeem_points_max_exceeded(self):
         with pytest.raises(LoyaltyServiceError) as exc:
-            self.loyalty_service.redeem_points(self.user_id, voucher_count=11)
-        assert "Tối đa đổi 10" in exc.value.message
+            self.loyalty_service.redeem_points(self.user_id, voucher_count=10001)
+        assert "Tối đa đổi" in exc.value.message
+
+
+class TestLoyaltyServiceMergeVouchers:
+    def setup_method(self):
+        self.mock_supabase = MagicMock()
+        self.loyalty_service = LoyaltyService(self.mock_supabase)
+        self.user_id = "user-1"
+
+    def test_merge_vouchers_success(self):
+        self.mock_supabase.rpc().execute.return_value = MagicMock(
+            data=[{
+                "voucher_id": "v-new",
+                "code": "BNB-MERGED123",
+                "discount_vnd": 175000,
+                "merged_count": 35,
+                "expires_at": None,
+            }]
+        )
+
+        result = self.loyalty_service.merge_vouchers(self.user_id)
+        assert result["code"] == "BNB-MERGED123"
+        assert result["discount_vnd"] == 175000
+        assert result["merged_count"] == 35
+        args = self.mock_supabase.rpc.call_args[0]
+        assert args[0] == "rpc_merge_vouchers"
+        assert args[1]["p_user_id"] == self.user_id
+
+    def test_merge_vouchers_requires_at_least_two_when_ids_given(self):
+        with pytest.raises(LoyaltyServiceError, match="ít nhất 2"):
+            self.loyalty_service.merge_vouchers(self.user_id, voucher_ids=["v-1"])
+
+    def test_merge_vouchers_maps_rpc_need_two_error(self):
+        self.mock_supabase.rpc().execute.side_effect = Exception("NEED_AT_LEAST_TWO_VOUCHERS")
+        with pytest.raises(LoyaltyServiceError) as exc:
+            self.loyalty_service.merge_vouchers(self.user_id)
+        assert exc.value.status_code == 400
+        assert "ít nhất 2" in exc.value.message
