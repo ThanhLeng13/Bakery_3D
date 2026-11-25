@@ -274,7 +274,7 @@ def create_purchase(
                 detail="Voucher này vừa được sử dụng. Vui lòng kiểm tra lại mã.",
             )
 
-    # 5. Create purchase record
+    # 5. Create purchase record (bọc try/except để lỗi insert vẫn trả lại voucher)
     purchase_data = {
         "customer_id": customer["id"],
         "customer_name": body.customer_name,
@@ -288,7 +288,14 @@ def create_purchase(
         "voucher_code": money["voucher_code"],
         "voucher_discount": money["discount"],
     }
-    purchase_result = db.table("purchases").insert(purchase_data).execute()
+    try:
+        purchase_result = db.table("purchases").insert(purchase_data).execute()
+    except Exception as exc:
+        _logger.exception("Không thể ghi bản ghi purchases: %s", exc)
+        if voucher_claimed:
+            voucher_svc.release(money["voucher_id"])
+        raise HTTPException(status_code=500, detail="Không thể tạo đơn mua hàng.") from exc
+
     if not purchase_result.data:
         # Chưa có gì được ghi, nhưng voucher đã bị giữ chỗ: trả lại để khách
         # không mất mã vì lỗi của tiệm.
@@ -401,7 +408,7 @@ def get_purchase_history(
     result = (
         db.table("purchases")
         .select(
-            "id, total_price, status, notes, created_at, "
+            "id, total_price, status, notes, voucher_code, voucher_discount, created_at, "
             "purchase_items(id, quantity, unit_price, product_id, "
             "products(name, category))"
         )

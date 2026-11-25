@@ -296,7 +296,7 @@ function CakeBuilderContent() {
                 onZoneClick={handleZoneClick}
                 onZoneHover={handleZoneHover}
                 autoRotate={autoRotate}
-                enableControls={false}
+                enableControls={true}
               />
 
               {!autoRotate &&

@@ -34,6 +34,7 @@ export interface LoyaltyData {
 
 interface RedeemResult {
   voucher_codes: string[];
+  voucher_code?: string;
   discount_vnd: number;
   points_used: number;
   remaining_points: number;

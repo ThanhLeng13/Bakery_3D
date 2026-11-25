@@ -40,6 +40,8 @@ interface OrderDetail {
   customer_phone: string;
   customer_email: string | null;
   customer_message: string | null;
+  voucher_code?: string | null;
+  voucher_discount?: number;
   ai_summary: string | null;
   baker_notes: string | null;
   created_at: string;
@@ -469,6 +471,16 @@ function OrderDetailContent() {
                 {formatDate(order.created_at)}
               </span>
             </div>
+            {(order.voucher_discount ?? 0) > 0 && (
+              <div className="flex justify-between items-center">
+                <span className="text-mocha/70 text-sm">
+                  Giảm giá {order.voucher_code ? `(${order.voucher_code})` : "(voucher)"}
+                </span>
+                <span className="font-semibold text-green-700 text-sm">
+                  −{formatPrice(order.voucher_discount!)}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between items-center pt-3 border-t border-mocha/10">
               <span className="font-medium text-mocha">Tổng tiền</span>
               <span className="font-bold text-pink-pastel text-xl">

@@ -137,6 +137,6 @@ export function Ganache({ radius, surfaceY, tier }: { radius: number; surfaceY: 
   }, [radius, surfaceY, tier]);
   useEffect(() => () => geometry.dispose(), [geometry]);
   return <mesh geometry={geometry} castShadow receiveShadow>
-    <meshPhysicalMaterial color="#42261E" roughness={0.3} clearcoat={0.5} side={THREE.DoubleSide} />
+    <meshPhysicalMaterial color="#28120B" roughness={0.14} clearcoat={0.94} clearcoatRoughness={0.07} side={THREE.DoubleSide} />
   </mesh>;
 }

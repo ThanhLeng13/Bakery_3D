@@ -94,10 +94,13 @@ function ZoneMesh({
         roughness={roughness}
         metalness={0}
         clearcoat={clearcoat}
-        clearcoatRoughness={0.28}
+        clearcoatRoughness={0.26}
+        sheen={0.45}
+        sheenRoughness={0.48}
+        sheenColor="#FFFDF8"
         bumpMap={icingTexture}
-        bumpScale={0.003}
-        envMapIntensity={0.65}
+        bumpScale={0.0042}
+        envMapIntensity={0.75}
         emissive={emissiveColor}
         emissiveIntensity={emissiveIntensity}
       />
@@ -105,16 +108,8 @@ function ZoneMesh({
     </mesh>
   );
 }
-// ─── Note on geometries ──────────────────────────────────────────────────────
-// We use inline JSX geometry tags (e.g. <sphereGeometry args={[...]} />) inside
-// each sub-component instead of module-level THREE.js instances. This ensures:
-// (a) geometries are bound to the active WebGL context of the current <Canvas>,
-//     so remounting the Canvas (page navigation) never causes blank/broken renders;
-// (b) R3F automatically disposes GPU buffers when the component unmounts,
-//     preventing memory leaks.
 
 function Flower({ p }: { p: [number, number, number] }) {
-  // Đáy của nhụy hoa (bán kính 0.08) nằm khớp trên mặt bánh tại y = surfaceY
   return (
     <group position={p}>
       <mesh position={[0, 0.105, 0]}>
@@ -135,20 +130,16 @@ function Flower({ p }: { p: [number, number, number] }) {
 }
 
 function Fruit({ p }: { p: [number, number, number] }) {
-  // Định vị các phần trái cây để phần đáy tiếp xúc trực tiếp với mặt bánh, không chìm xuống dưới
   return (
     <group position={p}>
-      {/* Quả dâu đỏ */}
       <mesh position={[-0.1, 0.105, 0]}>
         <sphereGeometry args={[0.105, 12, 12]} />
         <meshStandardMaterial color="#FF2020" emissive="#CC0000" emissiveIntensity={0.35} roughness={0.25} />
       </mesh>
-      {/* Mảnh cam vàng */}
       <mesh position={[0.1, 0.09, 0.035]}>
         <sphereGeometry args={[0.09, 12, 12]} />
         <meshStandardMaterial color="#FFD700" emissive="#E6B800" emissiveIntensity={0.3} roughness={0.3} />
       </mesh>
-      {/* Quả kiwi xanh */}
       <mesh position={[0, 0.08, -0.1]}>
         <sphereGeometry args={[0.08, 12, 12]} />
         <meshStandardMaterial color="#22CC44" emissive="#009922" emissiveIntensity={0.3} roughness={0.4} />
@@ -159,7 +150,6 @@ function Fruit({ p }: { p: [number, number, number] }) {
 
 function Sprinkle({ p }: { p: [number, number, number] }) {
   const colors = ["#FF69B4","#87CEEB","#98FB98","#FFD700","#FF6347","#DA70D6"];
-  // Xoay dẹt và đặt nằm ngang sát mặt bánh (đáy tiếp xúc trực tiếp tại y = surfaceY)
   return (
     <group position={p}>
       {[0,1,2,3,4,5,6].map(i => {
@@ -177,20 +167,16 @@ function Sprinkle({ p }: { p: [number, number, number] }) {
 }
 
 function Macaron({ p }: { p: [number, number, number] }) {
-  // Xếp macarons đứng nằm sát mặt bánh
   return (
     <group position={p}>
-      {/* Phần bánh dưới */}
       <mesh position={[0, 0.028, 0]}>
         <cylinderGeometry args={[0.125, 0.118, 0.056, 18]} />
         <meshStandardMaterial color="#FFB6C1" emissive="#FF8FA3" emissiveIntensity={0.3} roughness={0.2} />
       </mesh>
-      {/* Phần nhân kem giữa */}
       <mesh position={[0, 0.07, 0]}>
         <cylinderGeometry args={[0.112, 0.112, 0.028, 18]} />
         <meshStandardMaterial color="#FFF0F5" emissive="#FFD0DC" emissiveIntensity={0.2} roughness={0.15} />
       </mesh>
-      {/* Phần bánh trên */}
       <mesh position={[0, 0.112, 0]}>
         <cylinderGeometry args={[0.125, 0.118, 0.056, 18]} />
         <meshStandardMaterial color="#FFB6C1" emissive="#FF8FA3" emissiveIntensity={0.3} roughness={0.2} />
@@ -200,7 +186,6 @@ function Macaron({ p }: { p: [number, number, number] }) {
 }
 
 function ChocoDrip({ p }: { p: [number, number, number] }) {
-  // Sốt chocolate chảy nhẹ từ mặt bánh (dollop nổi trên mặt và chảy dài xuống)
   return (
     <group position={p}>
       <mesh position={[0, 0.105, 0]}>
@@ -216,20 +201,19 @@ function ChocoDrip({ p }: { p: [number, number, number] }) {
 }
 
 function HBDBlocks({ p }: { p: [number, number, number] }) {
-  // Khối chữ nổi nằm ngang, nâng lên một chút để tránh z-fighting
   return (
     <group position={p} rotation={[-Math.PI/2, 0, 0]} scale={[1.35, 1.35, 1.35]}>
       {[
-        { x:-0.18, y:0, w:0.04, h:0.18, c:"#5C3D2E" }, // H left
-        { x:-0.10, y:0, w:0.04, h:0.18, c:"#5C3D2E" }, // H right
-        { x:-0.14, y:0, w:0.08, h:0.04, c:"#5C3D2E" }, // H mid
-        { x:-0.02, y:0, w:0.04, h:0.18, c:"#E8837A" }, // B left
-        { x: 0.04, y:0.05, w:0.06, h:0.04, c:"#E8837A" }, // B top
-        { x: 0.04, y:0, w:0.06, h:0.04, c:"#E8837A" }, // B mid
-        { x: 0.04, y:-0.05, w:0.06, h:0.04, c:"#E8837A" }, // B bot
-        { x: 0.14, y:0, w:0.04, h:0.18, c:"#5C3D2E" }, // D left
-        { x: 0.20, y:0.05, w:0.06, h:0.04, c:"#5C3D2E" }, // D top
-        { x: 0.20, y:-0.05, w:0.06, h:0.04, c:"#5C3D2E" }, // D bot
+        { x:-0.18, y:0, w:0.04, h:0.18, c:"#5C3D2E" },
+        { x:-0.10, y:0, w:0.04, h:0.18, c:"#5C3D2E" },
+        { x:-0.14, y:0, w:0.08, h:0.04, c:"#5C3D2E" },
+        { x:-0.02, y:0, w:0.04, h:0.18, c:"#E8837A" },
+        { x: 0.04, y:0.05, w:0.06, h:0.04, c:"#E8837A" },
+        { x: 0.04, y:0, w:0.06, h:0.04, c:"#E8837A" },
+        { x: 0.04, y:-0.05, w:0.06, h:0.04, c:"#E8837A" },
+        { x: 0.14, y:0, w:0.04, h:0.18, c:"#5C3D2E" },
+        { x: 0.20, y:0.05, w:0.06, h:0.04, c:"#5C3D2E" },
+        { x: 0.20, y:-0.05, w:0.06, h:0.04, c:"#5C3D2E" },
       ].map((seg, i) => (
         <mesh key={i} position={[seg.x, seg.y, 0.014]}>
           <boxGeometry args={[seg.w, seg.h, 0.028]} />
@@ -240,7 +224,80 @@ function HBDBlocks({ p }: { p: [number, number, number] }) {
   );
 }
 
-type DecorationFile = "flower" | "strawberry" | "macaron";
+/** Bảng chữ Socola / Fondant viền vàng kim hiển thị lời nhắn thực tế */
+function ChocolatePlaque({ p, text = "Happy Birthday" }: { p: [number, number, number]; text?: string }) {
+  const plaqueTexture = useMemo(() => {
+    if (typeof document === "undefined") return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 256;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.fillStyle = "#26120B";
+      ctx.fillRect(0, 0, 512, 256);
+
+      ctx.strokeStyle = "#E5C178";
+      ctx.lineWidth = 10;
+      ctx.strokeRect(16, 16, 480, 224);
+      ctx.strokeStyle = "rgba(229, 193, 120, 0.48)";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(28, 28, 456, 200);
+
+      ctx.fillStyle = "#FFF5D6";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const cleanText = (text || "").trim() || "Happy Birthday";
+      const lines =
+        cleanText.length > 16 && cleanText.includes(" ")
+          ? (() => {
+              const words = cleanText.split(" ");
+              const mid = Math.ceil(words.length / 2);
+              return [words.slice(0, mid).join(" "), words.slice(mid).join(" ")];
+            })()
+          : [cleanText];
+
+      ctx.font = lines.length > 1 ? "italic 700 44px Georgia, serif" : "italic 700 52px Georgia, serif";
+      ctx.shadowColor = "rgba(0,0,0,0.45)";
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetY = 2;
+
+      if (lines.length === 1) {
+        ctx.fillText(lines[0], 256, 130, 430);
+      } else {
+        ctx.fillText(lines[0], 256, 98, 430);
+        ctx.fillText(lines[1], 256, 160, 430);
+      }
+    }
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.anisotropy = 4;
+    tex.needsUpdate = true;
+    return tex;
+  }, [text]);
+
+  useEffect(() => () => plaqueTexture?.dispose(), [plaqueTexture]);
+
+  if (!plaqueTexture) return <HBDBlocks p={p} />;
+
+  return (
+    <group position={[p[0], p[1] + 0.082, p[2] + 0.06]} rotation={[-0.48, 0, 0]}>
+      <mesh castShadow receiveShadow>
+        <boxGeometry args={[0.42, 0.21, 0.02]} />
+        <meshPhysicalMaterial
+          map={plaqueTexture}
+          roughness={0.22}
+          clearcoat={0.68}
+          clearcoatRoughness={0.18}
+        />
+      </mesh>
+      <mesh position={[0, -0.03, -0.025]} rotation={[0.4, 0, 0]} castShadow>
+        <cylinderGeometry args={[0.024, 0.034, 0.08, 12]} />
+        <meshPhysicalMaterial color="#26120B" roughness={0.35} clearcoat={0.4} />
+      </mesh>
+    </group>
+  );
+}
+
+type DecorationFile = "flower" | "strawberry" | "macaron" | "candle";
 
 function DecorationAsset({
   file,
@@ -256,18 +313,61 @@ function DecorationAsset({
   // These original GLBs use no Draco or Meshopt compression. Avoid initializing
   // the Meshopt WebAssembly decoder, which production CSP intentionally blocks.
   const { scene } = useGLTF(`/models/decorations/${file}.glb?v=20260930`, false, false);
-  const instance = useMemo(() => {
+  const { instance, materials } = useMemo(() => {
     const clone = scene.clone(true);
+    const createdMaterials: THREE.Material[] = [];
+    const flowerTones = ["#E68FA5", "#F0A8BA", "#F7C5D1", "#6D8756"];
+    let partIdx = 0;
+
     clone.traverse((object) => {
       if (object instanceof THREE.Mesh) {
         object.castShadow = true;
         object.receiveShadow = true;
+        if (file === "flower") {
+          const mat = new THREE.MeshPhysicalMaterial({
+            color: flowerTones[Math.min(partIdx, flowerTones.length - 1)],
+            roughness: 0.42,
+            clearcoat: 0.18,
+            sheen: 0.35,
+            side: THREE.DoubleSide,
+          });
+          object.material = mat;
+          createdMaterials.push(mat);
+          partIdx++;
+        } else if (file === "candle" && object.name.includes("part_3")) {
+          const flameMat = new THREE.MeshStandardMaterial({
+            color: "#FFF5B8",
+            emissive: "#FF9800",
+            emissiveIntensity: 2.8,
+            roughness: 0.1,
+          });
+          object.material = flameMat;
+          createdMaterials.push(flameMat);
+        }
       }
     });
-    return clone;
-  }, [scene]);
-  const scale = file === "strawberry" ? 1.6 : file === "macaron" ? 1.3 : 1.15;
-  return <primitive object={instance} position={p} rotation={[0, rotation, 0]} scale={scale * sizeScale} dispose={null} />;
+    return { instance: clone, materials: createdMaterials };
+  }, [scene, file]);
+
+  useEffect(() => () => materials.forEach((m) => m.dispose()), [materials]);
+
+  const scale = file === "strawberry" ? 1.55 : file === "macaron" ? 1.25 : file === "candle" ? 1.02 : 1.12;
+  const s = scale * sizeScale;
+
+  if (file === "candle") {
+    return (
+      <group position={p}>
+        <primitive object={instance} rotation={[0, rotation, 0]} scale={s} dispose={null} />
+        <mesh position={[0, 0.32 * s, 0]}>
+          <sphereGeometry args={[0.032 * s, 10, 10]} />
+          <meshBasicMaterial color="#FFB74D" transparent opacity={0.35} />
+        </mesh>
+        <pointLight position={[0, 0.34 * s, 0]} color="#FFA726" intensity={0.42} distance={1.4} decay={2} />
+      </group>
+    );
+  }
+
+  return <primitive object={instance} position={p} rotation={[0, rotation, 0]} scale={s} dispose={null} />;
 }
 
 class DecorationAssetBoundary extends Component<
@@ -308,28 +408,57 @@ function ModelOrFallback({
 }
 
 // ─── ToppingGroup cho từng loại topping cụ thể ──────────────────────────────
-function ToppingGroup({ type, surfaceY, R, slot = 0, slots = 1, surfaceAt, edgeAt }: { type: string; surfaceY: number; R: number; slot?: number; slots?: number; surfaceAt?: (x: number, z: number) => number; edgeAt?: CakeDecorationTier["edgeAt"] }) {
+function ToppingGroup({
+  type,
+  surfaceY,
+  R,
+  slot = 0,
+  slots = 1,
+  surfaceAt,
+  edgeAt,
+  specialNotes,
+}: {
+  type: string;
+  surfaceY: number;
+  R: number;
+  slot?: number;
+  slots?: number;
+  surfaceAt?: (x: number, z: number) => number;
+  edgeAt?: CakeDecorationTier["edgeAt"];
+  specialNotes?: string;
+}) {
   const sizeScale = Math.min(1, R / 0.78);
   const positions = useMemo<[number, number, number][]>(() => {
-    // Model origins sit at the bottom of each decoration, just above the icing.
     const y = surfaceY + 0.005;
-
     const pts: [number, number, number][] = [];
 
     if (type === "text") {
-      // Chữ viết chỉ đặt duy nhất ở tâm bánh
       pts.push([0, y, 0]);
     } else {
-      const count = type === "sprinkles" ? 8 : slots > 1 ? 2 : 5;
-      const radius = R * 0.64;
+      const count = type === "sprinkles" ? 8 : slots > 1 ? 3 : 6;
+      const radius = R * 0.65;
       for (let i = 0; i < count; i++) {
-        const a = ((i * slots + slot) / (count * slots)) * Math.PI * 2 + 0.35;
-        const edge = edgeAt?.(a / (Math.PI * 2)).multiplyScalar(0.62);
+        const a = ((i * slots + slot) / (count * slots)) * Math.PI * 2 + 0.42;
+        const edge = edgeAt?.(a / (Math.PI * 2)).multiplyScalar(0.64);
         pts.push(edge ? [edge.x, y, edge.y] : [Math.cos(a) * radius, y, Math.sin(a) * radius]);
       }
     }
     return surfaceAt ? pts.map(([x, , z]) => [x, surfaceAt(x, z) + 0.005, z]) : pts;
   }, [type, surfaceY, R, slot, slots, surfaceAt, edgeAt]);
+
+  const candlePositions = useMemo<[number, number, number][]>(() => {
+    if (type !== "text") return [];
+    const pts: [number, number, number][] = [];
+    for (let i = 0; i < 3; i++) {
+      const a = (i - 1) * 0.44 - Math.PI / 2;
+      const r = R * 0.36;
+      const x = Math.cos(a) * r;
+      const z = Math.sin(a) * r;
+      const y = (surfaceAt ? surfaceAt(x, z) : surfaceY) + 0.005;
+      pts.push([x, y, z]);
+    }
+    return pts;
+  }, [type, R, surfaceAt, surfaceY]);
 
   return (
     <group>
@@ -340,7 +469,14 @@ function ToppingGroup({ type, surfaceY, R, slot = 0, slots = 1, surfaceAt, edgeA
           case "sprinkles":      return <Sprinkle   key={i} p={pos} />;
           case "macarons":       return <ModelOrFallback key={i} file="macaron" p={pos} rotation={i * 0.45} sizeScale={sizeScale} fallback={<Macaron p={pos} />} />;
           case "chocolate drip": return <ChocoDrip  key={i} p={pos} />;
-          case "text":           return <HBDBlocks  key={i} p={[pos[0], pos[1] + 0.005, pos[2]]} />;
+          case "text":           return (
+            <group key={i}>
+              <ChocolatePlaque p={pos} text={specialNotes || "Happy Birthday"} />
+              {candlePositions.map((cPos, ci) => (
+                <ModelOrFallback key={`candle-${ci}`} file="candle" p={cPos} rotation={0} sizeScale={sizeScale} fallback={null} />
+              ))}
+            </group>
+          );
           default:               return null;
         }
       })}
@@ -349,7 +485,21 @@ function ToppingGroup({ type, surfaceY, R, slot = 0, slots = 1, surfaceAt, edgeA
 }
 
 // ─── Toppings mặt trên (chấp nhận mảng toppings) ─────────────────────────────
-function TopToppings({ toppings, surfaceY, R, surfaceAt, tier }: { toppings?: string[]; surfaceY: number; R: number; surfaceAt?: (x: number, z: number) => number; tier?: CakeDecorationTier }) {
+function TopToppings({
+  toppings,
+  surfaceY,
+  R,
+  surfaceAt,
+  tier,
+  specialNotes,
+}: {
+  toppings?: string[];
+  surfaceY: number;
+  R: number;
+  surfaceAt?: (x: number, z: number) => number;
+  tier?: CakeDecorationTier;
+  specialNotes?: string;
+}) {
   if (!toppings || toppings.length === 0) return null;
   const ringToppings = toppings.filter((type) => ["flowers", "fruits", "macarons"].includes(type));
   return (
@@ -358,17 +508,13 @@ function TopToppings({ toppings, surfaceY, R, surfaceAt, tier }: { toppings?: st
         <Ganache key={type} radius={R} surfaceY={surfaceY} tier={tier} />
       ) : (
         <ToppingGroup key={type} type={type} surfaceY={surfaceY} R={R} surfaceAt={surfaceAt} edgeAt={tier?.edgeAt}
-          slot={Math.max(0, ringToppings.indexOf(type))} slots={Math.max(1, ringToppings.length)} />
+          slot={Math.max(0, ringToppings.indexOf(type))} slots={Math.max(1, ringToppings.length)}
+          specialNotes={specialNotes} />
       ))}
     </group>
   );
 }
 
-// ─── Viền trang trí ───────────────────────────────────────────────────────────
-// useMemo creates ONE geometry and ONE material instance per decoration type.
-// Without this, each mesh in the .map() loop (N=22) would instantiate its own
-// GPU buffer and material, multiplying VRAM usage and draw-call overhead by N.
-// R3F allows sharing geometry/material objects across multiple <mesh> nodes.
 function getVisibleToppings(design: CakeDesign): string[] {
   if (Array.isArray(design.zones?.top?.toppings)) {
     return Array.from(new Set(design.zones?.top?.toppings)).filter(Boolean);
@@ -378,7 +524,7 @@ function getVisibleToppings(design: CakeDesign): string[] {
 }
 
 function BorderDecor({ type, color, R, y, path }: { type: string; color: string; R: number; y: number; path?: THREE.Curve<THREE.Vector3> }) {
-  const N = 22;
+  const N = 24;
   const pts = useMemo(() =>
     Array.from({ length: N }, (_, i) => {
       const a = (i / N) * Math.PI * 2;
@@ -386,8 +532,8 @@ function BorderDecor({ type, color, R, y, path }: { type: string; color: string;
       return { x: point?.x ?? Math.cos(a) * (R + 0.06), z: point?.z ?? Math.sin(a) * (R + 0.06), y: point?.y ?? y, a };
     }), [R, y, path]);
 
-  const pearlGeo   = useMemo(() => new THREE.SphereGeometry(0.052, 12, 12),   []);
-  const pearlMat   = useMemo(() => new THREE.MeshPhysicalMaterial({ color: "#FAFAF9", roughness: 0.28, metalness: 0.1, clearcoat: 0.4 }), []);
+  const pearlGeo   = useMemo(() => new THREE.SphereGeometry(0.048, 14, 14),   []);
+  const pearlMat   = useMemo(() => new THREE.MeshPhysicalMaterial({ color: "#FFFDF6", roughness: 0.22, metalness: 0.18, clearcoat: 0.65 }), []);
 
   const spkGeo     = useMemo(() => new THREE.CylinderGeometry(0.015, 0.015, 0.052, 6), []);
   useEffect(() => () => {
@@ -411,7 +557,6 @@ function BorderDecor({ type, color, R, y, path }: { type: string; color: string;
       );
     case "sprinkles": {
       const sc = ["#FF69B4","#87CEEB","#98FB98","#FFD700"];
-      // Sprinkles vary per-item color so material must stay inline; geometry is shared.
       return (
         <group>
           {pts.map((p, i) => (
@@ -425,12 +570,12 @@ function BorderDecor({ type, color, R, y, path }: { type: string; color: string;
     case "ribbon":
       if (path) return <mesh>
         <tubeGeometry args={[path, 192, 0.025, 8, true]} />
-        <meshPhysicalMaterial color={color} roughness={0.5} clearcoat={0.1} />
+        <meshPhysicalMaterial color={color} roughness={0.42} clearcoat={0.25} />
       </mesh>;
       return (
         <mesh position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[R + 0.04, 0.04, 10, 80]} />
-          <meshPhysicalMaterial color={color} roughness={0.5} clearcoat={0.1} />
+          <meshPhysicalMaterial color={color} roughness={0.42} clearcoat={0.25} />
         </mesh>
       );
     default:
@@ -438,20 +583,50 @@ function BorderDecor({ type, color, R, y, path }: { type: string; color: string;
   }
 }
 
-// ─── Hoa văn thân bánh ────────────────────────────────────────────────────────
-function BodyPattern({ type, R, H, y, path }: { type: string; R: number; H: number; y: number; path?: THREE.Curve<THREE.Vector3> }) {
+// ─── Hoa văn thân bánh nổi 3D (tự tạo tương phản khi bánh màu sáng) ────────────
+function BodyPattern({
+  type,
+  R,
+  H,
+  y,
+  path,
+  bodyColor = "#FAF3E6",
+  borderColor = "#F5E6CC",
+}: {
+  type: string;
+  R: number;
+  H: number;
+  y: number;
+  path?: THREE.Curve<THREE.Vector3>;
+  bodyColor?: string;
+  borderColor?: string;
+}) {
+  const accentColor = useMemo(() => {
+    const cleanBody = (bodyColor || "#FAF3E6").toUpperCase();
+    const cleanBorder = (borderColor || "#F5E6CC").toUpperCase();
+    if (cleanBorder !== cleanBody && cleanBorder !== "#F2F1EE" && cleanBorder !== "#FFFFFF") {
+      return borderColor;
+    }
+    const c = new THREE.Color(bodyColor || "#FAF3E6");
+    const lum = c.r * 0.299 + c.g * 0.587 + c.b * 0.114;
+    return lum > 0.78 ? "#DEAF66" : "#FFFBF0";
+  }, [bodyColor, borderColor]);
+
   switch (type) {
     case "stripes":
       return (
         <group>
-          {Array.from({ length: 12 }, (_, i) => {
-            const a = (i / 12) * Math.PI * 2;
-            const p = path?.getPointAt(i / 12).multiplyScalar(1.003);
-            const tangent = path?.getTangentAt(i / 12);
+          {Array.from({ length: 18 }, (_, i) => {
+            const a = (i / 18) * Math.PI * 2;
+            const p = path?.getPointAt(i / 18).multiplyScalar(1.005);
             return (
-              <mesh key={i} position={[p?.x ?? Math.cos(a)*(R+0.002), y, p?.z ?? Math.sin(a)*(R+0.002)]} rotation={[0, tangent ? Math.atan2(tangent.z, -tangent.x) : -a+Math.PI/2, 0]}>
-                <planeGeometry args={[0.02, H*0.9]} />
-                <meshStandardMaterial color="#FFFFFF" transparent opacity={0.32} side={THREE.FrontSide} emissive="#FFFFFF" emissiveIntensity={0.15} />
+              <mesh
+                key={i}
+                position={[p?.x ?? Math.cos(a) * (R + 0.004), y, p?.z ?? Math.sin(a) * (R + 0.004)]}
+                castShadow
+              >
+                <cylinderGeometry args={[0.009, 0.009, H * 0.82, 10]} />
+                <meshPhysicalMaterial color={accentColor} roughness={0.3} clearcoat={0.45} />
               </mesh>
             );
           })}
@@ -460,14 +635,18 @@ function BodyPattern({ type, R, H, y, path }: { type: string; R: number; H: numb
     case "dots":
       return (
         <group>
-          {Array.from({ length: 24 }, (_, i) => {
-            const a = (i / 24) * Math.PI * 2;
-            const yOff = (i%4 - 1.5) * (H/4);
-            const p = path?.getPointAt(i / 24);
+          {Array.from({ length: 30 }, (_, i) => {
+            const a = (i / 30) * Math.PI * 2;
+            const yOff = ((i % 3) - 1) * (H * 0.24);
+            const p = path?.getPointAt(i / 30).multiplyScalar(1.006);
             return (
-              <mesh key={i} position={[p?.x ?? Math.cos(a)*R*0.97, y+yOff, p?.z ?? Math.sin(a)*R*0.97]}>
-                <sphereGeometry args={[0.034, 7, 7]} />
-                <meshStandardMaterial color="#FFFFFF" transparent opacity={0.45} emissive="#FFFFFF" emissiveIntensity={0.2} />
+              <mesh
+                key={i}
+                position={[p?.x ?? Math.cos(a) * (R + 0.004), y + yOff, p?.z ?? Math.sin(a) * (R + 0.004)]}
+                castShadow
+              >
+                <sphereGeometry args={[0.022, 12, 12]} />
+                <meshPhysicalMaterial color={accentColor} roughness={0.22} metalness={0.38} clearcoat={0.75} />
               </mesh>
             );
           })}
@@ -475,17 +654,17 @@ function BodyPattern({ type, R, H, y, path }: { type: string; R: number; H: numb
       );
     case "waves":
       if (path) return <group>
-        {[-0.28, 0, 0.28].map((fraction, i) => <mesh key={i} position={[0, y + fraction * H, 0]}>
-          <tubeGeometry args={[path, 192, 0.018, 8, true]} />
-          <meshStandardMaterial color="#FFFFFF" transparent opacity={0.6} />
+        {[-0.24, 0, 0.24].map((fraction, i) => <mesh key={i} position={[0, y + fraction * H, 0]} castShadow>
+          <tubeGeometry args={[path, 192, 0.014, 10, true]} />
+          <meshPhysicalMaterial color={accentColor} roughness={0.3} clearcoat={0.45} />
         </mesh>)}
       </group>;
       return (
         <group>
-          {[0.28, 0.0, -0.28].map((off, i) => (
-            <mesh key={i} position={[0, y+off, 0]} rotation={[Math.PI / 2, 0, 0]}>
-              <torusGeometry args={[R*0.994, 0.018, 8, 80]} />
-              <meshStandardMaterial color="#FFFFFF" transparent opacity={0.38} emissive="#FFFFFF" emissiveIntensity={0.12} />
+          {[0.24, 0.0, -0.24].map((off, i) => (
+            <mesh key={i} position={[0, y+off, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+              <torusGeometry args={[R*1.002, 0.014, 10, 80]} />
+              <meshPhysicalMaterial color={accentColor} roughness={0.3} clearcoat={0.45} />
             </mesh>
           ))}
         </group>
@@ -495,22 +674,22 @@ function BodyPattern({ type, R, H, y, path }: { type: string; R: number; H: numb
   }
 }
 
-// ─── Toàn bộ mô hình bánh ─────────────────────────────────────────────────────
+// ─── Toàn bộ mô hình bánh (Fallback khi đang tải GLB) ─────────────────────────
 function CakeMesh({ design, activeZone, hoveredZone, onZoneClick, onZoneHover }: Cake3DProps) {
-  const bodyColor   = design.zones?.body?.color   || design.cream_color || "#F2F1EE";
-  const borderColor = design.zones?.border?.color || "#F2F1EE";
-  const topColor    = design.zones?.top?.color    || bodyColor;
+  const rawBody = design.zones?.body?.color || design.cream_color || "#FAF3E6";
+  const bodyColor   = rawBody === "#F2F1EE" ? "#FAF3E6" : rawBody;
+  const rawBorder = design.zones?.border?.color || "#F5E6CC";
+  const borderColor = rawBorder === "#F2F1EE" ? "#F5E6CC" : rawBorder;
+  const rawTop = design.zones?.top?.color || bodyColor;
+  const topColor    = rawTop === "#F2F1EE" ? "#FFFDF8" : rawTop;
 
   const size = design.size;
-  // Tầng là thuộc tính của MẪU thân bánh, không phải của kích thước đường kính.
-  // Bản cũ dựa vào `size === "2-tier"`; vẫn đọc được thiết kế cũ đã lưu.
   const tiers = tiersForDesign(design);
   const zoneProps = { onZoneClick, onZoneHover, activeZone, hoveredZone };
 
   const activeToppings = getVisibleToppings(design);
 
   if (tiers >= 2) {
-    // Bottom Tier Dimensions
     const R1 = 0.9;
     const bodyH1 = 0.55;
     const borderH1 = 0.075;
@@ -521,7 +700,6 @@ function CakeMesh({ design, activeZone, hoveredZone, onZoneClick, onZoneHover }:
     const topY1 = bodyH1 / 2 + topH1 / 2;
     const topSurface1 = bodyH1 / 2 + topH1;
 
-    // Top Tier Dimensions
     const R2 = 0.60;
     const bodyH2 = 0.45;
     const borderH2 = 0.055;
@@ -534,66 +712,54 @@ function CakeMesh({ design, activeZone, hoveredZone, onZoneClick, onZoneHover }:
 
     return (
       <group>
-        {/* ─── TẦNG DƯỚI (Bottom Tier) ─── */}
-        {/* Thân bánh tầng dưới */}
         <group position={[0, bodyY1, 0]}>
-          <ZoneMesh zone="body" color={bodyColor} roughness={0.48} clearcoat={0.24}
+          <ZoneMesh zone="body" color={bodyColor} roughness={0.42} clearcoat={0.25}
             geometry={<RoundedCylinder radius={R1} height={bodyH1} roundTop={false} capTop={false} />} {...zoneProps} />
-          <BodyPattern type={design.zones?.body?.decoration || ""} R={R1} H={bodyH1} y={0} />
+          <BodyPattern type={design.zones?.body?.decoration || ""} R={R1} H={bodyH1} y={0} bodyColor={bodyColor} borderColor={borderColor} />
         </group>
 
-        {/* Viền dưới tầng dưới */}
         <group position={[0, borderY1, 0]}>
-          <ZoneMesh zone="border" color={borderColor} roughness={0.45} clearcoat={0.3}
+          <ZoneMesh zone="border" color={borderColor} roughness={0.38} clearcoat={0.3}
             geometry={<RoundedCylinder radius={R1 + 0.01} height={borderH1} bevel={0.025} />} {...zoneProps} />
           <BorderDecor type={design.zones?.border?.decoration || "piping"} color={borderColor} R={R1 + 0.014} y={0} />
         </group>
 
-        {/* Mặt trên tầng dưới */}
         <group position={[0, topY1, 0]}>
-          <ZoneMesh zone="top" color={topColor} roughness={0.4} clearcoat={0.38}
+          <ZoneMesh zone="top" color={topColor} roughness={0.34} clearcoat={0.42}
             geometry={<RoundedCylinder radius={R1} height={topH1} bevel={0.028} roundBottom={false} capBottom={false} />} {...zoneProps} />
         </group>
 
-
-        {/* ─── TẦNG TRÊN (Top Tier) ─── */}
-        {/* Thân bánh tầng trên */}
         <group position={[0, bodyY2, 0]}>
-          <ZoneMesh zone="body" color={bodyColor} roughness={0.48} clearcoat={0.24}
+          <ZoneMesh zone="body" color={bodyColor} roughness={0.42} clearcoat={0.25}
             geometry={<RoundedCylinder radius={R2} height={bodyH2} roundTop={false} capTop={false} />} {...zoneProps} />
-          <BodyPattern type={design.zones?.body?.decoration || ""} R={R2} H={bodyH2} y={0} />
+          <BodyPattern type={design.zones?.body?.decoration || ""} R={R2} H={bodyH2} y={0} bodyColor={bodyColor} borderColor={borderColor} />
         </group>
 
-        {/* Viền dưới tầng trên */}
         <group position={[0, borderY2, 0]}>
-          <ZoneMesh zone="border" color={borderColor} roughness={0.45} clearcoat={0.3}
+          <ZoneMesh zone="border" color={borderColor} roughness={0.38} clearcoat={0.3}
             geometry={<RoundedCylinder radius={R2 + 0.01} height={borderH2} bevel={0.02} />} {...zoneProps} />
           <BorderDecor type={design.zones?.border?.decoration || "piping"} color={borderColor} R={R2 + 0.014} y={0.055} />
         </group>
 
-        {/* Mặt trên tầng trên */}
         <group position={[0, topY2, 0]}>
-          <ZoneMesh zone="top" color={topColor} roughness={0.4} clearcoat={0.38}
+          <ZoneMesh zone="top" color={topColor} roughness={0.34} clearcoat={0.42}
             geometry={<RoundedCylinder radius={R2} height={topH2} bevel={0.028} roundBottom={false} capBottom={false} />} {...zoneProps} />
         </group>
 
-        {/* ── Toppings mặt trên cùng ── */}
-        <TopToppings toppings={activeToppings} surfaceY={topSurface2} R={R2} />
+        <TopToppings toppings={activeToppings} surfaceY={topSurface2} R={R2} specialNotes={design.special_notes} />
 
-        {/* ── Đĩa bánh ── */}
         <mesh position={[0, borderY1 - borderH1 / 2 - 0.02, 0]}>
           <RoundedCylinder radius={R1 + 0.23} height={0.035} bevel={0.012} />
-          <meshStandardMaterial color="#FAFAF9" roughness={0.55} />
+          <meshPhysicalMaterial color="#F3ECE0" roughness={0.25} clearcoat={0.6} />
         </mesh>
-        <mesh position={[0, borderY1 - borderH1 / 2 - 0.038, 0]}>
-          <RoundedCylinder radius={R1 + 0.23} height={0.007} bevel={0.003} />
-          <meshStandardMaterial color="#D5D5D2" roughness={0.45} metalness={0.05} />
+        <mesh position={[0, borderY1 - borderH1 / 2 - 0.012, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[R1 + 0.23, 0.008, 12, 80]} />
+          <meshPhysicalMaterial color="#D4A64E" roughness={0.18} metalness={0.88} clearcoat={0.75} />
         </mesh>
       </group>
     );
   }
 
-  // Single Tier Dimensions (16cm, 20cm, 24cm)
   let R = 0.82;
   let bodyH = 0.86;
   let borderH = 0.075;
@@ -618,37 +784,32 @@ function CakeMesh({ design, activeZone, hoveredZone, onZoneClick, onZoneHover }:
 
   return (
     <group>
-      {/* ── Thân bánh (clickable) ── */}
       <group position={[0, bodyY, 0]}>
-          <ZoneMesh zone="body" color={bodyColor} roughness={0.48} clearcoat={0.24}
+        <ZoneMesh zone="body" color={bodyColor} roughness={0.42} clearcoat={0.25}
           geometry={<RoundedCylinder radius={R} height={bodyH} roundTop={false} capTop={false} />} {...zoneProps} />
-        <BodyPattern type={design.zones?.body?.decoration || ""} R={R} H={bodyH} y={0} />
+        <BodyPattern type={design.zones?.body?.decoration || ""} R={R} H={bodyH} y={0} bodyColor={bodyColor} borderColor={borderColor} />
       </group>
 
-      {/* ── Viền dưới (clickable) ── */}
       <group position={[0, borderY, 0]}>
-          <ZoneMesh zone="border" color={borderColor} roughness={0.45} clearcoat={0.3}
+        <ZoneMesh zone="border" color={borderColor} roughness={0.38} clearcoat={0.3}
           geometry={<RoundedCylinder radius={R + 0.01} height={borderH} bevel={0.025} />} {...zoneProps} />
         <BorderDecor type={design.zones?.border?.decoration || "piping"} color={borderColor} R={R + 0.014} y={0} />
       </group>
 
-      {/* ── Mặt trên (clickable) ── */}
       <group position={[0, topY, 0]}>
-          <ZoneMesh zone="top" color={topColor} roughness={0.4} clearcoat={0.38}
+        <ZoneMesh zone="top" color={topColor} roughness={0.34} clearcoat={0.42}
           geometry={<RoundedCylinder radius={R} height={topH} bevel={0.035} roundBottom={false} capBottom={false} />} {...zoneProps} />
       </group>
 
-      {/* ── Toppings mặt trên ── */}
-      <TopToppings toppings={activeToppings} surfaceY={topSurface} R={R} />
+      <TopToppings toppings={activeToppings} surfaceY={topSurface} R={R} specialNotes={design.special_notes} />
 
-      {/* ── Đĩa bánh ── */}
       <mesh position={[0, borderY - borderH/2 - 0.02, 0]}>
         <RoundedCylinder radius={R + 0.23} height={0.035} bevel={0.012} />
-          <meshStandardMaterial color="#FAFAF9" roughness={0.55} />
+        <meshPhysicalMaterial color="#F3ECE0" roughness={0.25} clearcoat={0.6} />
       </mesh>
-      <mesh position={[0, borderY - borderH/2 - 0.038, 0]}>
-        <RoundedCylinder radius={R + 0.23} height={0.007} bevel={0.003} />
-          <meshStandardMaterial color="#D5D5D2" roughness={0.45} metalness={0.05} />
+      <mesh position={[0, borderY - borderH/2 - 0.012, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[R + 0.23, 0.008, 12, 80]} />
+        <meshPhysicalMaterial color="#D4A64E" roughness={0.18} metalness={0.88} clearcoat={0.75} />
       </mesh>
     </group>
   );
@@ -665,8 +826,6 @@ class CakeBodyFallbackBoundary extends Component<{
   }
 
   componentDidUpdate(previousProps: Readonly<{ children: React.ReactNode }>) {
-    // A new selected GLB gets a fresh attempt instead of permanently retaining
-    // the previous failed model's fallback.
     if (previousProps.children !== this.props.children && this.state.hasError) {
       this.setState({ hasError: false });
     }
@@ -679,6 +838,8 @@ class CakeBodyFallbackBoundary extends Component<{
 
 function SelectedCakeBody(props: Cake3DProps) {
   const toppings = getVisibleToppings(props.design);
+  const bodyColor = props.design.zones?.body?.color || props.design.cream_color || "#FAF3E6";
+  const borderColor = props.design.zones?.border?.color || "#F5E6CC";
   return (
     <CakeBodyFallbackBoundary fallback={<CakeMesh {...props} />}>
       <Suspense fallback={<CakeMesh {...props} />}>
@@ -686,11 +847,29 @@ function SelectedCakeBody(props: Cake3DProps) {
           <group>
             {tiers.map((tier, index) => (
               <group key={index}>
-                <BodyPattern type={props.design.zones?.body?.decoration || ""} R={tier.radius} H={tier.height} y={tier.bodyY} path={tier.bodyPath} />
-                <BorderDecor type={props.design.zones?.border?.decoration || ""} color={props.design.zones?.border?.color || "#F2F1EE"} R={tier.radius} y={tier.borderY} path={tier.borderPath} />
+                <BodyPattern
+                  type={props.design.zones?.body?.decoration || ""}
+                  R={tier.radius}
+                  H={tier.height}
+                  y={tier.bodyY}
+                  path={tier.bodyPath}
+                  bodyColor={bodyColor}
+                  borderColor={borderColor}
+                />
+                <BorderDecor
+                  type={props.design.zones?.border?.decoration || ""}
+                  color={borderColor === "#F2F1EE" ? "#F5E6CC" : borderColor}
+                  R={tier.radius}
+                  y={tier.borderY}
+                  path={tier.borderPath}
+                />
                 {index === tiers.length - 1 && <TopToppings
                   toppings={toppings}
-                  R={tier.radius} surfaceY={tier.surfaceY} surfaceAt={tier.surfaceAt} tier={tier}
+                  R={tier.radius}
+                  surfaceY={tier.surfaceY}
+                  surfaceAt={tier.surfaceAt}
+                  tier={tier}
+                  specialNotes={props.design.special_notes}
                 />}
               </group>
             ))}
@@ -701,14 +880,6 @@ function SelectedCakeBody(props: Cake3DProps) {
   );
 }
 
-// ─── Slow auto-rotate bằng ref (không gây re-render) ─────────────────────────
-/**
- * Góc nhìn cố định theo yêu cầu `?view=`.
- *
- * Dùng để chụp ảnh kiểm tra nhiều góc của cùng một mẫu: `scripts/capture-cake-shots.mjs`
- * chạy Chrome headless, mà headless không kéo-xoay được. Không có `?view=` thì
- * hành vi cũ giữ nguyên (nhìn 3/4 như trước).
- */
 const FIXED_VIEWS: Record<string, [number, number, number]> = {
   front: [0, 1.1, 3.4],
   top: [0.01, 3.2, 1.1],
@@ -716,7 +887,6 @@ const FIXED_VIEWS: Record<string, [number, number, number]> = {
   back: [0, 1.1, -3.4],
 };
 
-/** `spin-N`: quanh trục đứng, mỗi 45°, để ghép thành vòng 360°. */
 function spinView(view: string): [number, number, number] | null {
   const match = /^spin-([0-7])$/.exec(view);
   if (!match) return null;
@@ -739,10 +909,6 @@ function RotatingCake(props: Cake3DProps) {
   const fixedView = useFixedCamera();
 
   useFrame((_, dt) => {
-    // Đọc trong callback để mỗi khung hình thấy trạng thái hiện tại. Tính
-    // ở thời điểm render sẽ giữ giá trị cũ của `rotating.current`, nên bánh
-    // không dừng xoay sau khi người dùng thả chuột.
-    // Góc cố định thì không xoay: ảnh chụp phải giống nhau giữa các lần chạy.
     const spinning =
       props.autoRotate !== false && rotating.current && groupRef.current && !fixedView;
     if (spinning) {
@@ -752,7 +918,6 @@ function RotatingCake(props: Cake3DProps) {
 
   return (
     <group ref={groupRef} rotation={fixedView ? [0, 0, 0] : undefined}>
-      {/* Expose rotating ref to OrbitControls via a separate child */}
       <OrbitControls
         makeDefault
         enablePan={false}
@@ -775,10 +940,8 @@ function RotatingCake(props: Cake3DProps) {
   );
 }
 
-// ─── Scene lighting ───────────────────────────────────────────────────────────
+// ─── Scene lighting (Patisserie Studio ấm áp & nổi khối) ─────────────────────
 function Scene(props: Cake3DProps) {
-  // Bóng tiếp xúc phải khớp đáy bánh. Bánh nhiều tầng được chọn bằng mẫu, nên
-  // không thể tra bảng theo kích thước đường kính như trước.
   const shadowY = tiersForDesign(props.design) >= 2
     ? -0.52
     : {
@@ -790,28 +953,29 @@ function Scene(props: Cake3DProps) {
 
   return (
     <>
-      <hemisphereLight args={["#FFFFFF", "#E5E5E3", 0.9]} />
-      <directionalLight position={[-3, 5, 4]} intensity={2.7} color="#FFFFFF" castShadow
+      <hemisphereLight args={["#FFFDF8", "#E2D7C7", 0.82]} />
+      <directionalLight position={[-3.2, 5.0, 3.8]} intensity={2.35} color="#FFFBF0" castShadow
         shadow-mapSize={[1024, 1024]} shadow-bias={-0.0003} shadow-normalBias={0.02}
         shadow-camera-left={-2} shadow-camera-right={2} shadow-camera-top={2} shadow-camera-bottom={-2}
         shadow-camera-near={0.5} shadow-camera-far={12} shadow-radius={4} shadow-blurSamples={8} />
-      <directionalLight position={[4, 2, 1]} intensity={0.65} color="#FFFFFF" />
-      <directionalLight position={[0, 3, -4]} intensity={0.9} color="#FFFFFF" />
+      <directionalLight position={[4.0, 2.0, 1.4]} intensity={0.68} color="#FFF1DC" />
+      <directionalLight position={[0.4, 3.6, -4.0]} intensity={1.0} color="#F5F8FF" />
       <Environment resolution={128}>
-        <Lightformer form="rect" intensity={2.2} position={[-3, 4, 3]} scale={[4, 7, 1]} color="#FFFFFF" />
-        <Lightformer form="rect" intensity={1.1} position={[4, 2, 1]} scale={[3, 6, 1]} color="#F5F5F4" />
+        <Lightformer form="rect" intensity={2.0} position={[-3.2, 4.2, 3]} scale={[4.2, 7, 1]} color="#FFFDF8" />
+        <Lightformer form="rect" intensity={1.1} position={[4, 2, 1.2]} scale={[3.2, 6, 1]} color="#FFF4E4" />
+        <Lightformer form="circle" intensity={4.5} position={[1.5, 3.6, 2.4]} scale={0.6} color="#FFFFFF" />
       </Environment>
       <RotatingCake {...props} />
       <ContactShadows
         key={props.design.size}
         position={[0, shadowY, 0]}
-        opacity={0.24}
+        opacity={0.28}
         scale={4.2}
-        blur={2.8}
+        blur={2.6}
         far={1.4}
         resolution={256}
         frames={1}
-        color="#2B2B2A"
+        color="#352B22"
       />
     </>
   );
@@ -831,17 +995,10 @@ export default function Cake3D(props: Cake3DProps) {
         margin: "0 auto",
         borderRadius: 0,
         overflow: "hidden",
-        background: "radial-gradient(ellipse at 50% 38%, #FFFFFF 30%, #F5F5F4 100%)",
+        background: "radial-gradient(ellipse at 50% 36%, #FFFDF9 22%, #F4EDE2 72%, #E8DFD1 100%)",
         cursor: props.enableControls === false ? "default" : "grab",
       }}
     >
-      {/* Canvas. `?view=` đặt camera ở góc cố định để chụp ảnh kiểm tra;
-          không có tham số thì dùng góc 3/4 như trước.
-
-          Boundary nằm NGOÀI <Canvas>: R3F dùng reconciler Three.js nên boundary
-          DOM đặt bên trong sẽ trả về <div>/<p> mà reconciler coi là phần tử THREE
-          không tồn tại, rồi ném lỗi lần hai. R3F ném lỗi con ra ngoài <Canvas>,
-          nên boundary DOM bọc ngoài bắt được cả lỗi GLB lẫn lỗi tạo WebGL. */}
       <CanvasErrorBoundary
         message="Không hiển thị được mô hình 3D"
         detail="Bạn vẫn có thể tùy chỉnh bánh bằng các nút bên cạnh."
@@ -857,9 +1014,6 @@ export default function Cake3D(props: Cake3DProps) {
           aria-label="Xem trước bánh kem 3D; dùng các nút tùy chỉnh để chọn vùng bánh"
           style={{ width:"100%", height:"100%" }}
         >
-          {/* Fallback là bánh vẽ bằng code, không phải null: trong lúc thân GLB
-              đang tải trên mạng chậm, khách phải thấy bánh ngay. `fallback={null}`
-              khiến canvas trắng trơn cho tới khi tải xong. */}
           <Suspense fallback={<CakeMesh {...props} />}>
             <Scene {...props} />
           </Suspense>

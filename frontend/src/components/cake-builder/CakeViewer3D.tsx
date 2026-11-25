@@ -27,14 +27,40 @@ function ProductCakeModel({ model }: { model: Cake3DModel }) {
       if (!(object instanceof THREE.Mesh)) return;
       object.castShadow = true;
       object.receiveShadow = true;
+      if (object.name === "Stand") {
+        const standMat = new THREE.MeshPhysicalMaterial({
+          color: "#F3ECE0",
+          roughness: 0.25,
+          clearcoat: 0.6,
+          envMapIntensity: 0.85,
+        });
+        object.material = standMat;
+        materials.push(standMat);
+        return;
+      }
+      if (object.name === "GoldRim") {
+        const goldMat = new THREE.MeshPhysicalMaterial({
+          color: "#D4A64E",
+          roughness: 0.18,
+          metalness: 0.88,
+          clearcoat: 0.75,
+          envMapIntensity: 1.35,
+        });
+        object.material = goldMat;
+        materials.push(goldMat);
+        return;
+      }
       const zone = previewZone(object.name);
       if (!zone) return;
       const material = new THREE.MeshPhysicalMaterial({
-        color: zone === "body" ? "#F3ECE1" : zone === "top" ? "#FDFBF7" : "#F8F3EA",
-        roughness: zone === "body" ? 0.48 : 0.35,
-        clearcoat: zone === "top" ? 0.72 : 0.48,
+        color: zone === "body" ? "#FAF3E6" : zone === "top" ? "#FFFDF8" : "#F5E6CC",
+        roughness: zone === "body" ? 0.42 : 0.34,
+        clearcoat: zone === "top" ? 0.52 : 0.38,
         clearcoatRoughness: 0.22,
-        envMapIntensity: 0.7,
+        sheen: 0.45,
+        sheenRoughness: 0.48,
+        sheenColor: new THREE.Color("#FFFDF8"),
+        envMapIntensity: 0.78,
       });
       object.material = material;
       materials.push(material);

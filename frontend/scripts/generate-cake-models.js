@@ -4,24 +4,15 @@
  * Chạy:  node scripts/generate-cake-models.js
  * Ra:    public/models/*.glb
  *
- * Vì sao tự sinh thay vì tải model CC0?
- *   1. Model tải về là MỘT KHỐI LIỀN -> không tô màu theo vùng được -> phá tính năng
- *      "thiết kế bánh trực quan theo vùng" của đề tài.
- *   2. Model tự sinh có các phần ĐẶT TÊN TÁCH RỜI: Body / Top / Border.
- *      Nhờ vậy trình cấu hình hiện có vẫn đổi màu từng vùng như cũ.
- *   3. Không vướng giấy phép, dung lượng nhỏ (mỗi file vài chục KB).
- *
  * QUY ƯỚC ĐẶT TÊN (frontend dựa vào tên này để tô màu theo vùng):
  *   Body        - thân bánh
  *   Top         - mặt trên
- *   Border      - viền kem
+ *   Border      - viền kem sò xoắn (mép trên & chân đế)
+ *   Stand       - đĩa sứ cao cấp
+ *   GoldRim     - viền vàng kim quanh đĩa
  *   Body_tier2  - thân tầng 2  (tầng 1 không có hậu tố)
  */
 
-// GLTFExporter viết cho trình duyệt: nó dùng FileReader để đọc Blob.
-// Node không có FileReader nên ta tự cấp một bản tối thiểu.
-// Thứ tự trong three.js: readAsArrayBuffer() gọi TRƯỚC khi gán onloadend,
-// nên phải trả kết quả bất đồng bộ.
 if (typeof globalThis.FileReader === "undefined") {
   globalThis.FileReader = class FileReader {
     readAsArrayBuffer(blob) {
@@ -40,22 +31,83 @@ const { mergeGeometries } = require("three/examples/jsm/utils/BufferGeometryUtil
 const fs = require("fs");
 const path = require("path");
 
-// Bảng màu mặc định — tông kem/trắng ấm, KHÔNG dùng màu cam san hô.
+// Bảng màu mặc định — tông kem bơ vani ấm + đĩa sứ viền vàng kim
 const COLOR = {
-  body: 0xf3ece1,
-  top: 0xfdfbf7,
-  border: 0xf8f3ea,
-  stand: 0xe8e5e0,
+  body: 0xfaf3e6,
+  top: 0xfffdf8,
+  border: 0xf5e6cc,
+  stand: 0xf3ece0,
+  gold: 0xd4a64e,
 };
 
-function mat(color, roughness = 0.42, clearcoat = 0.5) {
+function mat(color, roughness = 0.4, clearcoat = 0.4, metalness = 0.0) {
   return new THREE.MeshPhysicalMaterial({
     color,
     roughness,
-    metalness: 0.0,
+    metalness,
     clearcoat,
-    clearcoatRoughness: 0.28,
+    clearcoatRoughness: 0.25,
   });
+}
+
+/** Tạo 1 múi kem bắt bông đui sao 8 khía (star-nozzle buttercream shell) */
+function createPipedShellGeo(sx = 0.030, sy = 0.024, sz = 0.036, twist = 1.8) {
+  const g = new THREE.SphereGeometry(1, 14, 10);
+  const pos = g.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    const angle = Math.atan2(z, x);
+    const ridge = 1 + 0.17 * Math.cos(angle * 8 + (y + 1) * twist);
+    const taper = 1 - Math.max(y, 0) * 0.38;
+    const flattenBottom = y < -0.4 ? -0.4 + (y + 0.4) * 0.3 : y;
+    pos.setXYZ(i, x * ridge * taper * sx, flattenBottom * sy, z * ridge * taper * sz);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+/** Viền kem sò xoắn chạy quanh hình tròn */
+function pipedCircleRing(radius, y, scale = 1.0, count = 36, tilt = 0.24) {
+  const parts = [];
+  const baseShell = createPipedShellGeo(0.029 * scale, 0.024 * scale, 0.035 * scale, 2.0);
+  const dummy = new THREE.Object3D();
+  for (let i = 0; i < count; i++) {
+    const a = (i / count) * Math.PI * 2;
+    const g = baseShell.clone();
+    dummy.position.set(Math.cos(a) * radius, y, Math.sin(a) * radius);
+    dummy.rotation.set(tilt, -a, 0);
+    dummy.updateMatrix();
+    g.applyMatrix4(dummy.matrix);
+    parts.push(g);
+  }
+  return mergeGeometries(parts, false);
+}
+
+/** Viền kem sò xoắn chạy dọc theo THREE.Shape 2D (bánh vuông bo góc & bánh trái tim) */
+function pipedShapeRing(shape2D, y, scale = 1.0, count = 42, radialOffset = 1.0, tilt = 0.22) {
+  const parts = [];
+  const baseShell = createPipedShellGeo(0.028 * scale, 0.023 * scale, 0.034 * scale, 2.0);
+  const pts = shape2D.getSpacedPoints(count);
+  const dummy = new THREE.Object3D();
+  for (let i = 0; i < count; i++) {
+    const p = pts[i];
+    const next = pts[(i + 1) % count];
+    const x = p.x * radialOffset;
+    const z = -p.y * radialOffset;
+    const nx = next.x * radialOffset;
+    const nz = -next.y * radialOffset;
+    const tangentAngle = Math.atan2(nx - x, nz - z);
+
+    const g = baseShell.clone();
+    dummy.position.set(x, y, z);
+    dummy.rotation.set(tilt, tangentAngle, 0);
+    dummy.updateMatrix();
+    g.applyMatrix4(dummy.matrix);
+    parts.push(g);
+  }
+  return mergeGeometries(parts, false);
 }
 
 /** Mặt cắt dọc của lớp kem phủ: hơi vồng ở giữa rồi chảy nhẹ qua mép bánh. */
@@ -67,30 +119,32 @@ function frostingProfile(r, h) {
     new THREE.Vector2(r * 0.80, h + 0.020),
     new THREE.Vector2(r * 0.94, h + 0.008),
     new THREE.Vector2(r * 0.995, h - 0.002),
-    new THREE.Vector2(r * 1.018, h - 0.016),
-    new THREE.Vector2(r * 1.024, h - 0.042),
-    new THREE.Vector2(r * 1.020, h - 0.068),
+    new THREE.Vector2(r * 1.012, h - 0.016),
+    new THREE.Vector2(r * 1.016, h - 0.038),
+    new THREE.Vector2(r * 1.012, h - 0.058),
   ];
 }
 
-/** Viền kem: một vòng búi kem nhỏ, gộp thành 1 mesh để file gọn. */
-function rosetteRing(radius, y, bead = 0.042, count = 18) {
-  const parts = [];
-  for (let i = 0; i < count; i++) {
-    const a = (i / count) * Math.PI * 2;
-    const g = new THREE.SphereGeometry(bead, 10, 8);
-    g.scale(1, 0.82, 1);
-    g.translate(Math.cos(a) * radius, y, Math.sin(a) * radius);
-    parts.push(g);
-  }
-  return mergeGeometries(parts, false);
+/** Đế bánh sứ cao cấp kèm chân đế thấp */
+function luxuryPlateGeo(radius, y) {
+  const topR = radius * 1.24;
+  const botR = radius * 1.19;
+  const mainPlate = new THREE.CylinderGeometry(topR, botR, 0.026, 64, 1);
+  mainPlate.translate(0, y, 0);
+
+  const foot = new THREE.CylinderGeometry(radius * 0.78, radius * 0.84, 0.016, 56, 1);
+  foot.translate(0, y - 0.020, 0);
+
+  return mergeGeometries([mainPlate, foot], false);
 }
 
-/** Đế bánh tròn, dẹt. */
-function plate(radius, y) {
-  const g = new THREE.CylinderGeometry(radius * 1.22, radius * 1.16, 0.022, 56, 1);
-  g.translate(0, y, 0);
-  return g;
+/** Viền vàng kim quanh đĩa bánh */
+function plateGoldRimGeo(radius, y) {
+  const rimR = radius * 1.235;
+  const rim = new THREE.TorusGeometry(rimR, 0.007, 12, 80);
+  rim.rotateX(Math.PI / 2);
+  rim.translate(0, y + 0.007, 0);
+  return rim;
 }
 
 /** Hình trái tim (mặt cắt ngang) để dựng bánh hình tim. */
@@ -130,32 +184,43 @@ function buildCake({ shape = "round", tiers = 1, radius = 0.5, height = 0.30 }) 
   const root = new THREE.Group();
   root.name = "Cake";
 
-  const bodyMat = mat(COLOR.body, 0.46, 0.45);
-  const topMat = mat(COLOR.top, 0.30, 0.75);
-  const borderMat = mat(COLOR.border, 0.34, 0.6);
+  const bodyMat = mat(COLOR.body, 0.42, 0.28);
+  const topMat = mat(COLOR.top, 0.32, 0.48);
+  const borderMat = mat(COLOR.border, 0.36, 0.35);
+  const standMat = mat(COLOR.stand, 0.25, 0.55);
+  const goldMat = mat(COLOR.gold, 0.2, 0.7, 0.86);
 
   let y = 0;
 
-  root.add(new THREE.Mesh(plate(radius, y - 0.012), mat(COLOR.stand, 0.35, 0.3)));
-  y += 0.0;
+  const standMesh = new THREE.Mesh(luxuryPlateGeo(radius, y - 0.012), standMat);
+  standMesh.name = "Stand";
+  root.add(standMesh);
+
+  const goldRimMesh = new THREE.Mesh(plateGoldRimGeo(radius, y - 0.012), goldMat);
+  goldRimMesh.name = "GoldRim";
+  root.add(goldRimMesh);
 
   for (let t = 0; t < tiers; t++) {
     const r = radius * Math.pow(0.78, t);
     const h = height * (t === 0 ? 1 : 0.86);
     const suffix = t === 0 ? "" : `_tier${t + 1}`;
+    const shellScale = Math.pow(0.88, t);
 
     // --- THÂN ---
     let bodyGeo;
+    let baseShape2D = null;
     if (shape === "round") {
-      bodyGeo = new THREE.CylinderGeometry(r, r * 0.995, h, 56, 1);
+      bodyGeo = new THREE.CylinderGeometry(r, r * 0.996, h, 64, 1);
     } else if (shape === "square") {
-      bodyGeo = new THREE.ExtrudeGeometry(roundedRectShape(r * 2, r * 2, r * 0.16), {
-        depth: h, bevelEnabled: true, bevelSize: 0.008, bevelThickness: 0.008, bevelSegments: 2, curveSegments: 16,
+      baseShape2D = roundedRectShape(r * 2, r * 2, r * 0.18);
+      bodyGeo = new THREE.ExtrudeGeometry(baseShape2D, {
+        depth: h, bevelEnabled: true, bevelSize: 0.01, bevelThickness: 0.01, bevelSegments: 4, curveSegments: 24,
       });
       bodyGeo.rotateX(-Math.PI / 2);
     } else {
-      bodyGeo = new THREE.ExtrudeGeometry(heartShape(r * 1.35), {
-        depth: h, bevelEnabled: true, bevelSize: 0.008, bevelThickness: 0.008, bevelSegments: 2, curveSegments: 10,
+      baseShape2D = heartShape(r * 1.35);
+      bodyGeo = new THREE.ExtrudeGeometry(baseShape2D, {
+        depth: h, bevelEnabled: true, bevelSize: 0.01, bevelThickness: 0.01, bevelSegments: 4, curveSegments: 24,
       });
       bodyGeo.rotateX(-Math.PI / 2);
     }
@@ -164,54 +229,39 @@ function buildCake({ shape = "round", tiers = 1, radius = 0.5, height = 0.30 }) 
     body.name = `Body${suffix}`;
     root.add(body);
 
-    // --- MẶT TRÊN (kem phủ) ---
+    // --- MẶT TRÊN (kem phủ ôm khít thân bánh, không phình như nắp hộp) ---
     let topGeo;
     if (shape === "round") {
-      topGeo = new THREE.LatheGeometry(frostingProfile(r, h), 56);
+      topGeo = new THREE.LatheGeometry(frostingProfile(r, h), 64);
       topGeo.translate(0, y, 0);
     } else {
       const shp = shape === "square"
-        ? roundedRectShape(r * 2.08, r * 2.08, r * 0.17)
-        : heartShape(r * 1.42);
+        ? roundedRectShape(r * 2.01, r * 2.01, r * 0.18)
+        : heartShape(r * 1.36);
       topGeo = new THREE.ExtrudeGeometry(shp, {
-        depth: 0.035, bevelEnabled: true, bevelSize: 0.012, bevelThickness: 0.012, bevelSegments: 3, curveSegments: 16,
+        depth: 0.022, bevelEnabled: true, bevelSize: 0.012, bevelThickness: 0.012, bevelSegments: 4, curveSegments: 24,
       });
       topGeo.rotateX(-Math.PI / 2);
-      topGeo.translate(0, y + h + 0.035, 0);
+      topGeo.translate(0, y + h - 0.002, 0);
     }
     const top = new THREE.Mesh(topGeo, topMat);
     top.name = `Top${suffix}`;
     root.add(top);
 
-    // --- VIỀN KEM ---
+    // --- VIỀN KEM SÒ ĐUI SAO (cả viền mặt trên & viền chân đế bánh) ---
     let borderGeo;
     if (shape === "round") {
-      borderGeo = rosetteRing(r * 1.0, y + h - 0.03, 0.040 * Math.pow(0.88, t), 18);
+      const topRing = pipedCircleRing(r * 0.95, y + h + 0.020, shellScale * 0.92, Math.round(36 * shellScale), 0.22);
+      const bottomRing = pipedCircleRing(r * 1.012, y + 0.018, shellScale * 0.85, Math.round(40 * shellScale), 0.30);
+      borderGeo = mergeGeometries([topRing, bottomRing], false);
     } else if (shape === "square") {
-      const parts = [];
-      const half = r * 0.99;
-      const per = 6;
-      for (let i = 0; i < per; i++) {
-        const p = -half + (i / (per - 1)) * half * 2;
-        for (const [dx, dz] of [[p, -half], [p, half], [-half, p], [half, p]]) {
-          const g = new THREE.SphereGeometry(0.036, 10, 8);
-          g.scale(1, 0.82, 1);
-          g.translate(dx, y + h - 0.028, dz);
-          parts.push(g);
-        }
-      }
-      borderGeo = mergeGeometries(parts, false);
+      const topRing = pipedShapeRing(baseShape2D, y + h + 0.028, shellScale * 0.9, 40, 0.96, 0.2);
+      const bottomRing = pipedShapeRing(baseShape2D, y + 0.018, shellScale * 0.84, 44, 1.015, 0.28);
+      borderGeo = mergeGeometries([topRing, bottomRing], false);
     } else {
-      const parts = [];
-      const shp = heartShape(r * 1.30);
-      const pts = shp.getPoints(26);
-      for (const p of pts) {
-        const g = new THREE.SphereGeometry(0.034, 10, 8);
-        g.scale(1, 0.82, 1);
-        g.translate(p.x, y + h - 0.026, -p.y);
-        parts.push(g);
-      }
-      borderGeo = mergeGeometries(parts, false);
+      const topRing = pipedShapeRing(baseShape2D, y + h + 0.028, shellScale * 0.88, 40, 0.95, 0.2);
+      const bottomRing = pipedShapeRing(baseShape2D, y + 0.018, shellScale * 0.82, 44, 1.015, 0.28);
+      borderGeo = mergeGeometries([topRing, bottomRing], false);
     }
     const border = new THREE.Mesh(borderGeo, borderMat);
     border.name = `Border${suffix}`;
@@ -256,7 +306,6 @@ const DESIGNS = [
     const fresh = path.join("public", "models", d.file);
     const size = await exportGLB(cake, fresh);
 
-    // Đọc lại để đếm tam giác + liệt kê tên vùng
     const buf = fs.readFileSync(fresh);
     const jsonLen = buf.readUInt32LE(12);
     const json = JSON.parse(buf.subarray(20, 20 + jsonLen).toString("utf8"));
@@ -267,7 +316,9 @@ const DESIGNS = [
         return t + (a ? a.count / 3 : 0);
       }, 0), 0);
 
-    const zones = ["Body", "Top", "Border"].filter((z) => names.some((n) => n === z || n.startsWith(z + "_")));
+    const zones = ["Body", "Top", "Border", "Stand", "GoldRim"].filter((z) =>
+      names.some((n) => n === z || n.startsWith(z + "_"))
+    );
     console.log(
       `  ${d.label.padEnd(14)} ${d.file.padEnd(24)} ${(size / 1024).toFixed(0).padStart(4)} KB  ` +
       `${Math.round(tris).toString().padStart(5)} tam giac  vung: ${zones.join("+")}`

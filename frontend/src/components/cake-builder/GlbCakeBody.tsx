@@ -7,6 +7,7 @@ import * as THREE from "three";
 import type { CakeDesign } from "@/types";
 import { getCakeBodyModel } from "@/lib/cake-body-models";
 import type { CakeZone } from "./CakeSVG";
+import { useIcingTexture } from "./CakeFinish";
 import { measureDecorationTier, type CakeDecorationTier } from "./cake-decoration-surface";
 
 interface GlbCakeBodyProps {
@@ -18,11 +19,58 @@ interface GlbCakeBodyProps {
   renderDecorations?: (tiers: CakeDecorationTier[]) => ReactNode;
 }
 
-const ZONE_STYLE: Record<CakeZone, { roughness: number; clearcoat: number; clearcoatRoughness: number }> = {
-  body: { roughness: 0.48, clearcoat: 0.24, clearcoatRoughness: 0.28 },
-  top: { roughness: 0.4, clearcoat: 0.38, clearcoatRoughness: 0.22 },
-  border: { roughness: 0.45, clearcoat: 0.3, clearcoatRoughness: 0.24 },
-};
+function getZoneStyle(
+  zone: CakeZone,
+  creamType?: string,
+): {
+  roughness: number;
+  clearcoat: number;
+  clearcoatRoughness: number;
+  sheen: number;
+  sheenRoughness: number;
+  bumpScale: number;
+} {
+  const isTop = zone === "top";
+  switch (creamType) {
+    case "ganache":
+      return {
+        roughness: isTop ? 0.16 : 0.22,
+        clearcoat: 0.82,
+        clearcoatRoughness: 0.12,
+        sheen: 0.15,
+        sheenRoughness: 0.3,
+        bumpScale: 0.0015,
+      };
+    case "whipped-cream":
+      return {
+        roughness: isTop ? 0.52 : 0.58,
+        clearcoat: 0.08,
+        clearcoatRoughness: 0.38,
+        sheen: 0.65,
+        sheenRoughness: 0.52,
+        bumpScale: 0.0038,
+      };
+    case "cream-cheese":
+      return {
+        roughness: isTop ? 0.28 : 0.34,
+        clearcoat: 0.45,
+        clearcoatRoughness: 0.2,
+        sheen: 0.35,
+        sheenRoughness: 0.4,
+        bumpScale: 0.003,
+      };
+    case "buttercream":
+    default:
+      return {
+        roughness: zone === "body" ? 0.42 : zone === "top" ? 0.34 : 0.38,
+        clearcoat: zone === "body" ? 0.25 : zone === "top" ? 0.42 : 0.32,
+        clearcoatRoughness: 0.24,
+        sheen: 0.45,
+        sheenRoughness: 0.48,
+        bumpScale: zone === "border" ? 0.0022 : 0.0048,
+      };
+  }
+}
 
 function zoneOf(name: string): CakeZone | null {
   if (name.startsWith("Body")) return "body";
@@ -31,11 +79,21 @@ function zoneOf(name: string): CakeZone | null {
   return null;
 }
 
+function normalizeWarmDefault(hex: string | undefined, fallback: string): string {
+  if (!hex || hex.toUpperCase() === "#F2F1EE") return fallback;
+  return hex;
+}
+
 function zoneColor(design: CakeDesign, zone: CakeZone): string {
-  const bodyColor = design.zones?.body?.color || design.cream_color || "#F2F1EE";
+  const bodyColor = normalizeWarmDefault(
+    design.zones?.body?.color || design.cream_color,
+    "#FAF3E6",
+  );
   if (zone === "body") return bodyColor;
-  if (zone === "top") return design.zones?.top?.color || bodyColor;
-  return design.zones?.border?.color || "#F2F1EE";
+  if (zone === "top") {
+    return normalizeWarmDefault(design.zones?.top?.color, bodyColor === "#FAF3E6" ? "#FFFDF8" : bodyColor);
+  }
+  return normalizeWarmDefault(design.zones?.border?.color, "#F5E6CC");
 }
 
 /**
@@ -53,6 +111,7 @@ export default function GlbCakeBody({
 }: GlbCakeBodyProps) {
   const definition = getCakeBodyModel(design.model_slug);
   const { scene } = useGLTF(definition.glbUrl, false, false);
+  const icingTexture = useIcingTexture();
 
   const model = useMemo(() => {
     const clone = scene.clone(true);
@@ -76,6 +135,34 @@ export default function GlbCakeBody({
       if (!(object instanceof THREE.Mesh)) return;
       object.castShadow = true;
       object.receiveShadow = true;
+
+      if (object.name === "Stand") {
+        const standMat = new THREE.MeshPhysicalMaterial({
+          color: "#F3ECE0",
+          roughness: 0.25,
+          metalness: 0.02,
+          clearcoat: 0.6,
+          clearcoatRoughness: 0.16,
+          envMapIntensity: 0.85,
+        });
+        object.material = standMat;
+        materials.push(standMat);
+        return;
+      }
+
+      if (object.name === "GoldRim") {
+        const goldMat = new THREE.MeshPhysicalMaterial({
+          color: "#D4A64E",
+          roughness: 0.18,
+          metalness: 0.88,
+          clearcoat: 0.75,
+          envMapIntensity: 1.35,
+        });
+        object.material = goldMat;
+        materials.push(goldMat);
+        return;
+      }
+
       const zone = zoneOf(object.name);
       if (!zone) return;
       // Replace the baked border only when a matching custom border is drawn.
@@ -83,7 +170,7 @@ export default function GlbCakeBody({
         object.visible = false;
       }
 
-      const style = ZONE_STYLE[zone];
+      const style = getZoneStyle(zone, design.cream_type);
       const highlighted = activeZone === zone || hoveredZone === zone;
       const material = new THREE.MeshPhysicalMaterial({
         color: zoneColor(design, zone),
@@ -94,7 +181,12 @@ export default function GlbCakeBody({
         roughness: style.roughness,
         clearcoat: style.clearcoat,
         clearcoatRoughness: style.clearcoatRoughness,
-        envMapIntensity: 0.65,
+        sheen: style.sheen,
+        sheenRoughness: style.sheenRoughness,
+        sheenColor: new THREE.Color("#FFFDF8"),
+        bumpMap: icingTexture,
+        bumpScale: style.bumpScale,
+        envMapIntensity: 0.78,
         emissive: activeZone === zone ? "#6B6B6A" : hoveredZone === zone ? "#8F8F8E" : "#000000",
         emissiveIntensity: activeZone === zone ? 0.14 : highlighted ? 0.08 : 0,
       });
@@ -120,7 +212,7 @@ export default function GlbCakeBody({
     });
     tiers.sort((a, b) => a.surfaceY - b.surfaceY);
     return { clone, materials, tiers };
-  }, [activeZone, design, hoveredZone, scene, renderDecorations]);
+  }, [activeZone, design, hoveredZone, scene, renderDecorations, icingTexture]);
 
   useEffect(() => () => model.materials.forEach((material) => material.dispose()), [model]);
 
